@@ -1,0 +1,134 @@
+{
+ "id": "cs-1-05",
+ "level": 1,
+ "title": "Decisions",
+ "concepts": [
+  "conditions"
+ ],
+ "skills": [
+  "conditions"
+ ],
+ "bridge": "`if (x > 5) { } else if (...) { } else { }` with `&&`, `||`, `!`. C# has a neat **switch expression**: `string day = n switch { 1 => \"Monday\", 2 => \"Tuesday\", _ => \"?\" };` (`_` is \"anything else\").",
+ "lesson": "```\nif (temp < 2)\n{\n    status = \"too cold\";\n}\nelse if (temp <= 8)\n{\n    status = \"ok\";\n}\nelse\n{\n    status = \"too warm\";\n}\n```\n\nComparisons `==` `!=` `<` `>` `<=` `>=`, combined with `&&` (and), `||` (or), `!` (not). The condition must be a `bool`: `if (count)` doesn't compile in C#, which prevents a whole family of bugs.\n\nThe **switch expression** is the tidy way to pick a value:\n\n```\nstring day = n switch\n{\n    1 => \"Monday\",\n    2 => \"Tuesday\",\n    >= 3 and <= 5 => \"Midweek\",\n    _ => \"Weekend or unknown\",\n};\n```\n\nand the ternary works as elsewhere: `string size = kg > 100 ? \"big\" : \"small\";`",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        double t = 5;\n        string s = t < 2 ? \"too cold\" : t <= 8 ? \"ok\" : \"too warm\";\n        Console.WriteLine(s);\n        int n = 2;\n        Console.WriteLine(n switch { 1 => \"Monday\", 2 => \"Tuesday\", _ => \"?\" });\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Grades",
+   "file": "Grades.cs",
+   "prompt": "Write Grade(int score) in class Grades: 80+ \"A\", 65+ \"B\", 50+ \"C\", 40+ \"D\", else \"E\"; \"invalid\" below 0 or above 100.",
+   "starter": "using System;\n\npublic static class Grades\n{\n    public static string Grade(int score)\n    {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Grades.Grade(85)",
+     "expect": "A"
+    },
+    {
+     "call": "Grades.Grade(65)",
+     "expect": "B"
+    },
+    {
+     "call": "Grades.Grade(40)",
+     "expect": "D"
+    },
+    {
+     "call": "Grades.Grade(12)",
+     "expect": "E"
+    },
+    {
+     "call": "Grades.Grade(101)",
+     "expect": "invalid",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Check invalid first.",
+    "Or a switch expression: score switch { < 0 or > 100 => \"invalid\", >= 80 => \"A\", ... }"
+   ],
+   "solution": "using System;\n\npublic static class Grades\n{\n    public static string Grade(int score) => score switch\n    {\n        < 0 or > 100 => \"invalid\",\n        >= 80 => \"A\",\n        >= 65 => \"B\",\n        >= 50 => \"C\",\n        >= 40 => \"D\",\n        _ => \"E\",\n    };\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Leap years",
+   "file": "Leap.cs",
+   "prompt": "Write IsLeap(int year) in class Leap (divisible by 4, except by 100, except by 400).",
+   "starter": "using System;\n\npublic static class Leap\n{\n    public static bool IsLeap(int year)\n    {\n        return false;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Leap.IsLeap(2024)",
+     "expect": "true"
+    },
+    {
+     "call": "Leap.IsLeap(1900)",
+     "expect": "false"
+    },
+    {
+     "call": "Leap.IsLeap(2000)",
+     "expect": "true"
+    },
+    {
+     "call": "Leap.IsLeap(2100)",
+     "expect": "false",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);"
+   ],
+   "solution": "using System;\n\npublic static class Leap\n{\n    public static bool IsLeap(int year)\n    {\n        return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What's _ in a switch expression?",
+   "choices": [
+    "an error",
+    "anything else (the default)",
+    "an empty string",
+    "zero"
+   ],
+   "answer": 1,
+   "why": "The discard pattern matches everything left."
+  },
+  {
+   "q": "if (count) where count is an int…",
+   "choices": [
+    "works like != 0",
+    "doesn't compile",
+    "is always true",
+    "throws"
+   ],
+   "answer": 1,
+   "why": "C# requires a bool."
+  },
+  {
+   "q": "C#'s 'and'?",
+   "choices": [
+    "and",
+    "&&",
+    "&",
+    "+"
+   ],
+   "answer": 1,
+   "why": "&& (and the word 'and' works only inside patterns)."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Switch expression?",
+   "a": "x switch { 1 => \"a\", _ => \"b\" }"
+  },
+  {
+   "q": "Ternary?",
+   "a": "cond ? a : b"
+  },
+  {
+   "q": "Range pattern?",
+   "a": ">= 3 and <= 5 =>"
+  }
+ ],
+ "explain": "Explain decisions to someone who has never programmed, in your own words, with an example you make up."
+}

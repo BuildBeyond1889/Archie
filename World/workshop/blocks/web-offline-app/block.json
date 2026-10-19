@@ -1,0 +1,7 @@
+{"name": "Offline phone app", "kind": "shell", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "A web app that installs to a phone's home screen and keeps working with no internet (a 'PWA'). Serve it once from a laptop or a Raspberry Pi hotspot; after that the phone has it for good. Also opens straight from the file on a computer.",
+ "tags": ["phone", "offline", "pwa", "install", "android", "app", "cheap", "raspberry-pi", "hotspot"],
+ "files": {"index.html": "index.html", "manifest.webmanifest": "manifest.webmanifest", "sw.js": "sw.js", "icon.svg": "icon.svg", "css/app.css": "css/app.css", "js/app.js": "js/app.js"},
+ "use": "Put your app's logic in js/app.js. When you add files, list them in FILES at the top of sw.js so they work offline.",
+ "test": {"run": ["node", "-e", "const fs=require('fs');JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));const sw=fs.readFileSync('sw.js','utf8');for(const f of ['index.html','js/app.js','css/app.css'])if(!sw.includes(f))process.exit(1);console.log('offline app ok')"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

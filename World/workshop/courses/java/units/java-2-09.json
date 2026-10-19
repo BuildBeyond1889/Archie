@@ -1,0 +1,262 @@
+{
+ "id": "java-2-09",
+ "level": 2,
+ "title": "Testing your own code",
+ "concepts": [
+  "testing",
+  "assertions",
+  "exceptions",
+  "lambdas"
+ ],
+ "skills": [
+  "testing",
+  "assertions",
+  "edge cases"
+ ],
+ "lesson": "Every exercise in this course has been checked by tests someone else wrote. Professional programmers write their own, for every important piece of code. A **test** is a small program that runs your code with known inputs and checks the answer. Tests catch mistakes early, and they let you change code later without fear: if the tests still pass, you didn't break anything.\n\n**The simplest test is a check that complains loudly:**\n\n```\nstatic void equal(Object expected, Object actual) {\n    if (!Objects.equals(expected, actual))\n        throw new AssertionError(\"expected <\" + expected + \"> but got <\" + actual + \">\");\n}\n\nequal(200, Fees.fee(30));\nequal(0, Fees.fee(4));\n```\n\n`Objects.equals` is safe with null. Throwing `AssertionError` with a clear message means a failure tells you exactly what went wrong.\n\nJava also has an `assert` keyword (`assert x > 0 : \"x must be positive\";`), but it is **switched off** unless you run `java -ea`, so don't rely on it for tests.\n\n**What to test.** Not random values: the places where code goes wrong.\n- **Boundaries**: if the rule changes at 18, test 17 and 18. Off-by-one bugs (`<` vs `<=`) live here.\n- **Empty and zero**: an empty list, 0 kg, an empty name.\n- **Bad input**: does it throw the exception it should? A test for an exception passes when the code *throws*.\n- **One normal case** from real life.\n\nA good way to judge your tests: imagine small bugs in the code (change one `<` to `<=`). Would some test fail? If not, your tests have a hole. That idea is called **mutation testing**, and you'll do it by hand in exercise 2.\n\n**A tiny test runner.** Put each test in a `Runnable` lambda with a name, run them all, catch failures, and report: `3 run, 2 passed, 1 failed: age 18`. One failing test must not stop the others. That's all a test framework really is.\n\n**What JUnit adds.** In real projects you use **JUnit** (it isn't included with Java, so we built our own). With JUnit you write methods marked `@Test`, and it finds and runs them, gives you `assertEquals`, `assertThrows`, `assertTrue`, shows a green or red report in your editor, runs before every build, and supports setup methods (`@BeforeEach`) and repeating a test over many inputs. The ideas are exactly the ones you're learning here; JUnit just saves typing.\n\nHabits: write the test the moment you find a bug (so it never comes back), keep each test small and named for what it checks, and test through public methods, not private details. A **fake** (like the MemoryNotifier from the interfaces unit) lets you test code that would otherwise send SMS or move a motor.",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.*;\n\npublic class Example {\n    static int fee(int age) {\n        if (age < 0) throw new IllegalArgumentException(\"age < 0\");\n        return age < 5 ? 0 : age < 18 ? 50 : age < 60 ? 200 : 100;\n    }\n\n    static void equal(Object expected, Object actual) {\n        if (!Objects.equals(expected, actual))\n            throw new AssertionError(\"expected <\" + expected + \"> but got <\" + actual + \">\");\n    }\n\n    public static void main(String[] args) {\n        Map<String, Runnable> tests = new LinkedHashMap<>();\n        tests.put(\"under 5 is free\", () -> equal(0, fee(4)));\n        tests.put(\"age 18 is an adult\", () -> equal(200, fee(18)));\n        tests.put(\"age 60 gets the discount\", () -> equal(100, fee(60)));\n        tests.put(\"negative age is rejected\", () -> {\n            try { fee(-1); throw new AssertionError(\"no exception\"); }\n            catch (IllegalArgumentException expected) { }\n        });\n\n        int passed = 0;\n        for (var t : tests.entrySet()) {\n            try { t.getValue().run(); passed++; }\n            catch (AssertionError e) { System.out.println(\"FAIL \" + t.getKey() + \": \" + e.getMessage()); }\n        }\n        System.out.println(passed + \" of \" + tests.size() + \" passed\");\n    }\n}\n",
+  "notes": [
+   "fee() is the code under test.",
+   "equal() throws AssertionError with a readable message.",
+   "Each test is a named Runnable lambda in a LinkedHashMap (keeps order).",
+   "The exception test passes only if fee(-1) throws.",
+   "The runner catches each failure, so one bad test doesn't stop the rest."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Assertion helpers",
+   "file": "Assert.java",
+   "prompt": "Write three static methods in Assert, each throwing AssertionError when the check fails (and doing nothing when it passes). equal(Object expected, Object actual): message \"expected <3> but got <4>\"; must work with null. isTrue(boolean condition, String message): uses the given message. expectThrows(Class<? extends Throwable> type, Runnable code): passes if code throws that type (or a subclass); if nothing is thrown the message is \"expected ArithmeticException but nothing was thrown\"; if a different exception is thrown: \"expected IllegalArgumentException but got ArrayIndexOutOfBoundsException\" (use getSimpleName()).",
+   "starter": "import java.util.Objects;\n\npublic class Assert {\n    public static void equal(Object expected, Object actual) {\n    }\n\n    public static void isTrue(boolean condition, String message) {\n    }\n\n    public static void expectThrows(Class<? extends Throwable> type, Runnable code) {\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { try { Assert.equal(3, 4); return \"no error\"; } catch (AssertionError e) { return e.getMessage(); } }).get()",
+     "expect": "expected <3> but got <4>",
+     "name": "equal fails"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Assert.equal(\"maize\", \"maize\"); return \"passed\"; }).get()",
+     "expect": "passed",
+     "name": "equal passes"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { try { Assert.isTrue(1 > 2, \"one is not bigger\"); return \"no error\"; } catch (AssertionError e) { return e.getMessage(); } }).get()",
+     "expect": "one is not bigger",
+     "name": "isTrue"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Assert.expectThrows(ArithmeticException.class, () -> { int z = 0; int q = 5 / z; }); return \"passed\"; }).get()",
+     "expect": "passed",
+     "name": "expectThrows passes"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { try { Assert.expectThrows(ArithmeticException.class, () -> { }); return \"no error\"; } catch (AssertionError e) { return e.getMessage(); } }).get()",
+     "expect": "expected ArithmeticException but nothing was thrown",
+     "name": "nothing thrown"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { try { Assert.expectThrows(IllegalArgumentException.class, () -> { int[] a = new int[1]; a[2] = 1; }); return \"no error\"; } catch (AssertionError e) { return e.getMessage(); } }).get()",
+     "expect": "expected IllegalArgumentException but got ArrayIndexOutOfBoundsException",
+     "hidden": true,
+     "name": "wrong exception"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Assert.equal(null, null); try { Assert.equal(null, 1); return \"no error\"; } catch (AssertionError e) { return e.getMessage(); } }).get()",
+     "expect": "expected <null> but got <1>",
+     "hidden": true,
+     "name": "null",
+     "hint_if_fail": "Objects.equals(a, b) is safe when a is null."
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Assert.expectThrows(RuntimeException.class, () -> Integer.parseInt(\"abc\")); return \"passed\"; }).get()",
+     "expect": "passed",
+     "hidden": true,
+     "name": "a subclass counts"
+    }
+   ],
+   "hints": [
+    "equal: if (!Objects.equals(expected, actual)) throw new AssertionError(\"expected <\" + expected + \"> but got <\" + actual + \">\");",
+    "expectThrows: try { code.run(); } catch (Throwable t) { if (type.isInstance(t)) return; throw new AssertionError(...); }",
+    "After the try/catch, nothing was thrown: throw new AssertionError(\"expected \" + type.getSimpleName() + \" but nothing was thrown\");"
+   ],
+   "solution": "import java.util.Objects;\n\npublic class Assert {\n    public static void equal(Object expected, Object actual) {\n        if (!Objects.equals(expected, actual)) {   // null-safe\n            throw new AssertionError(\"expected <\" + expected + \"> but got <\" + actual + \">\");\n        }\n    }\n\n    public static void isTrue(boolean condition, String message) {\n        if (!condition) throw new AssertionError(message);\n    }\n\n    public static void expectThrows(Class<? extends Throwable> type, Runnable code) {\n        try {\n            code.run();\n        } catch (Throwable t) {\n            if (type.isInstance(t)) return;   // the right kind (or a subclass): pass\n            throw new AssertionError(\"expected \" + type.getSimpleName() + \" but got \" + t.getClass().getSimpleName());\n        }\n        throw new AssertionError(\"expected \" + type.getSimpleName() + \" but nothing was thrown\");\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Tests that catch bugs",
+   "file": "Fees.java",
+   "prompt": "The clinic fee rule (fee() is already correct): age under 5 pays 0, 5 to 17 pays 50, 18 to 59 pays 200, 60 and over pays 100, and a negative age throws IllegalArgumentException. Write static boolean checkFee(IntUnaryOperator f): your test suite. It gets SOME implementation of the rule and must return true only if it behaves correctly, false if it has any bug. We will hand it the real fee and several broken versions (wrong boundaries, a missing check...). Test the boundaries and the bad input. If f crashes unexpectedly, that's a failure too: return false, don't crash.",
+   "starter": "import java.util.function.IntUnaryOperator;\n\npublic class Fees {\n    public static int fee(int age) {\n        if (age < 0) throw new IllegalArgumentException(\"age can't be negative\");\n        if (age < 5) return 0;\n        if (age < 18) return 50;\n        if (age < 60) return 200;\n        return 100;\n    }\n\n    // Return true only if f follows the rule exactly.\n    public static boolean checkFee(IntUnaryOperator f) {\n        return true;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Fees.checkFee(Fees::fee)",
+     "expect": "true",
+     "name": "the real fee passes"
+    },
+    {
+     "call": "Fees.checkFee(a -> { if (a < 0) throw new IllegalArgumentException(); if (a >= 60) return 100; if (a >= 18) return 200; if (a >= 5) return 50; return 0; })",
+     "expect": "true",
+     "name": "another correct version passes"
+    },
+    {
+     "call": "Fees.checkFee(a -> { if (a < 0) throw new IllegalArgumentException(); return a <= 5 ? 0 : a < 18 ? 50 : a < 60 ? 200 : 100; })",
+     "expect": "false",
+     "name": "bug: age 5 free"
+    },
+    {
+     "call": "Fees.checkFee(a -> { if (a < 0) throw new IllegalArgumentException(); return a < 5 ? 0 : a <= 18 ? 50 : a < 60 ? 200 : 100; })",
+     "expect": "false",
+     "name": "bug: 18 still a child",
+     "hint_if_fail": "Test both sides of every boundary: 17 and 18."
+    },
+    {
+     "call": "Fees.checkFee(a -> { if (a < 0) throw new IllegalArgumentException(); return a < 5 ? 0 : a < 18 ? 50 : a <= 60 ? 200 : 100; })",
+     "expect": "false",
+     "name": "bug: 60 pays full"
+    },
+    {
+     "call": "Fees.checkFee(a -> a < 5 ? 0 : a < 18 ? 50 : a < 60 ? 200 : 100)",
+     "expect": "false",
+     "hidden": true,
+     "name": "bug: negative age accepted",
+     "hint_if_fail": "Check that f.applyAsInt(-1) throws IllegalArgumentException."
+    },
+    {
+     "call": "Fees.checkFee(a -> { if (a < 0) throw new IllegalArgumentException(); return a < 5 ? 0 : a < 18 ? 50 : 200; })",
+     "expect": "false",
+     "hidden": true,
+     "name": "bug: no elder discount"
+    },
+    {
+     "call": "Fees.checkFee(a -> { if (a <= 0) throw new IllegalArgumentException(); return a < 5 ? 0 : a < 18 ? 50 : a < 60 ? 200 : 100; })",
+     "expect": "false",
+     "hidden": true,
+     "name": "bug: newborns rejected",
+     "hint_if_fail": "Age 0 is valid. If f throws there, count it as a failure instead of crashing."
+    }
+   ],
+   "hints": [
+    "Write a helper: static boolean gives(IntUnaryOperator f, int age, int want) that returns f.applyAsInt(age) == want, inside try/catch returning false on an exception.",
+    "Check ages 0, 4, 5, 17, 18, 59, 60 and something like 90.",
+    "For the negative check: try { f.applyAsInt(-1); return false; } catch (IllegalArgumentException e) { return true; }"
+   ],
+   "solution": "import java.util.function.IntUnaryOperator;\n\npublic class Fees {\n    public static int fee(int age) {\n        if (age < 0) throw new IllegalArgumentException(\"age can't be negative\");\n        if (age < 5) return 0;\n        if (age < 18) return 50;\n        if (age < 60) return 200;\n        return 100;\n    }\n\n    // Both sides of every boundary, plus the bad input.\n    public static boolean checkFee(IntUnaryOperator f) {\n        return gives(f, 0, 0) && gives(f, 4, 0)\n            && gives(f, 5, 50) && gives(f, 17, 50)\n            && gives(f, 18, 200) && gives(f, 59, 200)\n            && gives(f, 60, 100) && gives(f, 90, 100)\n            && rejects(f, -1);\n    }\n\n    static boolean gives(IntUnaryOperator f, int age, int want) {\n        try {\n            return f.applyAsInt(age) == want;\n        } catch (RuntimeException e) {\n            return false;   // crashing on a valid age is a bug too\n        }\n    }\n\n    static boolean rejects(IntUnaryOperator f, int age) {\n        try {\n            f.applyAsInt(age);\n            return false;   // it should have thrown\n        } catch (IllegalArgumentException e) {\n            return true;\n        }\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "A tiny test runner",
+   "file": "Runner.java",
+   "prompt": "Write static String runAll(Map<String, Runnable> tests): run every test in the map's order. A test passes if it finishes; it fails if it throws an AssertionError or any RuntimeException (the other tests still run). Return \"3 run, 2 passed, 1 failed: name1\" listing failed test names joined by \", \", or just \"3 run, 3 passed\" when nothing failed.",
+   "starter": "import java.util.*;\n\npublic class Runner {\n    public static String runAll(Map<String, Runnable> tests) {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { java.util.Map<String, Runnable> t = new java.util.LinkedHashMap<>(); t.put(\"adds\", () -> { if (1 + 1 != 2) throw new AssertionError(); }); t.put(\"breaks\", () -> { throw new AssertionError(\"nope\"); }); t.put(\"crashes\", () -> { Object o = null; o.toString(); }); return Runner.runAll(t); }).get()",
+     "expect": "3 run, 1 passed, 2 failed: breaks, crashes",
+     "name": "failures and crashes"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { java.util.Map<String, Runnable> t = new java.util.LinkedHashMap<>(); t.put(\"a\", () -> { }); t.put(\"b\", () -> { }); return Runner.runAll(t); }).get()",
+     "expect": "2 run, 2 passed",
+     "name": "all pass"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { java.util.Map<String, Runnable> t = new java.util.LinkedHashMap<>(); t.put(\"first\", () -> { throw new IllegalStateException(); }); t.put(\"second\", () -> { }); return Runner.runAll(t); }).get()",
+     "expect": "2 run, 1 passed, 1 failed: first",
+     "name": "one failure doesn't stop the rest"
+    },
+    {
+     "call": "Runner.runAll(new java.util.LinkedHashMap<>())",
+     "expect": "0 run, 0 passed",
+     "hidden": true,
+     "name": "no tests"
+    }
+   ],
+   "hints": [
+    "Loop for (var e : tests.entrySet()), and wrap e.getValue().run() in try/catch.",
+    "catch (AssertionError | RuntimeException ex) { failed.add(e.getKey()); }",
+    "Build the text: tests.size() + \" run, \" + passed + \" passed\", then add \", \" + failed.size() + \" failed: \" + String.join(\", \", failed) if any failed."
+   ],
+   "solution": "import java.util.*;\n\npublic class Runner {\n    public static String runAll(Map<String, Runnable> tests) {\n        int passed = 0;\n        List<String> failed = new ArrayList<>();\n        for (var e : tests.entrySet()) {\n            try {\n                e.getValue().run();\n                passed++;\n            } catch (AssertionError | RuntimeException ex) {   // a failure or a crash\n                failed.add(e.getKey());\n            }\n        }\n        String report = tests.size() + \" run, \" + passed + \" passed\";\n        if (!failed.isEmpty()) report += \", \" + failed.size() + \" failed: \" + String.join(\", \", failed);\n        return report;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "The fee rule changes at age 18. Which ages should your tests use?",
+   "choices": [
+    "10 and 30",
+    "17 and 18",
+    "Only 18",
+    "Random ages"
+   ],
+   "answer": 1,
+   "why": "Both sides of the boundary catch < vs <= bugs."
+  },
+  {
+   "q": "You use `assert total > 0;` in your code and run `java Main`. The total is -5. What happens?",
+   "choices": [
+    "AssertionError",
+    "Nothing: asserts are off unless you run java -ea",
+    "Compile error",
+    "It prints a warning"
+   ],
+   "answer": 1,
+   "why": "The assert keyword is disabled by default."
+  },
+  {
+   "q": "A good test for 'negative age throws' passes when…",
+   "choices": [
+    "fee(-1) returns 0",
+    "fee(-1) throws IllegalArgumentException",
+    "fee(-1) prints an error",
+    "no exception happens"
+   ],
+   "answer": 1,
+   "why": "An exception test expects the throw."
+  },
+  {
+   "q": "Why does the runner catch failures for each test separately?",
+   "choices": [
+    "Speed",
+    "So one failing test doesn't hide the results of the others",
+    "Java requires it",
+    "To skip slow tests"
+   ],
+   "answer": 1,
+   "why": "You want the full picture in one run."
+  },
+  {
+   "q": "What does JUnit add over our hand-made runner?",
+   "choices": [
+    "Different ideas about testing",
+    "@Test discovery, assertEquals/assertThrows, editor reports, build integration",
+    "It makes code correct",
+    "Nothing at all"
+   ],
+   "answer": 1,
+   "why": "Same ideas, much less typing and nicer reports."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What is a boundary test?",
+   "a": "Test both sides of where a rule changes (17 and 18)."
+  },
+  {
+   "q": "Null-safe equality check?",
+   "a": "Objects.equals(a, b)"
+  },
+  {
+   "q": "Mutation testing in one line?",
+   "a": "Plant small bugs; good tests catch every one."
+  },
+  {
+   "q": "JUnit's main pieces?",
+   "a": "@Test methods, assertEquals, assertThrows, a runner with a red/green report."
+  }
+ ],
+ "explain": "Explain how you'd decide which test cases to write for a function you made up (a fee, a discount, a game rule). What are you hunting for?"
+}

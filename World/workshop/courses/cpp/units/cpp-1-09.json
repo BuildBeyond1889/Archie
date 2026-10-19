@@ -1,0 +1,123 @@
+{
+ "id": "cpp-1-09",
+ "level": 1,
+ "title": "Maps",
+ "concepts": [
+  "maps"
+ ],
+ "skills": [
+  "std::map",
+  "counting"
+ ],
+ "bridge": "C++'s dictionary is `std::map<Key, Value>` (sorted by key) or `std::unordered_map` (faster, no order). `m[\"maize\"] += 5;` creates the entry at 0 if it's missing. `m.count(k)` says if a key exists; loop with `for (auto& [key, value] : m)`.",
+ "lesson": "```\n#include <map>\n\nstd::map<std::string, int> stock;\nstock[\"maize\"] = 40;\nstock[\"beans\"] += 12;        // missing keys start at 0, so this is 12\nstock.size();                // 2\nstock.count(\"rice\");         // 0: not there\nstock.erase(\"beans\");\n\nfor (auto& [crop, kg] : stock)\n    std::cout << crop << \": \" << kg << \"\\n\";   // in sorted key order\n```\n\nCareful: just *reading* `stock[\"rice\"]` adds rice with 0. To look without adding, use `stock.count(\"rice\")` or `stock.find(\"rice\") != stock.end()`.\n\nSplitting text into words uses a **string stream**:\n\n```\n#include <sstream>\nstd::istringstream in(\"the cat the\");\nstd::string word;\nwhile (in >> word) { ... }   // \"the\", \"cat\", \"the\"\n```\n\nUnreal's map is `TMap<FString, int32>`; Unity's is `Dictionary<string, int>`.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <map>\n#include <string>\n\nint main()\n{\n    std::map<std::string, int> stock;\n    stock[\"maize\"] = 40;\n    stock[\"beans\"] += 12;\n    for (auto& [crop, kg] : stock) std::cout << crop << \": \" << kg << \"\\n\";\n    std::cout << \"rice? \" << stock.count(\"rice\") << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Word counts",
+   "file": "words.cpp",
+   "prompt": "Write std::map<std::string, int> wordCounts(std::string text): how many times each word appears (words are split by spaces).",
+   "starter": "#include <map>\n#include <string>\n#include <sstream>\n\nstd::map<std::string, int> wordCounts(std::string text)\n{\n    std::map<std::string, int> counts;\n    return counts;\n}\n",
+   "tests": [
+    {
+     "call": "wordCounts(\"the cat the\")[\"the\"]",
+     "expect": "2"
+    },
+    {
+     "call": "wordCounts(\"the cat the\").size()",
+     "expect": "2"
+    },
+    {
+     "call": "wordCounts(\"\").size()",
+     "expect": "0"
+    }
+   ],
+   "hints": [
+    "Use std::istringstream in(text); while (in >> word) ...",
+    "counts[word]++;"
+   ],
+   "solution": "#include <map>\n#include <string>\n#include <sstream>\n\nstd::map<std::string, int> wordCounts(std::string text)\n{\n    std::map<std::string, int> counts;\n    std::istringstream in(text);\n    std::string word;\n    while (in >> word) counts[word]++;\n    return counts;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Most common word",
+   "file": "common.cpp",
+   "prompt": "Write std::string mostCommon(std::string text): the word that appears most (on a tie, the one first alphabetically). Empty text gives \"\".",
+   "starter": "#include <map>\n#include <string>\n#include <sstream>\n\nstd::string mostCommon(std::string text)\n{\n    return \"\";\n}\n",
+   "tests": [
+    {
+     "call": "mostCommon(\"bean maize bean rice\")",
+     "expect": "bean"
+    },
+    {
+     "call": "mostCommon(\"b a\")",
+     "expect": "a",
+     "hint_if_fail": "std::map is sorted, so walking it meets 'a' first; only replace the best on a strictly bigger count."
+    },
+    {
+     "call": "mostCommon(\"\")",
+     "expect": ""
+    }
+   ],
+   "hints": [
+    "Count first (like the last exercise), then walk the map keeping the best.",
+    "if (n > bestCount) { best = w; bestCount = n; }"
+   ],
+   "solution": "#include <map>\n#include <string>\n#include <sstream>\n\nstd::string mostCommon(std::string text)\n{\n    std::map<std::string, int> counts;\n    std::istringstream in(text);\n    std::string word;\n    while (in >> word) counts[word]++;\n    std::string best;\n    int bestCount = 0;\n    for (auto& [w, n] : counts)\n        if (n > bestCount) { best = w; bestCount = n; }\n    return best;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Reading m[\"rice\"] when rice isn't there...",
+   "choices": [
+    "throws an error",
+    "adds rice with value 0",
+    "returns -1",
+    "crashes"
+   ],
+   "answer": 1,
+   "why": "operator[] creates missing entries."
+  },
+  {
+   "q": "Check a key exists without adding it?",
+   "choices": [
+    "m[\"k\"]",
+    "m.count(\"k\")",
+    "m.has(k)",
+    "m.contains only"
+   ],
+   "answer": 1,
+   "why": "count is 1 or 0. (C++20 also has contains.)"
+  },
+  {
+   "q": "Order of a std::map when looping?",
+   "choices": [
+    "Insertion order",
+    "Sorted by key",
+    "Random",
+    "Sorted by value"
+   ],
+   "answer": 1,
+   "why": "std::map keeps keys sorted."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Dictionary type in C++?",
+   "a": "std::map<Key, Value>"
+  },
+  {
+   "q": "Loop over a map?",
+   "a": "for (auto& [k, v] : m)"
+  },
+  {
+   "q": "Split text into words?",
+   "a": "std::istringstream in(text); while (in >> w)"
+  }
+ ],
+ "explain": "Explain maps to someone who has never programmed, in your own words, with an example you make up."
+}

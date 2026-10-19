@@ -1,0 +1,237 @@
+{
+ "id": "py-2-09",
+ "level": 2,
+ "title": "Level 2 project: clinic medicine stock",
+ "concepts": [
+  "classes",
+  "data-modeling",
+  "custom-exceptions",
+  "json",
+  "testing",
+  "encapsulation"
+ ],
+ "skills": [
+  "design",
+  "classes",
+  "json",
+  "testing"
+ ],
+ "project": true,
+ "lesson": "Time to put Level 2 together in one tool a real clinic could use: a **medicine stock system**. A nurse adds deliveries, gives out medicine, sees what's running low, and the stock is saved between days. You'll build it in three steps, the way professionals do: the core model first, then saving and loading, then a set of tests that protect it.\n\n**The design.** Before typing, decide what the pieces are:\n- `Medicine`: a dataclass (Unit 5). Plain data: name, units, unit_price, min_units (default 10), plus `value()`.\n- `Stock`: a normal class (Units 1 and 3) that owns a private dict `self._items` of name -> Medicine. Outside code never touches the dict; it calls `add`, `dispense`, `units`, `low_stock`, `total_value`. That's encapsulation: the stock can never go negative because only `Stock` changes it.\n- Errors: your own **exception classes**.\n\n**Custom exceptions.** ValueError is right for \"that number makes no sense\". But \"we don't stock insulin\" and \"only 3 ORS packets left\" are problems *of this program*, and the code that calls `dispense` will want to tell them apart. Make your own:\n\n```\nclass StockError(Exception):\n    pass                     # the family: every stock problem\n\nclass UnknownMedicine(StockError):\n    pass\n\nclass OutOfStock(StockError):\n    pass\n```\n\nIt's inheritance (Unit 4) used for errors. A caller can catch one kind (`except OutOfStock:` to suggest a smaller amount) or all of them at once (`except StockError:`). Give each raise a message that says what happened: `OutOfStock(\"only 3 ors left, asked for 5\")`.\n\n**Names.** People type \"Paracetamol\", \"paracetamol \" and \"PARACETAMOL\". Turn every name into one form (`strip().lower()`) in one helper method, and use it everywhere. A bug where two spellings make two separate stock lines is exactly the kind a test should catch.\n\n**Saving.** JSON can't store a Medicine object, but `dataclasses.asdict(med)` turns one into a dict, and `Medicine(**d)` rebuilds it. Save a list of those dicts. Loading is a **classmethod**, `Stock.load(path)`: a method called on the class that builds and returns a new object (`cls()` makes the new Stock). No file yet means an empty stock; a damaged file is a real problem, so raise a `StockError` (with `raise ... from e` to keep the original error attached).\n\n**Testing it.** The last step is your own tests, graded the way Unit 8 was: they must pass on the correct system and catch broken ones. Think about the boundaries: exactly `min_units` is not low, dispensing more than is there must change nothing, and names in different case are the same medicine.\n\n**Check-off list** for a professional finish: clear names, a docstring on each class, errors raised before anything changes, no `print` inside the model (printing belongs in the program that uses it), and the main guard if you add a demo. When it works, think about where it goes next: a CSV export for the monthly report, or a small menu program in another file that imports your module.",
+ "example": {
+  "file": "example.py",
+  "code": "from dataclasses import dataclass, asdict\nimport json\n\n\nclass LibraryError(Exception):\n    pass\n\n\nclass NotAvailable(LibraryError):\n    pass\n\n\n@dataclass\nclass Book:\n    title: str\n    copies: int\n\n\nclass Library:\n    def __init__(self):\n        self._books = {}\n\n    def add(self, title, copies):\n        key = title.strip().lower()\n        if key in self._books:\n            self._books[key].copies += copies\n        else:\n            self._books[key] = Book(key, copies)\n\n    def lend(self, title):\n        book = self._books.get(title.strip().lower())\n        if book is None or book.copies == 0:\n            raise NotAvailable(f\"{title!r} is not on the shelf\")\n        book.copies -= 1\n\n    def save(self, path):\n        with open(path, \"w\", encoding=\"utf-8\") as f:\n            json.dump([asdict(b) for b in self._books.values()], f, indent=2)\n\n    @classmethod\n    def load(cls, path):\n        lib = cls()\n        with open(path, encoding=\"utf-8\") as f:\n            for d in json.load(f):\n                lib._books[d[\"title\"]] = Book(**d)\n        return lib\n\n\nlib = Library()\nlib.add(\"Things Fall Apart\", 2)\nlib.lend(\"things fall apart \")\ntry:\n    lib.lend(\"Unknown Book\")\nexcept LibraryError as e:\n    print(\"sorry:\", e)\nlib.save(\"library.json\")\nprint(Library.load(\"library.json\")._books)\n",
+  "notes": [
+   "A family of exceptions: catch one kind or the whole LibraryError family.",
+   "The dataclass holds plain data; the Library class guards it.",
+   "One normalised key, so different spellings find the same book.",
+   "The error is raised before anything changes.",
+   "asdict and Book(**d) move between objects and JSON.",
+   "load is a classmethod: it builds and returns a new Library."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "The stock core",
+   "file": "ex1_stock.py",
+   "prompt": "Build the model.\n- Exceptions: StockError(Exception), and UnknownMedicine and OutOfStock that both inherit from StockError.\n- Medicine: a dataclass with name (str), units (int), unit_price (float), min_units (int, default 10) and value() = units * unit_price.\n- Stock(): keeps Medicine objects by name. Every name is cleaned with strip().lower(); a blank name raises ValueError.\n  - add(name, units, unit_price=None): units must be an int above 0 (else ValueError). A medicine already in stock just gets more units; a NEW one needs a unit_price (None or negative: ValueError). Returns the new unit count.\n  - units(name): units in stock, 0 if not stocked.\n  - dispense(name, units): unknown name raises UnknownMedicine; units not an int above 0 raises ValueError; more than in stock raises OutOfStock and changes nothing. Returns units left.\n  - low_stock(): sorted list of (cleaned) names with units BELOW their min_units.\n  - total_value(): sum of every medicine's value(). len(stock) is how many medicines.",
+   "starter": "\"\"\"Clinic medicine stock: Level 2 project.\"\"\"\nfrom dataclasses import dataclass\n\n\nclass StockError(Exception):\n    pass\n\n\n# UnknownMedicine and OutOfStock go here\n\n\nclass Medicine:\n    pass\n\n\nclass Stock:\n    def __init__(self):\n        self._items = {}\n\n    def add(self, name, units, unit_price=None):\n        pass\n\n    def units(self, name):\n        pass\n\n    def dispense(self, name, units):\n        pass\n\n    def low_stock(self):\n        pass\n\n    def total_value(self):\n        pass\n\n    def __len__(self):\n        return len(self._items)\n",
+   "solution": "\"\"\"Clinic medicine stock: Level 2 project.\"\"\"\nimport json\nfrom dataclasses import dataclass, asdict\n\n\nclass StockError(Exception):\n    \"\"\"Base class for every stock problem, so callers can catch them all at once.\"\"\"\n\n\nclass UnknownMedicine(StockError):\n    \"\"\"The clinic doesn't stock that medicine.\"\"\"\n\n\nclass OutOfStock(StockError):\n    \"\"\"Not enough units to give out.\"\"\"\n\n\n@dataclass\nclass Medicine:\n    name: str\n    units: int\n    unit_price: float\n    min_units: int = 10\n\n    def value(self):\n        return self.units * self.unit_price\n\n\nclass Stock:\n    def __init__(self):\n        self._items = {}            # name -> Medicine\n\n    @staticmethod\n    def _key(name):\n        key = name.strip().lower()\n        if not key:\n            raise ValueError(\"a medicine needs a name\")\n        return key\n\n    def add(self, name, units, unit_price=None):\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(f\"units must be a whole number above 0, not {units!r}\")\n        key = self._key(name)\n        if key in self._items:\n            self._items[key].units += units\n        else:\n            if unit_price is None or unit_price < 0:\n                raise ValueError(f\"{key} is new: give a unit_price\")\n            self._items[key] = Medicine(key, units, unit_price)\n        return self._items[key].units\n\n    def units(self, name):\n        med = self._items.get(self._key(name))\n        return med.units if med else 0\n\n    def dispense(self, name, units):\n        key = self._key(name)\n        if key not in self._items:\n            raise UnknownMedicine(key)\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(\"units must be a whole number above 0\")\n        med = self._items[key]\n        if units > med.units:\n            raise OutOfStock(f\"only {med.units} {key} left, asked for {units}\")\n        med.units -= units\n        return med.units\n\n    def low_stock(self):\n        return sorted(k for k, med in self._items.items() if med.units < med.min_units)\n\n    def total_value(self):\n        return sum(med.value() for med in self._items.values())\n\n    def __len__(self):\n        return len(self._items)\n",
+   "tests": [
+    {
+     "check": "import dataclasses\nassert issubclass(UnknownMedicine, StockError) and issubclass(OutOfStock, StockError), 'both should inherit from StockError'\nassert issubclass(StockError, Exception)\nassert dataclasses.is_dataclass(Medicine), 'Medicine should be a @dataclass'\nm1 = Medicine('ors', 12, 30)\nassert m1.min_units == 10 and m1.value() == 360, m1",
+     "name": "exceptions and Medicine"
+    },
+    {
+     "check": "s = Stock()\nassert s.add('Paracetamol', 100, 5) == 100\nassert s.add(' paracetamol ', 20) == 120, 'the same medicine in another spelling should add to it'\nassert s.units('PARACETAMOL') == 120 and s.units('insulin') == 0\nassert len(s) == 1",
+     "name": "add and units"
+    },
+    {
+     "check": "s = Stock()\ns.add('ORS', 12, 30)\nassert s.dispense('ors', 5) == 7\nassert s.units('ORS') == 7",
+     "name": "dispense"
+    },
+    {
+     "check": "s = Stock()\ns.add('Paracetamol', 100, 5)\ns.add('ORS', 12, 30)\ns.add('Zinc', 9, 2)\nassert s.total_value() == 100 * 5 + 12 * 30 + 9 * 2, s.total_value()\nassert s.low_stock() == ['zinc'], s.low_stock()\ns.dispense('ORS', 2)\nassert s.low_stock() == ['zinc'], 'exactly min_units (10) is not low yet: %r' % s.low_stock()\ns.dispense('ORS', 1)\nassert s.low_stock() == ['ors', 'zinc'], s.low_stock()",
+     "name": "value and low stock"
+    },
+    {
+     "check": "s = Stock()\ns.add('ORS', 12, 30)\ntry:\n    s.dispense('ORS', 13)\n    raise AssertionError('dispensing 13 of 12 should raise OutOfStock')\nexcept OutOfStock:\n    pass\nassert s.units('ORS') == 12, 'a refused dispense must change nothing'\ntry:\n    s.dispense('Insulin', 1)\n    raise AssertionError('an unknown medicine should raise UnknownMedicine')\nexcept UnknownMedicine:\n    pass",
+     "name": "stock errors",
+     "hidden": true,
+     "hint_if_fail": "Check the name first (UnknownMedicine), then the amount, and only then subtract."
+    },
+    {
+     "check": "s = Stock()\nfor args in [('ORS', 0, 30), ('ORS', -5, 30), ('ORS', 'ten', 30), ('ORS', 5), ('ORS', 5, -1), ('   ', 5, 1)]:\n    try:\n        s.add(*args)\n        raise AssertionError('add%r should raise ValueError' % (args,))\n    except ValueError:\n        pass\nassert len(s) == 0, 'refused adds must not add anything'\ns.add('ORS', 5, 30)\nfor n in [0, -2]:\n    try:\n        s.dispense('ORS', n)\n        raise AssertionError('dispense(ORS, %r) should raise ValueError' % n)\n    except ValueError:\n        pass\nassert s.units('ORS') == 5",
+     "name": "refuses bad input",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "class UnknownMedicine(StockError): pass, and the same for OutOfStock. Medicine needs @dataclass and its four fields.",
+    "Write one helper, _key(name), that strips, lowercases and raises ValueError for a blank name. Use it in every method.",
+    "In dispense: unknown key -> raise UnknownMedicine; bad units -> ValueError; units > med.units -> raise OutOfStock; only then med.units -= units."
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "Save and load the stock",
+   "file": "ex2_store.py",
+   "prompt": "The finished stock code is in your file. Add two methods to Stock:\n- save(path): writes the stock as a JSON LIST of dicts (one per medicine, with keys name, units, unit_price, min_units), sorted by name, indent=2. dataclasses.asdict helps.\n- load(path): a @classmethod that returns a NEW Stock built from such a file. A missing file gives an empty Stock. A file that isn't valid JSON raises StockError (not JSONDecodeError).",
+   "extra_files": {
+    "damaged.json": "[{\"name\": \"ors\", \"units\": 1"
+   },
+   "starter": "\"\"\"Clinic medicine stock: Level 2 project.\"\"\"\nimport json\nfrom dataclasses import dataclass, asdict\n\n\nclass StockError(Exception):\n    \"\"\"Base class for every stock problem, so callers can catch them all at once.\"\"\"\n\n\nclass UnknownMedicine(StockError):\n    \"\"\"The clinic doesn't stock that medicine.\"\"\"\n\n\nclass OutOfStock(StockError):\n    \"\"\"Not enough units to give out.\"\"\"\n\n\n@dataclass\nclass Medicine:\n    name: str\n    units: int\n    unit_price: float\n    min_units: int = 10\n\n    def value(self):\n        return self.units * self.unit_price\n\n\nclass Stock:\n    def __init__(self):\n        self._items = {}            # name -> Medicine\n\n    @staticmethod\n    def _key(name):\n        key = name.strip().lower()\n        if not key:\n            raise ValueError(\"a medicine needs a name\")\n        return key\n\n    def add(self, name, units, unit_price=None):\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(f\"units must be a whole number above 0, not {units!r}\")\n        key = self._key(name)\n        if key in self._items:\n            self._items[key].units += units\n        else:\n            if unit_price is None or unit_price < 0:\n                raise ValueError(f\"{key} is new: give a unit_price\")\n            self._items[key] = Medicine(key, units, unit_price)\n        return self._items[key].units\n\n    def units(self, name):\n        med = self._items.get(self._key(name))\n        return med.units if med else 0\n\n    def dispense(self, name, units):\n        key = self._key(name)\n        if key not in self._items:\n            raise UnknownMedicine(key)\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(\"units must be a whole number above 0\")\n        med = self._items[key]\n        if units > med.units:\n            raise OutOfStock(f\"only {med.units} {key} left, asked for {units}\")\n        med.units -= units\n        return med.units\n\n    def low_stock(self):\n        return sorted(k for k, med in self._items.items() if med.units < med.min_units)\n\n    def total_value(self):\n        return sum(med.value() for med in self._items.values())\n\n    def __len__(self):\n        return len(self._items)\n\n    def save(self, path):\n        pass\n\n    @classmethod\n    def load(cls, path):\n        pass\n",
+   "solution": "\"\"\"Clinic medicine stock: Level 2 project.\"\"\"\nimport json\nfrom dataclasses import dataclass, asdict\n\n\nclass StockError(Exception):\n    \"\"\"Base class for every stock problem, so callers can catch them all at once.\"\"\"\n\n\nclass UnknownMedicine(StockError):\n    \"\"\"The clinic doesn't stock that medicine.\"\"\"\n\n\nclass OutOfStock(StockError):\n    \"\"\"Not enough units to give out.\"\"\"\n\n\n@dataclass\nclass Medicine:\n    name: str\n    units: int\n    unit_price: float\n    min_units: int = 10\n\n    def value(self):\n        return self.units * self.unit_price\n\n\nclass Stock:\n    def __init__(self):\n        self._items = {}            # name -> Medicine\n\n    @staticmethod\n    def _key(name):\n        key = name.strip().lower()\n        if not key:\n            raise ValueError(\"a medicine needs a name\")\n        return key\n\n    def add(self, name, units, unit_price=None):\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(f\"units must be a whole number above 0, not {units!r}\")\n        key = self._key(name)\n        if key in self._items:\n            self._items[key].units += units\n        else:\n            if unit_price is None or unit_price < 0:\n                raise ValueError(f\"{key} is new: give a unit_price\")\n            self._items[key] = Medicine(key, units, unit_price)\n        return self._items[key].units\n\n    def units(self, name):\n        med = self._items.get(self._key(name))\n        return med.units if med else 0\n\n    def dispense(self, name, units):\n        key = self._key(name)\n        if key not in self._items:\n            raise UnknownMedicine(key)\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(\"units must be a whole number above 0\")\n        med = self._items[key]\n        if units > med.units:\n            raise OutOfStock(f\"only {med.units} {key} left, asked for {units}\")\n        med.units -= units\n        return med.units\n\n    def low_stock(self):\n        return sorted(k for k, med in self._items.items() if med.units < med.min_units)\n\n    def total_value(self):\n        return sum(med.value() for med in self._items.values())\n\n    def __len__(self):\n        return len(self._items)\n\n    def save(self, path):\n        data = [asdict(self._items[k]) for k in sorted(self._items)]\n        with open(path, \"w\", encoding=\"utf-8\") as f:\n            json.dump(data, f, indent=2)\n\n    @classmethod\n    def load(cls, path):\n        stock = cls()\n        try:\n            with open(path, encoding=\"utf-8\") as f:\n                data = json.load(f)\n        except FileNotFoundError:\n            return stock                                      # no file yet: empty stock\n        except json.JSONDecodeError as e:\n            raise StockError(f\"{path} is damaged: {e}\") from e\n        for d in data:\n            med = Medicine(**d)\n            stock._items[med.name] = med\n        return stock\n",
+   "tests": [
+    {
+     "check": "s = Stock()\ns.add('Paracetamol', 100, 5)\ns.add('ORS', 12, 30)\ns.save('stock.json')\nt = Stock.load('stock.json')\nassert isinstance(t, Stock) and t is not s, 'load should return a new Stock'\nassert t.units('paracetamol') == 100 and t.units('ors') == 12 and len(t) == 2\nassert t.total_value() == s.total_value()",
+     "name": "save then load"
+    },
+    {
+     "check": "import json\ns = Stock()\ns.add('Zinc', 9, 2)\ns.add('ORS', 12, 30)\ns.save('stock2.json')\ndata = json.load(open('stock2.json', encoding='utf-8'))\nassert isinstance(data, list), 'save a JSON list'\nassert data == [{'name': 'ors', 'units': 12, 'unit_price': 30, 'min_units': 10}, {'name': 'zinc', 'units': 9, 'unit_price': 2, 'min_units': 10}], data",
+     "name": "the file format"
+    },
+    {
+     "check": "t = Stock.load('nothing_saved_yet.json')\nassert isinstance(t, Stock) and len(t) == 0",
+     "name": "no file yet"
+    },
+    {
+     "check": "try:\n    Stock.load('damaged.json')\n    raise AssertionError('a damaged file should raise StockError')\nexcept StockError:\n    pass",
+     "name": "damaged file",
+     "hidden": true,
+     "hint_if_fail": "Catch json.JSONDecodeError and raise StockError(...) from it."
+    },
+    {
+     "check": "s = Stock()\ns.add('ORS', 12, 30)\ns._items['ors'].min_units = 20\ns.save('stock3.json')\nt = Stock.load('stock3.json')\nassert t.low_stock() == ['ors'], 'min_units should survive save and load'\nassert all(isinstance(v, Medicine) for v in t._items.values()), 'load should rebuild Medicine objects'\nt.dispense('ors', 2)\nassert t.units('ors') == 10",
+     "name": "objects come back working",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "save: data = [asdict(self._items[k]) for k in sorted(self._items)], then json.dump(data, f, indent=2).",
+    "Put @classmethod above def load(cls, path), and start with stock = cls().",
+    "try to open and json.load; except FileNotFoundError: return stock; except json.JSONDecodeError as e: raise StockError(...) from e. Then for d in data: stock._items[d[\"name\"]] = Medicine(**d)."
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "Tests that guard the stock",
+   "file": "ex3_tests.py",
+   "prompt": "The finished stock code is in your file. Write at least 6 test_ functions that use Stock() and pass on this code. Archie will then swap in broken versions of Stock and your tests must catch each one: dispense that lets stock go negative, low_stock that counts exactly min_units as low, add that doesn't clean names (so \" ORS\" and \"ors\" become two medicines), dispense that raises KeyError instead of UnknownMedicine for an unknown name, and total_value that forgets the price.",
+   "starter": "\"\"\"Clinic medicine stock: Level 2 project.\"\"\"\nimport json\nfrom dataclasses import dataclass, asdict\n\n\nclass StockError(Exception):\n    \"\"\"Base class for every stock problem, so callers can catch them all at once.\"\"\"\n\n\nclass UnknownMedicine(StockError):\n    \"\"\"The clinic doesn't stock that medicine.\"\"\"\n\n\nclass OutOfStock(StockError):\n    \"\"\"Not enough units to give out.\"\"\"\n\n\n@dataclass\nclass Medicine:\n    name: str\n    units: int\n    unit_price: float\n    min_units: int = 10\n\n    def value(self):\n        return self.units * self.unit_price\n\n\nclass Stock:\n    def __init__(self):\n        self._items = {}            # name -> Medicine\n\n    @staticmethod\n    def _key(name):\n        key = name.strip().lower()\n        if not key:\n            raise ValueError(\"a medicine needs a name\")\n        return key\n\n    def add(self, name, units, unit_price=None):\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(f\"units must be a whole number above 0, not {units!r}\")\n        key = self._key(name)\n        if key in self._items:\n            self._items[key].units += units\n        else:\n            if unit_price is None or unit_price < 0:\n                raise ValueError(f\"{key} is new: give a unit_price\")\n            self._items[key] = Medicine(key, units, unit_price)\n        return self._items[key].units\n\n    def units(self, name):\n        med = self._items.get(self._key(name))\n        return med.units if med else 0\n\n    def dispense(self, name, units):\n        key = self._key(name)\n        if key not in self._items:\n            raise UnknownMedicine(key)\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(\"units must be a whole number above 0\")\n        med = self._items[key]\n        if units > med.units:\n            raise OutOfStock(f\"only {med.units} {key} left, asked for {units}\")\n        med.units -= units\n        return med.units\n\n    def low_stock(self):\n        return sorted(k for k, med in self._items.items() if med.units < med.min_units)\n\n    def total_value(self):\n        return sum(med.value() for med in self._items.values())\n\n    def __len__(self):\n        return len(self._items)\n\n\n# ---- your tests: write at least 6 ----\n\ndef test_add_and_units():\n    pass\n\n\ndef test_names_ignore_case_and_spaces():\n    pass\n\n\ndef test_dispense():\n    pass\n\n\ndef test_out_of_stock_changes_nothing():\n    pass\n\n\ndef test_unknown_medicine():\n    pass\n\n\ndef test_low_stock_boundary():\n    pass\n",
+   "solution": "\"\"\"Clinic medicine stock: Level 2 project.\"\"\"\nimport json\nfrom dataclasses import dataclass, asdict\n\n\nclass StockError(Exception):\n    \"\"\"Base class for every stock problem, so callers can catch them all at once.\"\"\"\n\n\nclass UnknownMedicine(StockError):\n    \"\"\"The clinic doesn't stock that medicine.\"\"\"\n\n\nclass OutOfStock(StockError):\n    \"\"\"Not enough units to give out.\"\"\"\n\n\n@dataclass\nclass Medicine:\n    name: str\n    units: int\n    unit_price: float\n    min_units: int = 10\n\n    def value(self):\n        return self.units * self.unit_price\n\n\nclass Stock:\n    def __init__(self):\n        self._items = {}            # name -> Medicine\n\n    @staticmethod\n    def _key(name):\n        key = name.strip().lower()\n        if not key:\n            raise ValueError(\"a medicine needs a name\")\n        return key\n\n    def add(self, name, units, unit_price=None):\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(f\"units must be a whole number above 0, not {units!r}\")\n        key = self._key(name)\n        if key in self._items:\n            self._items[key].units += units\n        else:\n            if unit_price is None or unit_price < 0:\n                raise ValueError(f\"{key} is new: give a unit_price\")\n            self._items[key] = Medicine(key, units, unit_price)\n        return self._items[key].units\n\n    def units(self, name):\n        med = self._items.get(self._key(name))\n        return med.units if med else 0\n\n    def dispense(self, name, units):\n        key = self._key(name)\n        if key not in self._items:\n            raise UnknownMedicine(key)\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError(\"units must be a whole number above 0\")\n        med = self._items[key]\n        if units > med.units:\n            raise OutOfStock(f\"only {med.units} {key} left, asked for {units}\")\n        med.units -= units\n        return med.units\n\n    def low_stock(self):\n        return sorted(k for k, med in self._items.items() if med.units < med.min_units)\n\n    def total_value(self):\n        return sum(med.value() for med in self._items.values())\n\n    def __len__(self):\n        return len(self._items)\n\n\n# ---- my tests ----\n\ndef make():\n    s = Stock()\n    s.add(\"Paracetamol\", 100, 5)\n    s.add(\"ORS\", 12, 30)\n    return s\n\n\ndef test_add_and_units():\n    s = make()\n    assert s.units(\"paracetamol\") == 100\n    assert s.add(\"Paracetamol\", 20) == 120\n    assert len(s) == 2\n\n\ndef test_names_ignore_case_and_spaces():\n    s = make()\n    s.add(\"  PARACETAMOL \", 5)\n    assert s.units(\"Paracetamol\") == 105\n    assert len(s) == 2\n\n\ndef test_dispense():\n    s = make()\n    assert s.dispense(\"ORS\", 2) == 10\n    assert s.units(\"ors\") == 10\n\n\ndef test_out_of_stock_changes_nothing():\n    s = make()\n    try:\n        s.dispense(\"ORS\", 13)\n    except OutOfStock:\n        assert s.units(\"ORS\") == 12\n        return\n    raise AssertionError(\"dispensing 13 of 12 should raise OutOfStock\")\n\n\ndef test_unknown_medicine():\n    s = make()\n    try:\n        s.dispense(\"Insulin\", 1)\n    except UnknownMedicine:\n        return\n    raise AssertionError(\"an unknown medicine should raise UnknownMedicine\")\n\n\ndef test_low_stock_boundary():\n    s = make()\n    s.dispense(\"ORS\", 2)                 # exactly 10 = min_units: not low yet\n    assert s.low_stock() == []\n    s.dispense(\"ORS\", 1)                 # 9: low\n    assert s.low_stock() == [\"ors\"]\n\n\ndef test_total_value():\n    s = make()\n    assert s.total_value() == 100 * 5 + 12 * 30\n",
+   "tests": [
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nassert len(_tests()) >= 6, 'write at least 6 test_ functions (found %d)' % len(_tests())\nf = _fails()\nassert not f, 'these tests fail on the CORRECT Stock: ' + '; '.join(f)",
+     "name": "your tests pass on correct code"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(Stock):\n    def dispense(self, name, units):\n        key = self._key(name)\n        if key not in self._items:\n            raise UnknownMedicine(key)\n        self._items[key].units -= units\n        return self._items[key].units\nassert _caught('Stock', Bad), 'your tests pass on a Stock that lets units go negative: dispense too many and expect OutOfStock'",
+     "name": "catches going negative"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(Stock):\n    def low_stock(self):\n        return sorted(k for k, med in self._items.items() if med.units <= med.min_units)\nassert _caught('Stock', Bad), 'your tests pass when exactly min_units counts as low: test the boundary'",
+     "name": "catches the boundary bug"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(Stock):\n    def add(self, name, units, unit_price=None):\n        if not isinstance(units, int) or units <= 0:\n            raise ValueError('units')\n        if name in self._items:\n            self._items[name].units += units\n        else:\n            if unit_price is None or unit_price < 0:\n                raise ValueError('price')\n            self._items[name] = Medicine(name, units, unit_price)\n        return self._items[name].units\n    def units(self, name):\n        med = self._items.get(name)\n        return med.units if med else 0\nassert _caught('Stock', Bad), 'your tests pass on a Stock that treats \" ORS\" and \"ors\" as different medicines'",
+     "name": "catches uncleaned names",
+     "hidden": true
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(Stock):\n    def dispense(self, name, units):\n        key = self._key(name)\n        med = self._items[key]\n        if units > med.units:\n            raise OutOfStock(key)\n        med.units -= units\n        return med.units\nassert _caught('Stock', Bad), 'your tests pass when an unknown medicine raises KeyError: expect UnknownMedicine'",
+     "name": "catches the wrong exception",
+     "hidden": true,
+     "hint_if_fail": "Catch UnknownMedicine specifically: except UnknownMedicine: return, then raise AssertionError after."
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(Stock):\n    def total_value(self):\n        return sum(med.units for med in self._items.values())\nassert _caught('Stock', Bad), 'your tests pass when total_value ignores the price: test total_value'",
+     "name": "catches a wrong total",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "A helper like def make(): that builds a Stock with two medicines keeps each test short (it isn't a test because its name doesn't start with test_).",
+    "For errors: try: s.dispense(\"ORS\", 13) except OutOfStock: (check the units are unchanged) return. After the try, raise AssertionError(...).",
+    "The boundary: a medicine with exactly 10 units (min_units) must not be in low_stock(); with 9 it must be."
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why make OutOfStock and UnknownMedicine inherit from StockError?",
+   "choices": [
+    "It's required by Python",
+    "Callers can catch one kind, or every stock problem with except StockError",
+    "It makes them faster",
+    "So they print in red"
+   ],
+   "answer": 1,
+   "why": "An exception family gives callers both choices."
+  },
+  {
+   "q": "Why is Medicine a dataclass but Stock a normal class?",
+   "choices": [
+    "Dataclasses can't have methods",
+    "Medicine is plain data; Stock guards rules and hidden state",
+    "Normal classes are faster",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Data records vs objects with rules: pick the tool that fits."
+  },
+  {
+   "q": "What does Stock.load(path) being a @classmethod let you do?",
+   "choices": [
+    "Call it without making a Stock first, and get a new Stock back",
+    "Load faster",
+    "Skip the JSON",
+    "Make the stock read-only"
+   ],
+   "answer": 0,
+   "why": "A classmethod gets the class as cls and can build new objects."
+  },
+  {
+   "q": "dispense checks the amount AFTER subtracting it, then raises OutOfStock. What's the problem?",
+   "choices": [
+    "None",
+    "The stock is already wrong when the error is raised",
+    "OutOfStock can't be raised there",
+    "It's slower"
+   ],
+   "answer": 1,
+   "why": "Raise before you change anything."
+  },
+  {
+   "q": "Which test best protects the low_stock rule \"below min_units\"?",
+   "choices": [
+    "A medicine with 100 units",
+    "A medicine with exactly min_units, then one less",
+    "An empty stock",
+    "A medicine with 0 units"
+   ],
+   "answer": 1,
+   "why": "Boundaries are where < and <= differ."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Make your own exception?",
+   "a": "class OutOfStock(StockError): pass, where StockError inherits from Exception."
+  },
+  {
+   "q": "Dataclass to dict and back?",
+   "a": "dataclasses.asdict(obj) and Medicine(**d)"
+  },
+  {
+   "q": "Raise a new error but keep the original?",
+   "a": "raise StockError(\"...\") from e"
+  },
+  {
+   "q": "What is a classmethod for?",
+   "a": "A method on the class (gets cls), often used to build and return a new object, like Stock.load(path)."
+  }
+ ],
+ "explain": "Explain how your stock system is put together (the classes, the errors, saving) as if to a nurse who will use it, and what your tests protect against."
+}

@@ -1,0 +1,171 @@
+{
+ "id": "java-1-03",
+ "level": 1,
+ "title": "Input and maths",
+ "concepts": [
+  "input",
+  "operators"
+ ],
+ "skills": [
+  "input",
+  "operators",
+  "Scanner"
+ ],
+ "bridge": "Java reads typed input with a **Scanner**: `Scanner in = new Scanner(System.in);` then `in.nextLine()` (a line of text) or `in.nextInt()`. Watch division: `7 / 2` is 3 when both are ints (whole division, like Python's `//`); make one a double (`7 / 2.0`) to get 3.5. `%` is the remainder, as in other languages.",
+ "lesson": "To read what someone types, Java uses a **Scanner**:\n\n```\nimport java.util.Scanner;\n\nScanner in = new Scanner(System.in);\nString name = in.nextLine();               // a whole line of text\nint age = Integer.parseInt(in.nextLine()); // a line, turned into a number\n```\n\n(There's also `in.nextInt()`, but mixing it with `nextLine()` leaves a stray newline behind; reading lines and converting is simpler and safer.)\n\nMaths: `+ - * /` and `%` (remainder). **Watch division:** if both numbers are `int`, Java does whole division: `7 / 2` is `3`. If either is a `double`, you get `3.5`. This catches everyone once: `int a = 7, b = 2; double avg = a / b;` gives 3.0, because the division happened in ints first. Fix: `(double) a / b`.\n\n`Math` has the extras: `Math.round(x)`, `Math.ceil(x)` (round up), `Math.floor(x)`, `Math.max(a, b)`, `Math.sqrt(x)`, `Math.pow(2, 10)`. To show a number with 2 decimals: `String.format(\"%.2f\", value)` or `System.out.printf(\"%.2f%n\", value)`.",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.Scanner;\n\npublic class Example {\n    public static void main(String[] args) {\n        Scanner in = new Scanner(System.in);\n        System.out.print(\"Minutes? \");\n        int m = Integer.parseInt(in.nextLine().trim());\n        System.out.println(m / 60 + \" h \" + m % 60 + \" min\");\n        System.out.println(7 / 2 + \" vs \" + 7 / 2.0);\n        System.out.printf(\"%.2f%n\", 10 / 3.0);\n    }\n}\n",
+  "notes": [
+   "Make a Scanner on the keyboard.",
+   "Read a line, trim spaces, convert.",
+   "Whole division and remainder split minutes.",
+   "int division vs double division.",
+   "printf with 2 decimals."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Shillings to dollars",
+   "file": "Dollars.java",
+   "prompt": "Read a whole number of shillings, then the rate (may have decimals). Print the dollars with 2 decimals, like: 1300 KSh = 10.00 USD",
+   "starter": "import java.util.Scanner;\n\npublic class Dollars {\n    public static void main(String[] args) {\n        Scanner in = new Scanner(System.in);\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "1300\n130\n",
+     "out": [
+      "1300 KSh = 10.00 USD"
+     ]
+    },
+    {
+     "stdin": "5000\n129.5\n",
+     "out": [
+      "5000 KSh = 38.61 USD"
+     ]
+    },
+    {
+     "stdin": "0\n130\n",
+     "out": [
+      "0 KSh = 0.00 USD"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Read two lines: Integer.parseInt for the shillings, Double.parseDouble for the rate.",
+    "System.out.printf(\"%d KSh = %.2f USD%n\", ksh, ksh / rate);"
+   ],
+   "solution": "import java.util.Scanner;\n\npublic class Dollars {\n    public static void main(String[] args) {\n        Scanner in = new Scanner(System.in);\n        int ksh = Integer.parseInt(in.nextLine().trim());\n        double rate = Double.parseDouble(in.nextLine().trim());\n        System.out.printf(\"%d KSh = %.2f USD%n\", ksh, ksh / rate);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "The average trap",
+   "file": "Average.java",
+   "prompt": "Write average(int a, int b, int c) returning the average as a double. average(1, 2, 2) must be 1.6666666666666667, not 1.0.",
+   "starter": "public class Average {\n    public static double average(int a, int b, int c) {\n        return (a + b + c) / 3;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Average.average(1, 2, 2)",
+     "expect": "1.6666666666666667",
+     "hint_if_fail": "int / int is whole division. Make it a double first: (a + b + c) / 3.0"
+    },
+    {
+     "call": "Average.average(4, 4, 4)",
+     "expect": "4.0"
+    },
+    {
+     "call": "Average.average(0, 0, 1)",
+     "expect": "0.3333333333333333",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "The starter divides an int by an int.",
+    "Divide by 3.0 instead of 3."
+   ],
+   "solution": "public class Average {\n    public static double average(int a, int b, int c) {\n        return (a + b + c) / 3.0;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Bags needed",
+   "file": "BagsNeeded.java",
+   "prompt": "Write bagsNeeded(int kg) for 90 kg bags: a part-full bag still needs a bag. bagsNeeded(250) is 3, bagsNeeded(180) is 2, bagsNeeded(0) is 0.",
+   "starter": "public class BagsNeeded {\n    public static int bagsNeeded(int kg) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "BagsNeeded.bagsNeeded(250)",
+     "expect": "3"
+    },
+    {
+     "call": "BagsNeeded.bagsNeeded(180)",
+     "expect": "2"
+    },
+    {
+     "call": "BagsNeeded.bagsNeeded(0)",
+     "expect": "0"
+    },
+    {
+     "call": "BagsNeeded.bagsNeeded(1)",
+     "expect": "1",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Math.ceil rounds up, but it needs a double and returns a double.",
+    "return (int) Math.ceil(kg / 90.0);  (or the int trick: (kg + 89) / 90)"
+   ],
+   "solution": "public class BagsNeeded {\n    public static int bagsNeeded(int kg) {\n        return (int) Math.ceil(kg / 90.0);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is 9 / 2 in Java when both are ints?",
+   "choices": [
+    "4.5",
+    "4",
+    "5",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "int / int is whole division."
+  },
+  {
+   "q": "Which gives 4.5?",
+   "choices": [
+    "9 / 2",
+    "(double) (9 / 2)",
+    "9 / 2.0",
+    "(int) 9 / 2"
+   ],
+   "answer": 2,
+   "why": "One double operand makes the division a double division. (double)(9/2) divides first and gives 4.0."
+  },
+  {
+   "q": "Why read lines and convert instead of nextInt()?",
+   "choices": [
+    "It's faster",
+    "Mixing nextInt and nextLine leaves a stray newline that causes skipped input",
+    "nextInt doesn't exist",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "nextInt leaves the Enter behind; the next nextLine reads an empty line."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Read a line of input in Java?",
+   "a": "Scanner in = new Scanner(System.in); in.nextLine()"
+  },
+  {
+   "q": "int / int in Java?",
+   "a": "Whole division: 7 / 2 is 3."
+  },
+  {
+   "q": "Print with 2 decimals?",
+   "a": "System.out.printf(\"%.2f%n\", x)"
+  }
+ ],
+ "explain": "Explain input and maths to someone who has never programmed, in your own words, with an example you make up."
+}

@@ -1,0 +1,9 @@
+# Friendly names for your models, shown in Archie's Model menu.
+# Format:   real model name = the name you want to see
+# Edit anytime (right-click the owl > Edit model names). Lines starting with # are ignored.
+
+qwen2.5:7b = Main brain
+qwen2.5-coder:7b = Coder
+gemma3:4b = Vision (reads images)
+qwen2.5:1.5b = Starter (small)
+llama3.1:8b = Llama (second opinion)

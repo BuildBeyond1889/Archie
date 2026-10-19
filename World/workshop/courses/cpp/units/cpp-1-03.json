@@ -1,0 +1,132 @@
+{
+ "id": "cpp-1-03",
+ "level": 1,
+ "title": "Input and maths",
+ "concepts": [
+  "input",
+  "operators"
+ ],
+ "skills": [
+  "input",
+  "arithmetic"
+ ],
+ "bridge": "Read input with `std::cin >> variable;`. It reads one word or number at a time and converts it to the variable's type. For a whole line of text use `std::getline(std::cin, line);`. Maths operators are the usual `+ - * / %`, with `/` doing whole-number division for ints.",
+ "lesson": "`std::cin` is the keyboard. `>>` pulls a value out of it into a variable:\n\n```\nint seconds;\nstd::cin >> seconds;              // the user types 125\nint minutes = seconds / 60;       // 2\nint rest = seconds % 60;          // 5\nstd::cout << minutes << \" min \" << rest << \" s\\n\";\n```\n\n`>>` stops at spaces, so `std::cin >> a >> b;` reads two numbers from `3 4`. For a whole line (a name with a space in it) use `std::getline(std::cin, name);`.\n\n**Rounding up** with whole numbers is a trick you'll use constantly (bags needed, pages needed, trips needed):\n\n```\nint bags = (kg + bagSize - 1) / bagSize;   // 100 kg in 30 kg bags -> 4\n```\n\nOther maths lives in `<cmath>`: `std::sqrt(x)`, `std::pow(x, 2)`, `std::abs(x)`, `std::round(x)`.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <cmath>\n\nint main()\n{\n    int seconds = 125;\n    std::cout << seconds / 60 << \" min \" << seconds % 60 << \" s\\n\";\n    int kg = 100, bag = 30;\n    std::cout << (kg + bag - 1) / bag << \" bags\\n\";\n    std::cout << std::sqrt(9.0 + 16.0) << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Minutes and seconds",
+   "file": "time.cpp",
+   "prompt": "Read a number of seconds and print it as minutes and seconds, e.g. 125 prints: 2 min 5 s",
+   "starter": "#include <iostream>\n\nint main()\n{\n    int seconds;\n    std::cin >> seconds;\n    // print minutes and seconds\n    return 0;\n}\n",
+   "tests": [
+    {
+     "stdin": "125\n",
+     "out": [
+      "2 min 5 s"
+     ],
+     "name": "125 seconds"
+    },
+    {
+     "stdin": "60\n",
+     "out": [
+      "1 min 0 s"
+     ]
+    },
+    {
+     "stdin": "59\n",
+     "out": [
+      "0 min 59 s"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Minutes: seconds / 60. Left over: seconds % 60.",
+    "std::cout << seconds / 60 << \" min \" << seconds % 60 << \" s\\n\";"
+   ],
+   "solution": "#include <iostream>\n\nint main()\n{\n    int seconds;\n    std::cin >> seconds;\n    std::cout << seconds / 60 << \" min \" << seconds % 60 << \" s\\n\";\n    return 0;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Bags needed",
+   "file": "bags.cpp",
+   "prompt": "Write int bagsNeeded(int kg, int bagSize): how many bags to hold all of it (a part-full bag still counts).",
+   "starter": "\nint bagsNeeded(int kg, int bagSize)\n{\n    return kg / bagSize;\n}\n",
+   "tests": [
+    {
+     "call": "bagsNeeded(100, 30)",
+     "expect": "4",
+     "hint_if_fail": "100 / 30 is 3, but that leaves 10 kg on the floor. Round up."
+    },
+    {
+     "call": "bagsNeeded(90, 30)",
+     "expect": "3"
+    },
+    {
+     "call": "bagsNeeded(1, 50)",
+     "expect": "1"
+    }
+   ],
+   "hints": [
+    "Plain / rounds down.",
+    "(kg + bagSize - 1) / bagSize"
+   ],
+   "solution": "\nint bagsNeeded(int kg, int bagSize)\n{\n    return (kg + bagSize - 1) / bagSize;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "std::cin >> a >> b; with input '3 4' gives?",
+   "choices": [
+    "a=34",
+    "a=3, b=4",
+    "an error",
+    "a='3 4'"
+   ],
+   "answer": 1,
+   "why": ">> stops at spaces."
+  },
+  {
+   "q": "Read a full name with a space?",
+   "choices": [
+    "std::cin >> name",
+    "std::getline(std::cin, name)",
+    "std::cin.name()",
+    "scanf"
+   ],
+   "answer": 1,
+   "why": "getline reads the whole line."
+  },
+  {
+   "q": "(100 + 30 - 1) / 30 is?",
+   "choices": [
+    "3",
+    "4",
+    "3.3",
+    "5"
+   ],
+   "answer": 1,
+   "why": "129 / 30 = 4 with whole numbers: rounding up."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Read a number?",
+   "a": "std::cin >> n;"
+  },
+  {
+   "q": "Read a whole line?",
+   "a": "std::getline(std::cin, line);"
+  },
+  {
+   "q": "Round a/b up with ints?",
+   "a": "(a + b - 1) / b"
+  }
+ ],
+ "explain": "Explain input and maths to someone who has never programmed, in your own words, with an example you make up."
+}

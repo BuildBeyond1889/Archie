@@ -1,0 +1,7 @@
+{"name": "Command-line tool", "kind": "shell", "lang": "Python", "version": "1.0.0",
+ "summary": "A program you run in the terminal with commands, like: python main.py add \"buy seeds\". Easiest kind of app to build and test, runs on any computer with Python, even very old ones.",
+ "tags": ["cli", "terminal", "console", "tool", "cheap", "old-pc"],
+ "files": {"main.py": "main.py"},
+ "use": "python main.py --help shows the commands. Add your own with sub.add_parser(...).",
+ "test": {"run": ["python", "main.py", "hello", "--name", "Archie"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

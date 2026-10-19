@@ -1,0 +1,131 @@
+{
+ "id": "c-1-03",
+ "level": 1,
+ "title": "Input and maths",
+ "concepts": [
+  "input",
+  "operators"
+ ],
+ "skills": [
+  "scanf",
+  "arithmetic"
+ ],
+ "bridge": "C reads input with `scanf(\"%d\", &n);`: the same format codes as `printf`, and `&` before the variable (it gives scanf the variable's *address* so it can fill it in; pointers explain this later). Use `%lf` to read a double. `scanf` returns how many values it read.",
+ "lesson": "```\nint seconds;\nscanf(\"%d\", &seconds);          /* the user types 125 */\nprintf(\"%d min %d s\\n\", seconds / 60, seconds % 60);\n\ndouble kg;\nscanf(\"%lf\", &kg);              /* %lf to READ a double (printf uses %f) */\n```\n\nThe `&` matters: `scanf(\"%d\", seconds)` without it compiles (with a warning) and then crashes. scanf needs to know *where* to put the number, and `&seconds` is \"where seconds lives\".\n\n`scanf` returns the number of values it managed to read, so you can tell when input runs out:\n\n```\nint x;\nwhile (scanf(\"%d\", &x) == 1) { ... }   /* read numbers until there are none */\n```\n\n**Rounding up** with ints: `(kg + bag_size - 1) / bag_size`. More maths is in `<math.h>`: `sqrt`, `pow`, `fabs`, `round`.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <math.h>\n\nint main(void)\n{\n    int seconds = 125;\n    printf(\"%d min %d s\\n\", seconds / 60, seconds % 60);\n    int kg = 100, bag = 30;\n    printf(\"%d bags\\n\", (kg + bag - 1) / bag);\n    printf(\"%.1f\\n\", sqrt(9.0 + 16.0));\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Minutes and seconds",
+   "file": "time.c",
+   "prompt": "Read a number of seconds and print it as minutes and seconds, e.g. 125 prints: 2 min 5 s",
+   "starter": "#include <stdio.h>\n\nint main(void)\n{\n    int seconds = 0;\n    /* read seconds, then print */\n    return 0;\n}\n",
+   "tests": [
+    {
+     "stdin": "125\n",
+     "out": [
+      "2 min 5 s"
+     ]
+    },
+    {
+     "stdin": "60\n",
+     "out": [
+      "1 min 0 s"
+     ]
+    },
+    {
+     "stdin": "59\n",
+     "out": [
+      "0 min 59 s"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "scanf(\"%d\", &seconds);",
+    "printf(\"%d min %d s\\n\", seconds / 60, seconds % 60);"
+   ],
+   "solution": "#include <stdio.h>\n\nint main(void)\n{\n    int seconds = 0;\n    scanf(\"%d\", &seconds);\n    printf(\"%d min %d s\\n\", seconds / 60, seconds % 60);\n    return 0;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Bags needed",
+   "file": "bags.c",
+   "prompt": "Write int bags_needed(int kg, int bag_size): how many bags to hold all of it (a part-full bag still counts).",
+   "starter": "int bags_needed(int kg, int bag_size)\n{\n    return kg / bag_size;\n}\n",
+   "tests": [
+    {
+     "call": "bags_needed(100, 30)",
+     "expect": "4",
+     "hint_if_fail": "100 / 30 is 3 and leaves 10 kg over. Round up."
+    },
+    {
+     "call": "bags_needed(90, 30)",
+     "expect": "3"
+    },
+    {
+     "call": "bags_needed(1, 50)",
+     "expect": "1"
+    }
+   ],
+   "hints": [
+    "Plain / rounds down.",
+    "(kg + bag_size - 1) / bag_size"
+   ],
+   "solution": "int bags_needed(int kg, int bag_size)\n{\n    return (kg + bag_size - 1) / bag_size;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why the & in scanf(\"%d\", &n)?",
+   "choices": [
+    "Style",
+    "scanf needs the variable's address to fill it in",
+    "It means 'and'",
+    "It's optional"
+   ],
+   "answer": 1,
+   "why": "&n is where n lives."
+  },
+  {
+   "q": "Format to READ a double with scanf?",
+   "choices": [
+    "%f",
+    "%lf",
+    "%d",
+    "%g"
+   ],
+   "answer": 1,
+   "why": "%lf for double in scanf."
+  },
+  {
+   "q": "while (scanf(\"%d\", &x) == 1) stops when...",
+   "choices": [
+    "x is 1",
+    "there's no more number to read",
+    "never",
+    "x is 0"
+   ],
+   "answer": 1,
+   "why": "scanf returns how many it read."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Read an int?",
+   "a": "scanf(\"%d\", &n);"
+  },
+  {
+   "q": "Read a double?",
+   "a": "scanf(\"%lf\", &d);"
+  },
+  {
+   "q": "Read until input ends?",
+   "a": "while (scanf(\"%d\", &x) == 1)"
+  }
+ ],
+ "explain": "Explain input and maths to someone who has never programmed, in your own words, with an example you make up."
+}

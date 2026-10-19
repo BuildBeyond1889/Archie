@@ -1,0 +1,54 @@
+{
+ "name": "Clinic medicine stock",
+ "lang": "Web (HTML, CSS, JavaScript)",
+ "summary": "Track medicines and supplies: how many are left, when they expire, and what to reorder. Warns about stock running low and medicines expiring within 60 days. Print a stock sheet, back up to a file. English and Swahili.",
+ "for": "clinics, dispensaries, school sick bays, orphanages",
+ "cheap": "Any phone or old laptop with a browser; works offline.",
+ "tags": [
+  "clinic",
+  "medicine",
+  "stock",
+  "inventory",
+  "expiry",
+  "health",
+  "pharmacy",
+  "orphanage"
+ ],
+ "shell": "web-offline-app",
+ "blocks": [
+  "web-store",
+  "web-forms",
+  "web-table",
+  "web-csv",
+  "web-print",
+  "web-i18n",
+  "web-access"
+ ],
+ "files": {
+  "js/app.js": "js/app.js"
+ },
+ "version": "1.0.0",
+ "guide": {
+  "main": "js/app.js",
+  "overview": "A phone app that tracks medicines and supplies: how many are left, when they expire, what to reorder. Records stay on the phone, offline. The top of the page lists anything that needs attention (expired, expiring within 60 days, or below its reorder level); tap an item to give some out or receive more.\n\njs/app.js is the app: the fields, the warning rules (status()), and the buttons. It uses the same blocks as the Farm log: store, forms, table, csv, print, languages and bigger text.",
+  "files": [
+   {
+    "file": "js/app.js",
+    "why": "The app itself: everything specific to it. The other files are library blocks it uses.",
+    "points": [
+     {
+      "find": "function status(r)",
+      "note": "The warning rules in one place: expired first, then expiring soon, then low stock. Change 60 to warn earlier or later."
+     },
+     {
+      "find": "function change(r)",
+      "note": "Giving out (-5) or receiving (+100) changes the quantity and records the movement, so you can see usage later."
+     }
+    ]
+   }
+  ],
+  "order": [
+   "js/app.js"
+  ]
+ }
+}

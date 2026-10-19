@@ -1,0 +1,130 @@
+{
+ "id": "c-1-07",
+ "level": 1,
+ "title": "Functions",
+ "concepts": [
+  "functions"
+ ],
+ "skills": [
+  "functions",
+  "recursion"
+ ],
+ "bridge": "C functions declare a return type and parameter types: `int clamp(int v, int lo, int hi)`. Parameters are always **copies** (C has no references; pointers do that job, next units). A function must be declared before it's used, often with a prototype at the top or in a `.h` file.",
+ "lesson": "```\nint clamp(int v, int lo, int hi)\n{\n    if (v < lo) return lo;\n    if (v > hi) return hi;\n    return v;\n}\n```\n\nC reads top to bottom. To call a function that's written lower down, put a **prototype** (just the first line, with `;`) above:\n\n```\nint clamp(int v, int lo, int hi);   /* prototype */\n\nint main(void) { printf(\"%d\\n\", clamp(120, 0, 100)); return 0; }\n\nint clamp(int v, int lo, int hi) { ... }\n```\n\nBigger programs put prototypes in a header (`sensor.h`) and the code in `sensor.c`. Arduino libraries are built exactly like that.\n\n**Recursion**: a function can call itself, as long as it has a stopping case:\n\n```\nlong factorial(int n)\n{\n    if (n <= 1) return 1;          /* stop */\n    return n * factorial(n - 1);   /* smaller problem */\n}\n```\n\n`long` holds bigger whole numbers than `int` (print it with `%ld`).",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\nint clamp(int v, int lo, int hi);\n\nint main(void)\n{\n    printf(\"%d %d %d\\n\", clamp(120, 0, 100), clamp(-4, 0, 100), clamp(55, 0, 100));\n    return 0;\n}\n\nint clamp(int v, int lo, int hi)\n{\n    if (v < lo) return lo;\n    if (v > hi) return hi;\n    return v;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Clamp",
+   "file": "clamp.c",
+   "prompt": "Write int clamp(int v, int lo, int hi): v, but kept between lo and hi.",
+   "starter": "int clamp(int v, int lo, int hi)\n{\n    return v;\n}\n",
+   "tests": [
+    {
+     "call": "clamp(120, 0, 100)",
+     "expect": "100"
+    },
+    {
+     "call": "clamp(-4, 0, 100)",
+     "expect": "0"
+    },
+    {
+     "call": "clamp(55, 0, 100)",
+     "expect": "55"
+    }
+   ],
+   "hints": [
+    "Two checks, then the normal case.",
+    "if (v < lo) return lo; if (v > hi) return hi; return v;"
+   ],
+   "solution": "int clamp(int v, int lo, int hi)\n{\n    if (v < lo) return lo;\n    if (v > hi) return hi;\n    return v;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Factorial (recursion)",
+   "file": "factorial.c",
+   "prompt": "Write long factorial(int n) using recursion: factorial(5) is 120, and factorial(0) is 1.",
+   "starter": "long factorial(int n)\n{\n    return n;\n}\n",
+   "tests": [
+    {
+     "call": "factorial(5)",
+     "fmt": "%ld",
+     "expect": "120"
+    },
+    {
+     "call": "factorial(0)",
+     "fmt": "%ld",
+     "expect": "1",
+     "hint_if_fail": "0! is 1: that's your stopping case."
+    },
+    {
+     "call": "factorial(12)",
+     "fmt": "%ld",
+     "expect": "479001600"
+    },
+    {
+     "src_has": "factorial(n-1)",
+     "why": "Call factorial on a smaller problem: factorial(n - 1)"
+    }
+   ],
+   "hints": [
+    "Stopping case: n <= 1 gives 1.",
+    "return n * factorial(n - 1);"
+   ],
+   "solution": "long factorial(int n)\n{\n    if (n <= 1) return 1;\n    return n * factorial(n - 1);\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "A prototype is...",
+   "choices": [
+    "A test version",
+    "The function's first line with ; so it can be used before it's written",
+    "A macro",
+    "A pointer"
+   ],
+   "answer": 1,
+   "why": "It announces the function."
+  },
+  {
+   "q": "C parameters are...",
+   "choices": [
+    "references",
+    "copies",
+    "global",
+    "pointers always"
+   ],
+   "answer": 1,
+   "why": "Always copies; pass a pointer to let a function change something."
+  },
+  {
+   "q": "Recursion without a stopping case...",
+   "choices": [
+    "returns 0",
+    "calls itself until the program crashes (stack overflow)",
+    "is fine",
+    "loops once"
+   ],
+   "answer": 1,
+   "why": "Every call uses memory until it runs out."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Prototype?",
+   "a": "int f(int x);  (before it's used)"
+  },
+  {
+   "q": "Print a long?",
+   "a": "%ld"
+  },
+  {
+   "q": "Two parts of recursion?",
+   "a": "A stopping case and a smaller call."
+  }
+ ],
+ "explain": "Explain functions to someone who has never programmed, in your own words, with an example you make up."
+}

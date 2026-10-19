@@ -1,0 +1,120 @@
+{
+ "id": "c-1-01",
+ "level": 1,
+ "title": "Hello, C",
+ "concepts": [
+  "output"
+ ],
+ "skills": [
+  "running code",
+  "output"
+ ],
+ "bridge": "C programs start in `int main(void)`, and `printf(\"...\\n\");` prints. Unlike `cout` or `print`, `printf` uses **format codes** to slot values in: `printf(\"%d kg\\n\", 40);`. Statements end with `;`, blocks use `{ }`, and the whole file is compiled first.",
+ "lesson": "C is the language under almost everything: operating systems, Arduino and other microcontrollers, Python itself. It's small and close to the hardware, so it teaches you what the computer is actually doing.\n\n```\n#include <stdio.h>\n\nint main(void)\n{\n    printf(\"Hello, world!\\n\");\n    printf(\"%d + %d = %d\\n\", 2, 3, 2 + 3);\n    return 0;\n}\n```\n\n- `#include <stdio.h>` brings in standard input/output (`printf`, `scanf`).\n- The program starts in `main`. `return 0;` means \"finished fine\".\n- `printf` prints its text, swapping each **format code** for the next value:\n  - `%d` a whole number (int), `%f` a decimal (double), `%.2f` a decimal with 2 places\n  - `%c` one character, `%s` a string, `%%` a real percent sign\n- `\\n` ends the line. `printf` never adds one for you.\n\nCompile with `gcc hello.c -o hello`, then run `hello`. Archie does both when you press run or check. Read the **first** error first.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\nint main(void)\n{\n    printf(\"Hello, world!\\n\");\n    printf(\"%d + %d = %d\\n\", 2, 3, 2 + 3);\n    printf(\"%.2f per kg, grade %c, crop %s, 50%% done\\n\", 55.5, 'A', \"maize\");\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Hello from C",
+   "file": "hello.c",
+   "prompt": "Print exactly: Hello, Archie!",
+   "starter": "#include <stdio.h>\n\nint main(void)\n{\n    /* your line here */\n    return 0;\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Hello, Archie!"
+     ],
+     "case": true,
+     "name": "prints the greeting"
+    }
+   ],
+   "hints": [
+    "printf(\"...\\n\");",
+    "Don't forget the \\n and the semicolon."
+   ],
+   "solution": "#include <stdio.h>\n\nint main(void)\n{\n    printf(\"Hello, Archie!\\n\");\n    return 0;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Formats",
+   "file": "formats.c",
+   "prompt": "Using printf with format codes (not typing the numbers into the text), print:\n7 bags of maize\nprice 55.50\n",
+   "starter": "#include <stdio.h>\n\nint main(void)\n{\n    int bags = 7;\n    double price = 55.5;\n    const char *crop = \"maize\";\n    /* print the two lines using bags, crop and price */\n    return 0;\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "7 bags of maize",
+      "price 55.50"
+     ],
+     "case": true
+    },
+    {
+     "src_has": "%.2f",
+     "why": "Use %.2f to show exactly 2 decimal places."
+    },
+    {
+     "src_has": "%s",
+     "why": "Use %s to print the crop."
+    }
+   ],
+   "hints": [
+    "%d for bags, %s for crop.",
+    "printf(\"price %.2f\\n\", price);"
+   ],
+   "solution": "#include <stdio.h>\n\nint main(void)\n{\n    int bags = 7;\n    double price = 55.5;\n    const char *crop = \"maize\";\n    printf(\"%d bags of %s\\n\", bags, crop);\n    printf(\"price %.2f\\n\", price);\n    return 0;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Which format code prints an int?",
+   "choices": [
+    "%s",
+    "%d",
+    "%f",
+    "%c"
+   ],
+   "answer": 1,
+   "why": "%d for whole numbers."
+  },
+  {
+   "q": "printf(\"%.1f\", 2.345) prints?",
+   "choices": [
+    "2.345",
+    "2.3",
+    "2",
+    "2.35"
+   ],
+   "answer": 1,
+   "why": "One decimal place."
+  },
+  {
+   "q": "Does printf add a new line by itself?",
+   "choices": [
+    "Yes",
+    "No, you write \\n"
+   ],
+   "answer": 1,
+   "why": "Only \\n starts a new line."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Print an int, a double (2 places), a string?",
+   "a": "%d  %.2f  %s"
+  },
+  {
+   "q": "Print a % sign?",
+   "a": "%%"
+  },
+  {
+   "q": "Library for printf?",
+   "a": "#include <stdio.h>"
+  }
+ ],
+ "explain": "Explain hello, c to someone who has never programmed, in your own words, with an example you make up."
+}

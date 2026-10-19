@@ -1,0 +1,7 @@
+{"name": "Window app", "kind": "shell", "lang": "Python", "version": "1.0.0",
+ "summary": "A desktop window with a menu, a main area and a status bar, using tkinter (built into Python, nothing to install). Works on Windows, Linux and a Raspberry Pi.",
+ "tags": ["window", "desktop", "gui", "tkinter", "app"],
+ "files": {"main.py": "main.py"},
+ "use": "Put your widgets in App.build(). self.status('Saved') shows a message at the bottom.",
+ "test": {"run": ["python", "main.py", "--selftest"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

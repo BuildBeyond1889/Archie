@@ -1,0 +1,249 @@
+{
+ "id": "java-2-01",
+ "level": 2,
+ "title": "Classes in depth",
+ "concepts": [
+  "classes",
+  "objects",
+  "constructors",
+  "encapsulation",
+  "validation"
+ ],
+ "skills": [
+  "constructors",
+  "this",
+  "static",
+  "encapsulation"
+ ],
+ "lesson": "In Level 1 you wrote `static` methods: a name, some parameters, a result. That works until your data starts to have a **life**. A water tank has a level that goes up and down. A savings group member has a balance that changes every week. A **class** bundles that data (fields) with the methods that are allowed to change it. Each `new WaterTank(500)` is an **object**: its own copy of the fields.\n\n**Constructors** run once, when the object is made. They are the one place to make sure an object starts in a good state:\n\n```\npublic WaterTank(double capacity) {\n    if (capacity <= 0) throw new IllegalArgumentException(\"capacity must be positive\");\n    this.capacity = capacity;\n}\n```\n\n`this` means \"the object being built or used\". `this.capacity = capacity` copies the parameter into the field with the same name. You can also have several constructors (**overloading**), and one can call another with `this(...)` as its first line, so the checks live in one place.\n\n**Encapsulation**: make fields `private` and give only the methods that make sense (`fill`, `use`, `getLevel`). Then nobody can write `tank.level = -40` from outside. Every change goes through a method that checks it. This is the main reason classes exist: the object protects its own rules, so the rest of the program can trust it.\n\n**static vs instance.** An instance field belongs to one object (each tank has its own level). A `static` field belongs to the class, shared by all objects: a counter of how many tickets were issued, a constant like `MAX_LEVEL`. A static method can't see instance fields, because it isn't called on any particular object.\n\nThe common mistakes:\n- Forgetting `this.` so `capacity = capacity;` assigns the parameter to itself. The field stays 0.\n- Public fields \"to save time\". Then a bug anywhere can break the object, and you can't find who did it.\n- Putting a counter in an instance field: every object gets its own counter, so every ticket is number 1.\n\nIn games, every enemy, bullet and pickup is an object with private state. In robotics, a `Motor` class refuses speeds outside its safe range. The habit is the same: **validate in the constructor and in every method that changes state**.",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    public static void main(String[] args) {\n        Tank t = new Tank(500);\n        t.fill(200);\n        System.out.println(t.getLevel() + \" of \" + t.getCapacity());\n        System.out.println(\"Tanks made: \" + Tank.count());\n    }\n}\n\nclass Tank {\n    private static int made = 0;        // shared by every tank\n    private final double capacity;      // each tank has its own\n    private double level;\n\n    Tank(double capacity) {\n        if (capacity <= 0) throw new IllegalArgumentException(\"capacity must be positive\");\n        this.capacity = capacity;\n        made++;\n    }\n\n    Tank() { this(1000); }              // default size: reuse the checks above\n\n    double getLevel() { return level; }\n    double getCapacity() { return capacity; }\n\n    void fill(double litres) {\n        if (litres < 0) throw new IllegalArgumentException(\"negative litres\");\n        level = Math.min(capacity, level + litres);\n    }\n\n    static int count() { return made; }\n}\n",
+  "notes": [
+   "`made` is static: one number for the whole class, counting every tank.",
+   "`capacity` is final: set once in the constructor, never changed.",
+   "The constructor refuses a bad capacity, so every Tank starts valid.",
+   "`Tank()` calls `this(1000)`: the second constructor reuses the first one's checks.",
+   "Fields are private; the outside world uses getLevel() and fill()."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A safe water tank",
+   "file": "WaterTank.java",
+   "prompt": "Finish class WaterTank. Constructor WaterTank(double capacity): throw IllegalArgumentException if capacity <= 0; the level starts at 0. getCapacity() and getLevel() return the fields. fill(double litres) adds water but never above capacity and returns how much actually went in; negative litres throw IllegalArgumentException. use(double litres) takes water out and returns true, or returns false and changes nothing if there isn't enough; negative litres throw IllegalArgumentException. percentFull() returns the level as a percent of capacity rounded to 1 decimal (Math.round(x * 10) / 10.0).",
+   "starter": "public class WaterTank {\n    private double capacity;\n    private double level;\n\n    public WaterTank(double capacity) {\n        this.capacity = capacity;\n    }\n\n    public double getCapacity() { return capacity; }\n    public double getLevel() { return level; }\n\n    public double fill(double litres) {\n        return 0;\n    }\n\n    public boolean use(double litres) {\n        return false;\n    }\n\n    public double percentFull() {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { WaterTank t = new WaterTank(500); t.fill(200); return t.getLevel() + \"\"; }).get()",
+     "expect": "200.0",
+     "name": "fill adds water"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { WaterTank t = new WaterTank(500); t.fill(200); return t.fill(400) + \" \" + t.getLevel(); }).get()",
+     "expect": "300.0 500.0",
+     "name": "fill stops at capacity"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { WaterTank t = new WaterTank(100); t.fill(30); return t.use(50) + \" \" + t.use(20) + \" \" + t.getLevel(); }).get()",
+     "expect": "false true 10.0",
+     "name": "use"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { WaterTank t = new WaterTank(300); t.fill(100); return t.percentFull() + \"\"; }).get()",
+     "expect": "33.3",
+     "name": "percentFull"
+    },
+    {
+     "call": "new WaterTank(0)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "zero capacity",
+     "hint_if_fail": "Check capacity <= 0 in the constructor and throw."
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { WaterTank t = new WaterTank(50); t.fill(-5); return \"no error\"; }).get()",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "negative fill"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { WaterTank t = new WaterTank(50); t.use(-1); return \"no error\"; }).get()",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "negative use"
+    }
+   ],
+   "hints": [
+    "The amount that fits is capacity - level. Add Math.min(litres, capacity - level).",
+    "In use(): if (litres > level) return false; before changing anything.",
+    "Validate first, then change the field: if (litres < 0) throw new IllegalArgumentException(\"negative\");"
+   ],
+   "solution": "public class WaterTank {\n    private final double capacity;\n    private double level;\n\n    public WaterTank(double capacity) {\n        if (capacity <= 0) throw new IllegalArgumentException(\"capacity must be positive\");\n        this.capacity = capacity;\n        this.level = 0;\n    }\n\n    public double getCapacity() { return capacity; }\n    public double getLevel() { return level; }\n\n    // Adds water; returns how much actually went in (the rest overflows).\n    public double fill(double litres) {\n        if (litres < 0) throw new IllegalArgumentException(\"litres can't be negative\");\n        double added = Math.min(litres, capacity - level);\n        level += added;\n        return added;\n    }\n\n    // Takes water out only if there is enough.\n    public boolean use(double litres) {\n        if (litres < 0) throw new IllegalArgumentException(\"litres can't be negative\");\n        if (litres > level) return false;\n        level -= litres;\n        return true;\n    }\n\n    public double percentFull() {\n        return Math.round(level / capacity * 1000) / 10.0;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Savings group member",
+   "file": "Member.java",
+   "prompt": "Class Member for a savings group. Member(String name, double savings): the name is trimmed; a blank name or negative savings throws IllegalArgumentException. Member(String name) starts with 0 savings and must call the other constructor with this(...). getName(), getSavings(). deposit(double amount) adds to the savings; amount <= 0 throws IllegalArgumentException. describe() returns e.g. \"Amina: 1500.0 KSh\".",
+   "starter": "public class Member {\n    private String name;\n    private double savings;\n\n    public Member(String name) {\n        // TODO: call the other constructor with this(...)\n    }\n\n    public Member(String name, double savings) {\n        this.name = name;\n        this.savings = savings;\n    }\n\n    public String getName() { return name; }\n    public double getSavings() { return savings; }\n\n    public void deposit(double amount) {\n    }\n\n    public String describe() {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "new Member(\" Amina \").describe()",
+     "expect": "Amina: 0.0 KSh"
+    },
+    {
+     "call": "new Member(\"Juma\", 1500).describe()",
+     "expect": "Juma: 1500.0 KSh"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Member m = new Member(\"Otieno\", 200); m.deposit(50.5); return m.getSavings() + \"\"; }).get()",
+     "expect": "250.5",
+     "name": "deposit"
+    },
+    {
+     "call": "new Member(\"   \")",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "blank name",
+     "hint_if_fail": "name.isBlank() is true for spaces only."
+    },
+    {
+     "call": "new Member(\"Wanjiru\", -1)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "negative savings"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Member m = new Member(\"Akinyi\"); m.deposit(0); return \"no error\"; }).get()",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "deposit of 0"
+    },
+    {
+     "src_has": "this(",
+     "why": "Member(String name) should call the other constructor: this(name, 0);"
+    }
+   ],
+   "hints": [
+    "The one-argument constructor is a single line: this(name, 0);",
+    "Put all the checks in the two-argument constructor, before assigning: if (name == null || name.isBlank()) throw ...",
+    "describe(): return name + \": \" + savings + \" KSh\";"
+   ],
+   "solution": "public class Member {\n    private final String name;\n    private double savings;\n\n    public Member(String name) {\n        this(name, 0);   // one place for the checks\n    }\n\n    public Member(String name, double savings) {\n        if (name == null || name.isBlank()) throw new IllegalArgumentException(\"name needed\");\n        if (savings < 0) throw new IllegalArgumentException(\"savings can't be negative\");\n        this.name = name.trim();\n        this.savings = savings;\n    }\n\n    public String getName() { return name; }\n    public double getSavings() { return savings; }\n\n    public void deposit(double amount) {\n        if (amount <= 0) throw new IllegalArgumentException(\"deposit must be positive\");\n        savings += amount;\n    }\n\n    public String describe() {\n        return name + \": \" + savings + \" KSh\";\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Clinic queue tickets",
+   "file": "Ticket.java",
+   "prompt": "Each new Ticket(String patient) gets the next number: 1, 2, 3... The starter keeps the counter in an instance field, so every ticket is number 1. Fix it with a static counter. getNumber(), getPatient(), label() gives \"#3 Otieno\". static issued() returns how many tickets were made since the last reset; static reset() starts counting from 1 again.",
+   "starter": "public class Ticket {\n    private int nextNumber = 1;   // bug: every ticket has its own counter\n    private final int number;\n    private final String patient;\n\n    public Ticket(String patient) {\n        this.patient = patient;\n        this.number = nextNumber;\n        nextNumber++;\n    }\n\n    public int getNumber() { return number; }\n    public String getPatient() { return patient; }\n    public String label() { return \"#\" + number + \" \" + patient; }\n\n    public static int issued() {\n        return 0;\n    }\n\n    public static void reset() {\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Ticket.reset(); new Ticket(\"Amina\"); new Ticket(\"Juma\"); return new Ticket(\"Otieno\").label(); }).get()",
+     "expect": "#3 Otieno",
+     "name": "numbers go up"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Ticket.reset(); new Ticket(\"A\"); new Ticket(\"B\"); return Ticket.issued() + \"\"; }).get()",
+     "expect": "2",
+     "name": "issued"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Ticket.reset(); new Ticket(\"A\"); Ticket.reset(); return new Ticket(\"Amina\").label() + \" \" + Ticket.issued(); }).get()",
+     "expect": "#1 Amina 1",
+     "hidden": true,
+     "name": "reset starts again"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Ticket.reset(); return Ticket.issued() + \"\"; }).get()",
+     "expect": "0",
+     "hidden": true,
+     "name": "none issued"
+    }
+   ],
+   "hints": [
+    "Make the counter static: private static int nextNumber = 1;",
+    "issued() is nextNumber - 1; reset() sets nextNumber = 1."
+   ],
+   "solution": "public class Ticket {\n    private static int nextNumber = 1;   // one counter shared by all tickets\n    private final int number;\n    private final String patient;\n\n    public Ticket(String patient) {\n        this.patient = patient;\n        this.number = nextNumber;\n        nextNumber++;\n    }\n\n    public int getNumber() { return number; }\n    public String getPatient() { return patient; }\n    public String label() { return \"#\" + number + \" \" + patient; }\n\n    public static int issued() {\n        return nextNumber - 1;\n    }\n\n    public static void reset() {\n        nextNumber = 1;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "In a constructor, you write `capacity = capacity;` (no `this.`). What happens?",
+   "choices": [
+    "The field gets the value",
+    "The parameter is assigned to itself and the field stays 0",
+    "It doesn't compile",
+    "Java adds this. for you"
+   ],
+   "answer": 1,
+   "why": "The parameter hides the field; use this.capacity = capacity."
+  },
+  {
+   "q": "Why make the level field private?",
+   "choices": [
+    "It runs faster",
+    "So every change goes through methods that check it",
+    "Private fields can't change",
+    "Java requires it"
+   ],
+   "answer": 1,
+   "why": "Encapsulation: the object protects its own rules."
+  },
+  {
+   "q": "A static field `count` in class Enemy is…",
+   "choices": [
+    "one per enemy",
+    "one shared by all enemies",
+    "a constant",
+    "only usable in main"
+   ],
+   "answer": 1,
+   "why": "static belongs to the class, not to an object."
+  },
+  {
+   "q": "Which line correctly calls another constructor of the same class?",
+   "choices": [
+    "Member(name, 0);",
+    "new Member(name, 0);",
+    "this(name, 0); as the first line",
+    "super(name, 0); anywhere"
+   ],
+   "answer": 2,
+   "why": "this(...) must be the first statement."
+  },
+  {
+   "q": "A static method tries to read an instance field `level`. Result?",
+   "choices": [
+    "Reads the last object's level",
+    "Compile error: no object to read it from",
+    "Returns 0",
+    "Works if the field is private"
+   ],
+   "answer": 1,
+   "why": "Static methods aren't called on an object."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What does `this` mean inside a method?",
+   "a": "The object the method was called on (or is being built)."
+  },
+  {
+   "q": "Where do you put validation?",
+   "a": "In the constructor and in every method that changes state."
+  },
+  {
+   "q": "static field vs instance field?",
+   "a": "static: one for the whole class. instance: one per object."
+  },
+  {
+   "q": "Constructor chaining?",
+   "a": "this(...) as the first line calls another constructor of the same class."
+  }
+ ],
+ "explain": "Explain encapsulation in your own words, using an example object you make up (a tank, a bank account, a game character): what goes wrong without it?"
+}

@@ -1,0 +1,57 @@
+# personal data: never commit
+about_me.txt
+archie_config.json
+tasks.txt
+deadlines.txt
+calendar.json
+brief_state.json
+focus_state.json
+listen_state.json
+last_update.txt
+lecture_wake.json
+notes_index.json
+model_names.local.txt
+Chats/
+Notes/
+Recordings/
+Recaps/
+Study/
+Memory/
+Screenshots/
+Images/
+Banners/
+Drawing Gym/
+Workshop/
+Games/
+VaultCheck/
+World/world.db
+World/watch.json
+World/label_rules.json
+World/civic/
+World/Saved Articles/
+World/geo/
+World/tiles/
+World/golden-record/
+World/sounds/
+World/flags/
+World/window-profile/
+World/vault-*.json
+World/vault-icons/
+World/exoplanets.json
+
+# big downloads
+Vault/
+Wikipedia/
+Voice/
+*.zim
+*.gguf
+*.whl
+*.zip
+
+# generated
+Archie Manual.html
+archie_error.log
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/_user_blocks_unused/

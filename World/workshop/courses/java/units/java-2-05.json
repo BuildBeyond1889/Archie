@@ -1,0 +1,258 @@
+{
+ "id": "java-2-05",
+ "level": 2,
+ "title": "Polymorphism",
+ "concepts": [
+  "polymorphism",
+  "inheritance",
+  "interfaces"
+ ],
+ "skills": [
+  "dispatch",
+  "instanceof",
+  "design"
+ ],
+ "lesson": "**Polymorphism** means \"many shapes\": one variable type, many real kinds of object behind it, each doing its own thing when you call the same method.\n\n```\nList<Enemy> wave = List.of(new Slime(), new Archer(), new Boss(2));\nint total = 0;\nfor (Enemy e : wave) total += e.attack();\n```\n\nThe loop only knows `Enemy`. But when it calls `e.attack()`, Java looks at the *real* object at run time and runs Slime's `attack`, then Archer's, then Boss's. This is called **dynamic dispatch**. The variable's type (Enemy) decides *what you're allowed to call*; the object's real class decides *which code runs*.\n\nWhy it matters: without it, you'd write long chains of \"if it's a slime do this, if it's an archer do that\" everywhere: in the attack code, the reward code, the drawing code, the save code. Add a new enemy and you must find and fix every chain. With polymorphism you add one class and every loop just works. Games are built on this: the main loop calls `update()` and `draw()` on hundreds of different objects.\n\n**instanceof and pattern matching.** Sometimes you really do need to ask what something is: loot dropped in a dungeon could be potions, weapons or coins, held as `List<Object>`, or you're handling objects from someone else's code. Modern Java checks and casts in one step:\n\n```\nif (item instanceof Potion p) {\n    heal += p.heal();          // p is already a Potion\n} else if (item instanceof Coin c) {\n    gold += c.value();\n}\n```\n\n`instanceof` is `false` for `null`, so it's also a safe null check.\n\nThe habit: **if you control the classes, prefer a method on each class** (polymorphism). Use `instanceof` when the types are mixed and you can't, or shouldn't, add a method to them. If you find yourself writing `instanceof` chains about your own classes, that's a sign the behaviour belongs inside the classes.\n\nA subtle point: dispatch happens on **overridden** methods only. Fields and static methods don't dispatch. And overloading (same name, different parameters) is picked at compile time from the variable's type, not the real object.\n\nReal uses: a payroll loop over nurses, doctors and volunteers (each knows its own pay); a robot's list of `Sensor`s each reading in its own way; a drawing program's list of shapes.",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.List;\n\nabstract class Unit {\n    abstract String act();\n}\n\nclass Farmer extends Unit { String act() { return \"plants maize\"; } }\nclass Trader extends Unit { String act() { return \"sells beans\"; } }\nclass Vet extends Unit    { String act() { return \"checks the cows\"; } }\n\npublic class Example {\n    public static void main(String[] args) {\n        List<Unit> village = List.of(new Farmer(), new Trader(), new Vet());\n        for (Unit u : village) System.out.println(u.act());   // dynamic dispatch\n\n        Object[] things = { \"rain\", 42, 3.5, new Vet() };\n        for (Object o : things) {\n            if (o instanceof String s) System.out.println(\"text of length \" + s.length());\n            else if (o instanceof Integer n) System.out.println(\"whole number \" + (n + 1));\n            else if (o instanceof Unit u) System.out.println(\"a unit that \" + u.act());\n            else System.out.println(\"something else: \" + o);\n        }\n    }\n}\n",
+  "notes": [
+   "The list's type is Unit, but each object is a different class.",
+   "u.act() runs the real class's act(): that's dynamic dispatch.",
+   "For a mixed Object[] we use instanceof with a pattern variable.",
+   "`o instanceof String s` checks and casts in one step.",
+   "The final else catches anything unexpected (3.5 here)."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "An enemy wave",
+   "file": "Wave.java",
+   "prompt": "Enemy, Slime (attack 3, reward 5) and Archer (attack 7, reward 12) are done. Finish Boss(int level): name \"Boss L2\" for level 2, attack 20 × level, reward 100 × level. In Wave write static int totalAttack(List<Enemy> wave), static int totalReward(List<Enemy> wave), and static String mostDangerous(List<Enemy> wave) (the name of the enemy with the highest attack; the first one wins a tie; \"none\" if empty). Use polymorphism: no instanceof or getClass.",
+   "starter": "import java.util.List;\n\nabstract class Enemy {\n    private final String name;\n    protected Enemy(String name) { this.name = name; }\n    public String getName() { return name; }\n    public abstract int attack();\n    public abstract int reward();\n}\n\nclass Slime extends Enemy {\n    Slime() { super(\"Slime\"); }\n    @Override public int attack() { return 3; }\n    @Override public int reward() { return 5; }\n}\n\nclass Archer extends Enemy {\n    Archer() { super(\"Archer\"); }\n    @Override public int attack() { return 7; }\n    @Override public int reward() { return 12; }\n}\n\nclass Boss extends Enemy {\n    Boss(int level) { super(\"Boss\"); }\n    @Override public int attack() { return 0; }\n    @Override public int reward() { return 0; }\n}\n\npublic class Wave {\n    public static int totalAttack(List<Enemy> wave) { return 0; }\n    public static int totalReward(List<Enemy> wave) { return 0; }\n    public static String mostDangerous(List<Enemy> wave) { return \"\"; }\n}\n",
+   "tests": [
+    {
+     "call": "Wave.totalAttack(java.util.List.of(new Slime(), new Archer(), new Slime()))",
+     "expect": "13"
+    },
+    {
+     "call": "Wave.totalReward(java.util.List.of(new Boss(2), new Slime()))",
+     "expect": "205"
+    },
+    {
+     "call": "Wave.mostDangerous(java.util.List.of(new Archer(), new Boss(1), new Slime()))",
+     "expect": "Boss L1"
+    },
+    {
+     "call": "new Boss(3).attack()",
+     "expect": "60"
+    },
+    {
+     "call": "Wave.mostDangerous(java.util.List.of(new Archer(), new Archer()))",
+     "expect": "Archer",
+     "hidden": true,
+     "name": "tie"
+    },
+    {
+     "call": "Wave.mostDangerous(java.util.List.of()) + \" \" + Wave.totalAttack(java.util.List.of())",
+     "expect": "none 0",
+     "hidden": true,
+     "name": "empty wave"
+    },
+    {
+     "src_not": "instanceof",
+     "why": "Let each enemy answer for itself: no instanceof."
+    },
+    {
+     "src_not": "getClass",
+     "why": "No getClass: use polymorphism."
+    }
+   ],
+   "hints": [
+    "Boss stores level in a field and calls super(\"Boss L\" + level).",
+    "totalAttack: for (Enemy e : wave) total += e.attack();",
+    "mostDangerous: only replace the best when e.attack() > best.attack() (strictly bigger keeps the first on a tie)."
+   ],
+   "solution": "import java.util.List;\n\nabstract class Enemy {\n    private final String name;\n    protected Enemy(String name) { this.name = name; }\n    public String getName() { return name; }\n    public abstract int attack();\n    public abstract int reward();\n}\n\nclass Slime extends Enemy {\n    Slime() { super(\"Slime\"); }\n    @Override public int attack() { return 3; }\n    @Override public int reward() { return 5; }\n}\n\nclass Archer extends Enemy {\n    Archer() { super(\"Archer\"); }\n    @Override public int attack() { return 7; }\n    @Override public int reward() { return 12; }\n}\n\nclass Boss extends Enemy {\n    private final int level;\n    Boss(int level) {\n        super(\"Boss L\" + level);\n        this.level = level;\n    }\n    @Override public int attack() { return 20 * level; }\n    @Override public int reward() { return 100 * level; }\n}\n\npublic class Wave {\n    public static int totalAttack(List<Enemy> wave) {\n        int total = 0;\n        for (Enemy e : wave) total += e.attack();   // each enemy's own attack()\n        return total;\n    }\n\n    public static int totalReward(List<Enemy> wave) {\n        int total = 0;\n        for (Enemy e : wave) total += e.reward();\n        return total;\n    }\n\n    public static String mostDangerous(List<Enemy> wave) {\n        if (wave.isEmpty()) return \"none\";\n        Enemy best = wave.get(0);\n        for (Enemy e : wave) if (e.attack() > best.attack()) best = e;\n        return best.getName();\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Sorting the loot",
+   "file": "Items.java",
+   "prompt": "Loot is a mix of unrelated classes: Potion (heal), Weapon (name, damage) and Coin (value), held as Object. Using instanceof with pattern variables, write in Items: static String describe(Object item) giving \"Potion +20 hp\", \"Spear 12 dmg\", \"Coin x5\", or \"Unknown\" for anything else (including null); static int totalCoins(List<Object> loot) adding up coin values; static int bestDamage(List<Object> loot) giving the highest weapon damage, or 0 if there are no weapons.",
+   "starter": "import java.util.List;\n\nclass Potion {\n    final int heal;\n    Potion(int heal) { this.heal = heal; }\n}\n\nclass Weapon {\n    final String name;\n    final int damage;\n    Weapon(String name, int damage) { this.name = name; this.damage = damage; }\n}\n\nclass Coin {\n    final int value;\n    Coin(int value) { this.value = value; }\n}\n\npublic class Items {\n    public static String describe(Object item) {\n        return \"\";\n    }\n\n    public static int totalCoins(List<Object> loot) {\n        return 0;\n    }\n\n    public static int bestDamage(List<Object> loot) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Items.describe(new Potion(20))",
+     "expect": "Potion +20 hp"
+    },
+    {
+     "call": "Items.describe(new Weapon(\"Spear\", 12))",
+     "expect": "Spear 12 dmg"
+    },
+    {
+     "call": "Items.describe(new Coin(5))",
+     "expect": "Coin x5"
+    },
+    {
+     "call": "Items.describe(\"a rock\")",
+     "expect": "Unknown"
+    },
+    {
+     "call": "Items.totalCoins(java.util.List.of(new Coin(5), new Potion(3), new Coin(10)))",
+     "expect": "15"
+    },
+    {
+     "call": "Items.bestDamage(java.util.List.of(new Weapon(\"Club\", 6), new Coin(1), new Weapon(\"Axe\", 18)))",
+     "expect": "18"
+    },
+    {
+     "call": "Items.describe(null)",
+     "expect": "Unknown",
+     "hidden": true,
+     "name": "null",
+     "hint_if_fail": "instanceof is false for null, so a chain of instanceof checks handles it."
+    },
+    {
+     "call": "Items.bestDamage(java.util.List.of(new Potion(5)))",
+     "expect": "0",
+     "hidden": true,
+     "name": "no weapons"
+    },
+    {
+     "src_has": "instanceof",
+     "why": "Use instanceof with a pattern variable."
+    }
+   ],
+   "hints": [
+    "if (item instanceof Potion p) return \"Potion +\" + p.heal + \" hp\";",
+    "In the loops: for (Object o : loot) if (o instanceof Coin c) total += c.value;"
+   ],
+   "solution": "import java.util.List;\n\nclass Potion {\n    final int heal;\n    Potion(int heal) { this.heal = heal; }\n}\n\nclass Weapon {\n    final String name;\n    final int damage;\n    Weapon(String name, int damage) { this.name = name; this.damage = damage; }\n}\n\nclass Coin {\n    final int value;\n    Coin(int value) { this.value = value; }\n}\n\npublic class Items {\n    public static String describe(Object item) {\n        if (item instanceof Potion p) return \"Potion +\" + p.heal + \" hp\";\n        if (item instanceof Weapon w) return w.name + \" \" + w.damage + \" dmg\";\n        if (item instanceof Coin c) return \"Coin x\" + c.value;\n        return \"Unknown\";   // also null: instanceof is false for null\n    }\n\n    public static int totalCoins(List<Object> loot) {\n        int total = 0;\n        for (Object o : loot) if (o instanceof Coin c) total += c.value;\n        return total;\n    }\n\n    public static int bestDamage(List<Object> loot) {\n        int best = 0;\n        for (Object o : loot) if (o instanceof Weapon w && w.damage > best) best = w.damage;\n        return best;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Clinic payroll",
+   "file": "Payroll.java",
+   "prompt": "Worker and Doctor (a fixed weekly salary) are done. Write Nurse(String name, int hours, double rate): pay is hours × rate, but hours above 40 are paid 1.5 × rate. Write Volunteer(String name): weekly pay is a 500.0 stipend. In Payroll write static double total(List<Worker> staff) and static String highestPaid(List<Worker> staff) (name; first wins a tie; \"none\" if empty). payslip() is done in Worker.",
+   "starter": "import java.util.List;\n\nabstract class Worker {\n    private final String name;\n    protected Worker(String name) { this.name = name; }\n    public String getName() { return name; }\n    public abstract double weeklyPay();\n    public String payslip() { return name + \": \" + weeklyPay() + \" KSh\"; }\n}\n\nclass Doctor extends Worker {\n    private final double salary;\n    Doctor(String name, double salary) { super(name); this.salary = salary; }\n    @Override public double weeklyPay() { return salary; }\n}\n\nclass Nurse extends Worker {\n    Nurse(String name, int hours, double rate) { super(name); }\n    @Override public double weeklyPay() { return 0; }\n}\n\nclass Volunteer extends Worker {\n    Volunteer(String name) { super(name); }\n    @Override public double weeklyPay() { return 0; }\n}\n\npublic class Payroll {\n    public static double total(List<Worker> staff) { return 0; }\n    public static String highestPaid(List<Worker> staff) { return \"\"; }\n}\n",
+   "tests": [
+    {
+     "call": "new Nurse(\"Wanjiru\", 40, 300).weeklyPay()",
+     "expect": "12000.0"
+    },
+    {
+     "call": "new Nurse(\"Wanjiru\", 45, 300).weeklyPay()",
+     "expect": "14250.0",
+     "name": "overtime"
+    },
+    {
+     "call": "new Volunteer(\"Juma\").payslip()",
+     "expect": "Juma: 500.0 KSh"
+    },
+    {
+     "call": "Payroll.total(java.util.List.of(new Nurse(\"A\", 40, 300), new Doctor(\"B\", 30000), new Volunteer(\"C\")))",
+     "expect": "42500.0"
+    },
+    {
+     "call": "Payroll.highestPaid(java.util.List.of(new Nurse(\"A\", 40, 300), new Doctor(\"B\", 30000), new Volunteer(\"C\")))",
+     "expect": "B"
+    },
+    {
+     "call": "Payroll.highestPaid(java.util.List.of()) + \" \" + Payroll.total(java.util.List.of())",
+     "expect": "none 0.0",
+     "hidden": true,
+     "name": "no staff"
+    },
+    {
+     "call": "new Nurse(\"Akinyi\", 0, 300).weeklyPay()",
+     "expect": "0.0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Nurse keeps hours and rate in fields.",
+    "int normal = Math.min(hours, 40); int extra = Math.max(0, hours - 40); return normal * rate + extra * rate * 1.5;",
+    "total: for (Worker w : staff) sum += w.weeklyPay();"
+   ],
+   "solution": "import java.util.List;\n\nabstract class Worker {\n    private final String name;\n    protected Worker(String name) { this.name = name; }\n    public String getName() { return name; }\n    public abstract double weeklyPay();\n    public String payslip() { return name + \": \" + weeklyPay() + \" KSh\"; }\n}\n\nclass Doctor extends Worker {\n    private final double salary;\n    Doctor(String name, double salary) { super(name); this.salary = salary; }\n    @Override public double weeklyPay() { return salary; }\n}\n\nclass Nurse extends Worker {\n    private final int hours;\n    private final double rate;\n    Nurse(String name, int hours, double rate) {\n        super(name);\n        this.hours = hours;\n        this.rate = rate;\n    }\n    @Override public double weeklyPay() {\n        int normal = Math.min(hours, 40);\n        int extra = Math.max(0, hours - 40);\n        return normal * rate + extra * rate * 1.5;\n    }\n}\n\nclass Volunteer extends Worker {\n    Volunteer(String name) { super(name); }\n    @Override public double weeklyPay() { return 500.0; }\n}\n\npublic class Payroll {\n    public static double total(List<Worker> staff) {\n        double sum = 0;\n        for (Worker w : staff) sum += w.weeklyPay();   // each kind pays its own way\n        return sum;\n    }\n\n    public static String highestPaid(List<Worker> staff) {\n        if (staff.isEmpty()) return \"none\";\n        Worker best = staff.get(0);\n        for (Worker w : staff) if (w.weeklyPay() > best.weeklyPay()) best = w;\n        return best.getName();\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "`Enemy e = new Archer(); e.attack();` runs…",
+   "choices": [
+    "Enemy's attack",
+    "Archer's attack",
+    "whichever was written first",
+    "a compile error"
+   ],
+   "answer": 1,
+   "why": "Dynamic dispatch uses the real object's class."
+  },
+  {
+   "q": "`Enemy e = new Archer();` Can you call an Archer-only method `e.aim()`?",
+   "choices": [
+    "Yes",
+    "No: the variable's type (Enemy) decides what you may call",
+    "Only at run time",
+    "Only if aim is static"
+   ],
+   "answer": 1,
+   "why": "The compiler only knows it's an Enemy."
+  },
+  {
+   "q": "`null instanceof Potion` is…",
+   "choices": [
+    "true",
+    "false",
+    "a NullPointerException",
+    "a compile error"
+   ],
+   "answer": 1,
+   "why": "instanceof is false for null."
+  },
+  {
+   "q": "You keep writing `if (e instanceof Slime) ... else if (e instanceof Archer) ...` for your own enemy classes. Better?",
+   "choices": [
+    "Add more else-ifs",
+    "Put a method on Enemy and override it in each class",
+    "Use getClass().getName()",
+    "Use a switch on names"
+   ],
+   "answer": 1,
+   "why": "Let polymorphism pick the behaviour."
+  },
+  {
+   "q": "Why does polymorphism make adding a new enemy type easy?",
+   "choices": [
+    "Loops over Enemy work unchanged",
+    "Java copies code automatically",
+    "New classes run faster",
+    "It doesn't"
+   ],
+   "answer": 0,
+   "why": "Only the new class is written; callers don't change."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Dynamic dispatch?",
+   "a": "At run time Java runs the overriding method of the object's real class."
+  },
+  {
+   "q": "Pattern matching instanceof?",
+   "a": "if (o instanceof Coin c) { use c directly }"
+  },
+  {
+   "q": "Variable type vs object type?",
+   "a": "Variable type: what you may call. Object type: which code runs."
+  },
+  {
+   "q": "When is instanceof reasonable?",
+   "a": "Mixed types you don't control, or can't add a method to."
+  }
+ ],
+ "explain": "Explain polymorphism to a friend using a game loop as the example: what would the code look like without it?"
+}

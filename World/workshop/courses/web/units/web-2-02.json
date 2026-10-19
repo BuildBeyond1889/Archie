@@ -1,0 +1,227 @@
+{
+ "id": "web-2-02",
+ "level": 2,
+ "title": "Events in depth",
+ "concepts": [
+  "events",
+  "dom",
+  "forms"
+ ],
+ "skills": [
+  "events",
+  "delegation",
+  "forms"
+ ],
+ "lesson": "An **event** is the browser telling your code that something happened: a click, a key, a form being sent. You've used `addEventListener(\"click\", ...)` already. Now look closer, because most bugs in interactive pages are event bugs.\n\n**The event object.** Your function receives one argument describing what happened:\n\n```\nbutton.addEventListener(\"click\", (event) => {\n  console.log(event.type);           // \"click\"\n  console.log(event.target);         // the element actually clicked\n  console.log(event.currentTarget);  // the element the listener is on\n});\n```\n\n**Which event?**\n- `click`: buttons, links, anything clicked or tapped.\n- `input`: fires on every change to a text box as you type. Good for live counters and search.\n- `change`: fires when a change is *committed*: a choice in a `<select>`, a checkbox ticked, or a text box left after editing.\n- `submit`: fires on a `<form>` when its submit button is pressed **or Enter is pressed** in a box. Listen on the form, not the button, and you catch both.\n\n**Stop the reload.** A form's old default is to send the data to a server and load a new page. In an app that runs in the page, that reload wipes everything. The first line of a submit handler is almost always:\n\n```\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault();   // stay on this page\n  // ...read the boxes and do the work\n});\n```\n\n**Pass the function, don't call it.** `button.addEventListener(\"click\", update())` runs `update` once, immediately, and hands its result (usually `undefined`) to the browser. Write `update` without brackets, or wrap it: `() => update(5)`.\n\n**One handler for many buttons.** A game shop with twenty items doesn't need twenty listeners. Put the facts on each button with data attributes, and one listener on the container:\n\n```\n<div id=\"shop\">\n  <button data-item=\"sword\" data-cost=\"50\">Sword</button>\n  <button data-item=\"bow\" data-cost=\"80\">Bow</button>\n</div>\n```\n```\nshop.addEventListener(\"click\", (event) => {\n  const item = event.target.dataset.item;\n  if (!item) return;                 // clicked the gap, not a button\n  buy(item, Number(event.target.dataset.cost));\n});\n```\n\nClicks **bubble**: they start at the button and travel up through its parents, so the container's listener hears them, and `event.target` says which button it was. This is called **event delegation**. It also works for buttons added later, which matters when lists are built from data. (If a button holds an icon or a `<span>`, the target may be that inner element; `event.target.closest(\"button\")` finds the button.)\n\nKeep the handlers thin: read the input, call a plain function that does the real work, show the result.",
+ "example": {
+  "file": "example.js",
+  "code": "let gold = 120;\nconst shop = document.getElementById(\"shop\");\nconst message = document.getElementById(\"message\");\n\nfunction buy(item, cost) {                 // the rule, with no DOM in it\n  if (cost > gold) return `Not enough gold for ${item}`;\n  gold -= cost;\n  return `Bought ${item}`;\n}\n\n// ONE listener for every button inside #shop (event delegation)\nshop.addEventListener(\"click\", (event) => {\n  const button = event.target.closest(\"button\");\n  if (!button) return;                     // a click on the gap\n  message.textContent = buy(button.dataset.item, Number(button.dataset.cost));\n});\n\nconst form = document.getElementById(\"rename\");\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault();                  // no page reload\n  document.getElementById(\"hero\").textContent = document.getElementById(\"name\").value.trim();\n});\n",
+  "notes": [
+   "buy() holds the rule and knows nothing about the page, so it is easy to test.",
+   "One listener on the container; dataset says which button and what it costs.",
+   "closest(\"button\") copes with clicks on an icon inside a button; return early for clicks on the gap.",
+   "Submit is heard on the form (button or Enter), and preventDefault stops the reload."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Character counter",
+   "file": "ex1_chars.js",
+   "prompt": "An SMS reminder box: the page has <textarea id=\"msg\"> and <p id=\"left\">. Write remaining(text, limit) returning limit minus the text's length. Then, on every \"input\" event on #msg, set #left's text to \"N characters left\" (N = remaining(msg.value, 160), which can go negative) and give #left the class \"over\" when N is below 0 (remove it again when it isn't).",
+   "starter": "function remaining(text, limit) {\n  return 0;\n}\n\n// listen for \"input\" on #msg and update #left\n",
+   "tests": [
+    {
+     "call": "remaining(\"hello\", 160)",
+     "expect": 155,
+     "name": "remaining()"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst m = document.getElementById(\"msg\");\nm.value = \"Habari\";\nm.dispatch(\"input\");\n__eq(document.getElementById(\"left\").textContent, \"154 characters left\", \"#left after typing Habari\");\n})();",
+     "name": "updates as you type",
+     "hint_if_fail": "addEventListener(\"input\", ...) on #msg."
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst m = document.getElementById(\"msg\"), left = document.getElementById(\"left\");\nm.value = \"x\".repeat(170);\nm.dispatch(\"input\");\n__eq(left.textContent, \"-10 characters left\", \"#left at 170 characters\");\nif (!left.classList.contains(\"over\")) throw new Error(\"#left should have the class over when below 0\");\nm.value = \"hi\";\nm.dispatch(\"input\");\nif (left.classList.contains(\"over\")) throw new Error(\"the class over should go away again\");\n})();",
+     "name": "over the limit, and back",
+     "hidden": true,
+     "hint_if_fail": "classList.toggle(\"over\", n < 0) adds or removes in one line."
+    }
+   ],
+   "hints": [
+    "Find #msg and #left once at the top.",
+    "msg.addEventListener(\"input\", () => { const n = remaining(msg.value, 160); ... });",
+    "left.classList.toggle(\"over\", n < 0);"
+   ],
+   "solution": "function remaining(text, limit) {\n  return limit - text.length;\n}\n\nconst msg = document.getElementById(\"msg\");\nconst left = document.getElementById(\"left\");\n\nmsg.addEventListener(\"input\", () => {\n  const n = remaining(msg.value, 160);\n  left.textContent = `${n} characters left`;\n  left.classList.toggle(\"over\", n < 0);   // on when true, off when false\n});\n"
+  },
+  {
+   "id": "e2",
+   "title": "One handler, many buttons",
+   "file": "ex2_shop.js",
+   "prompt": "A game shop. The page has <div id=\"shop\"> holding buttons like <button data-item=\"sword\" data-cost=\"50\">, plus <p id=\"gold\"> and <p id=\"message\">. Keep the starting var gold = 120. Write buy(item, cost): if cost is more than gold return \"Not enough gold for ITEM\" (gold unchanged); otherwise subtract the cost and return \"Bought ITEM\". Then add ONE click listener on #shop that reads event.target.dataset.item and event.target.dataset.cost; if there is no item (the click hit the gap), do nothing; otherwise put buy(item, Number(cost)) into #message and \"Gold: N\" into #gold.",
+   "starter": "var gold = 120;\n\nfunction buy(item, cost) {\n  // \"Bought ITEM\" and take the gold, or \"Not enough gold for ITEM\"\n  return \"\";\n}\n\n// ONE click listener on #shop; read the item and cost from event.target.dataset\n",
+   "tests": [
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\n__fire(document.getElementById(\"shop\"), \"click\", { target: { dataset: { item: \"sword\", cost: \"50\" } } });\n__eq(document.getElementById(\"message\").textContent, \"Bought sword\", \"#message\");\n__eq(document.getElementById(\"gold\").textContent, \"Gold: 70\", \"#gold\");\n})();",
+     "name": "buying a sword",
+     "hint_if_fail": "One listener on #shop; event.target.dataset.item and .cost."
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\n__fire(document.getElementById(\"shop\"), \"click\", { target: { dataset: { item: \"bow\", cost: \"100\" } } });\n__eq(document.getElementById(\"message\").textContent, \"Not enough gold for bow\", \"#message\");\n__eq(document.getElementById(\"gold\").textContent, \"Gold: 70\", \"#gold\");\n})();",
+     "name": "not enough gold"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\n__fire(document.getElementById(\"shop\"), \"click\", { target: { dataset: {} } });\n__eq(document.getElementById(\"message\").textContent, \"Not enough gold for bow\", \"#message after a click on the gap\");\n})();",
+     "name": "a click on the gap is ignored",
+     "hidden": true,
+     "hint_if_fail": "if (!item) return;"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\n__eq([buy(\"shield\", 70), gold], [\"Bought shield\", 0], \"buy(\\\"shield\\\", 70) with 70 gold, then gold\");\n})();",
+     "name": "spending exactly all your gold",
+     "hidden": true,
+     "hint_if_fail": "Only refuse when cost is MORE than gold."
+    },
+    {
+     "src_has": "dataset",
+     "why": "Read the item and cost from the button's data attributes (dataset)."
+    }
+   ],
+   "hints": [
+    "Write buy first; it doesn't touch the page.",
+    "shop.addEventListener(\"click\", (event) => { const item = event.target.dataset.item; if (!item) return; ... });",
+    "Data attributes are text: Number(event.target.dataset.cost)."
+   ],
+   "solution": "var gold = 120;\n\nfunction buy(item, cost) {\n  if (cost > gold) return `Not enough gold for ${item}`;\n  gold -= cost;\n  return `Bought ${item}`;\n}\n\nconst shop = document.getElementById(\"shop\");\nshop.addEventListener(\"click\", (event) => {\n  const item = event.target.dataset.item;\n  if (!item) return;                       // clicked the gap between buttons\n  const cost = Number(event.target.dataset.cost);\n  document.getElementById(\"message\").textContent = buy(item, cost);\n  document.getElementById(\"gold\").textContent = `Gold: ${gold}`;\n});\n"
+  },
+  {
+   "id": "e3",
+   "title": "Stop the reload",
+   "file": "ex3_tank.js",
+   "prompt": "A water tank reading form: <form id=\"reading-form\"> with <input id=\"level\"> (a percentage) and <p id=\"status\">. Write tankStatus(value), where value is the text from the box: if it's empty, not a number, below 0 or above 100 return \"Enter a level from 0 to 100\"; below 20 return \"Tank low: N%\"; 90 or more return \"Tank full: N%\"; otherwise \"Tank at N%\". Then listen for \"submit\" on the form: call event.preventDefault(), and show tankStatus(level's value) in #status.",
+   "starter": "function tankStatus(value) {\n  return \"\";\n}\n\n// listen for \"submit\" on #reading-form\n",
+   "tests": [
+    {
+     "call": "[tankStatus(\"15\"), tankStatus(\"50\"), tankStatus(\"95\")]",
+     "expect": [
+      "Tank low: 15%",
+      "Tank at 50%",
+      "Tank full: 95%"
+     ],
+     "name": "low, middle, full"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\ndocument.getElementById(\"level\").value = \"10\";\nconst ev = __fire(document.getElementById(\"reading-form\"), \"submit\");\nif (!ev.defaultPrevented) throw new Error(\"call event.preventDefault() so the page doesn't reload\");\n__eq(document.getElementById(\"status\").textContent, \"Tank low: 10%\", \"#status\");\n})();",
+     "name": "the form works without a reload",
+     "hint_if_fail": "Listen on the form for \"submit\", and call event.preventDefault() first."
+    },
+    {
+     "call": "[tankStatus(\"\"), tankStatus(\"abc\"), tankStatus(\"-5\"), tankStatus(\"120\")]",
+     "expect": [
+      "Enter a level from 0 to 100",
+      "Enter a level from 0 to 100",
+      "Enter a level from 0 to 100",
+      "Enter a level from 0 to 100"
+     ],
+     "name": "bad readings",
+     "hidden": true,
+     "hint_if_fail": "Number(\"\") is 0, so check for an empty box first."
+    },
+    {
+     "call": "[tankStatus(\"20\"), tankStatus(\"90\"), tankStatus(\"0\"), tankStatus(\"100\")]",
+     "expect": [
+      "Tank at 20%",
+      "Tank full: 90%",
+      "Tank low: 0%",
+      "Tank full: 100%"
+     ],
+     "name": "the edges",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Check for \"\" first, then const n = Number(value) and Number.isNaN(n).",
+    "Order: invalid, then n < 20, then n >= 90, else the middle.",
+    "form.addEventListener(\"submit\", (event) => { event.preventDefault(); status.textContent = tankStatus(level.value); });"
+   ],
+   "solution": "function tankStatus(value) {\n  const text = String(value).trim();\n  const n = Number(text);\n  if (text === \"\" || Number.isNaN(n) || n < 0 || n > 100) return \"Enter a level from 0 to 100\";\n  if (n < 20) return `Tank low: ${n}%`;\n  if (n >= 90) return `Tank full: ${n}%`;\n  return `Tank at ${n}%`;\n}\n\nconst form = document.getElementById(\"reading-form\");\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault();   // stay on this page\n  const level = document.getElementById(\"level\");\n  document.getElementById(\"status\").textContent = tankStatus(level.value);\n});\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What's wrong with button.addEventListener(\"click\", update());",
+   "choices": [
+    "Nothing",
+    "It calls update once right now and passes its result, not the function",
+    "click should be onclick",
+    "update must be an arrow function"
+   ],
+   "answer": 1,
+   "why": "Pass update (no brackets) or () => update()."
+  },
+  {
+   "q": "Why listen for \"submit\" on the form instead of \"click\" on its button?",
+   "choices": [
+    "Buttons can't be clicked",
+    "submit also catches pressing Enter in a box",
+    "click is slower",
+    "No difference"
+   ],
+   "answer": 1,
+   "why": "Enter in a text box submits the form without clicking the button."
+  },
+  {
+   "q": "What does event.preventDefault() do in a submit handler?",
+   "choices": [
+    "Stops your code",
+    "Stops the browser's default action: sending the form and reloading the page",
+    "Clears the form",
+    "Validates the inputs"
+   ],
+   "answer": 1,
+   "why": "Without it the page reloads and your app's state is lost."
+  },
+  {
+   "q": "One click listener on #shop handles all its buttons. How does it know which button was clicked?",
+   "choices": [
+    "event.currentTarget",
+    "event.target (with its dataset)",
+    "this.id",
+    "It can't"
+   ],
+   "answer": 1,
+   "why": "Clicks bubble up; event.target is the element actually clicked, currentTarget is #shop."
+  },
+  {
+   "q": "You want a word count that updates on every keystroke. Which event?",
+   "choices": [
+    "change",
+    "input",
+    "submit",
+    "load"
+   ],
+   "answer": 1,
+   "why": "input fires on every change; change waits until the edit is committed."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Stop a form reloading the page?",
+   "a": "event.preventDefault() in the submit handler"
+  },
+  {
+   "q": "input vs change?",
+   "a": "input: every keystroke. change: when the change is committed (select, checkbox, leaving the box)."
+  },
+  {
+   "q": "Event delegation?",
+   "a": "One listener on a parent; event.target says which child was clicked (clicks bubble up)."
+  },
+  {
+   "q": "target vs currentTarget?",
+   "a": "target: what was actually clicked. currentTarget: the element the listener is on."
+  }
+ ],
+ "explain": "Explain event delegation in your own words, using a made-up example with at least three buttons."
+}

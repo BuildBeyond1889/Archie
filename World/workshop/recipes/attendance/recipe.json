@@ -1,0 +1,52 @@
+{
+ "name": "Class attendance",
+ "lang": "Web (HTML, CSS, JavaScript)",
+ "summary": "A class list and a register: tap each child present or absent for the day, see who has missed many days, and print the month's register. Keeps only first names and attendance. English and Swahili.",
+ "for": "schools, orphanages, community classes, adult literacy groups",
+ "cheap": "One phone per teacher, no internet; back up to a file weekly.",
+ "tags": [
+  "attendance",
+  "school",
+  "register",
+  "class",
+  "children",
+  "orphanage",
+  "teacher"
+ ],
+ "shell": "web-offline-app",
+ "blocks": [
+  "web-store",
+  "web-table",
+  "web-csv",
+  "web-print",
+  "web-i18n",
+  "web-access"
+ ],
+ "files": {
+  "js/app.js": "js/app.js"
+ },
+ "version": "1.0.0",
+ "guide": {
+  "main": "js/app.js",
+  "overview": "A class register on the teacher's phone: add the children's first names once, then each day tap Present or Absent (or 'Everyone present'). It shows who has missed the most days this month and prints the month's register. It stores only first names and attendance, nothing more: with children's data, the less you keep the safer they are.",
+  "files": [
+   {
+    "file": "js/app.js",
+    "why": "The app itself: everything specific to it. The other files are library blocks it uses.",
+    "points": [
+     {
+      "find": "const marks = () => db.get(\"marks\", {});",
+      "note": "The register is saved as {date: {child id: P or A}}, so any day can be looked at again by changing the date."
+     },
+     {
+      "find": "function summary()",
+      "note": "Counts each child's absences in the chosen month."
+     }
+    ]
+   }
+  ],
+  "order": [
+   "js/app.js"
+  ]
+ }
+}

@@ -1,0 +1,255 @@
+{
+ "id": "cs-2-06",
+ "level": 2,
+ "title": "Delegates, lambdas and events",
+ "concepts": [
+  "delegates",
+  "lambdas",
+  "events"
+ ],
+ "skills": [
+  "delegates",
+  "lambdas",
+  "events"
+ ],
+ "lesson": "So far you've passed **data** into methods. A **delegate** lets you pass **behaviour**: a method as a value.\n\nYou already used one in Level 1: `kg.Where(k => k > 20)`. `k => k > 20` is a **lambda**, a small function written inline, and `Where` takes it as a `Func<int, bool>`. The two built-in delegate types cover nearly everything:\n\n- `Func<int, int>`: takes an int, returns an int. The last type is always the return type. `Func<int, bool>` returns a bool.\n- `Action<string>`: takes a string, returns nothing. `Action` takes nothing.\n\n```\npublic static List<int> Apply(List<int> values, Func<int, int> change)\n{\n    var result = new List<int>();\n    foreach (int v in values) result.Add(change(v));\n    return result;\n}\n\nApply(prices, p => p * 2);\nApply(prices, p => p - 10);\n```\n\nOne method, endless behaviours: the caller decides. You can even **return** a function: `Func<int, int> Multiplier(int f) => x => x * f;`\n\n**Events** are delegates with a guard on them, and they're how game parts talk without knowing each other. The health bar, the sound system and the score counter all need to know when the player is hurt. The wrong way: `Health` calls `healthBar.Refresh()`, `audio.PlayHurt()`, `score.Update()`, so Health now depends on everything. The right way: Health **announces**, and anyone interested **subscribes**.\n\n```\npublic class Health\n{\n    public event Action<int> Changed;\n\n    public void Damage(int amount)\n    {\n        Current = Math.Max(0, Current - amount);\n        Changed?.Invoke(Current);   // tell whoever is listening\n    }\n}\n\nhealth.Changed += value => Console.WriteLine($\"HP now {value}\");\n```\n\n- `+=` subscribes, `-=` unsubscribes.\n- `?.Invoke` only calls if someone is listening. Calling an event with no subscribers through plain `Changed(...)` crashes with a NullReferenceException: the most common event bug.\n- The `event` keyword means outside code can only `+=` and `-=`. It can't fire the event or wipe out the other listeners.\n\nThe standard .NET shape is `event EventHandler<T>`, whose handlers get `(object sender, T args)`. The sender is the object that raised it, so one handler can listen to many waves or many enemies.\n\nUnity uses exactly this: C# events, `UnityEvent`s you wire in the editor, and \"OnDied\" style callbacks. A tidy rule: **raise events for things that happened** (Died, WaveCleared, ScoreChanged) and let the rest of the game react.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\n\npublic class Health\n{\n    public int Current { get; private set; } = 100;\n    public event Action<int> Changed;\n    public event Action Died;\n\n    public void Damage(int amount)\n    {\n        if (Current == 0) return;\n        Current = Math.Max(0, Current - amount);\n        Changed?.Invoke(Current);\n        if (Current == 0) Died?.Invoke();\n    }\n}\n\nclass Program\n{\n    static void Main()\n    {\n        Func<int, int> twice = x => x * 2;\n        Action<string> shout = s => Console.WriteLine(s.ToUpper());\n        Console.WriteLine(twice(21));\n        shout(\"habari\");\n\n        var hp = new Health();\n        hp.Changed += v => Console.WriteLine($\"health bar: {v}\");\n        hp.Died += () => Console.WriteLine(\"play the death sound\");\n        hp.Damage(60);\n        hp.Damage(60);\n    }\n}\n",
+  "notes": [
+   "Func<int, int> holds a function from int to int; the lambda x => x * 2 is one.",
+   "Action<string> takes a string and returns nothing.",
+   "Health doesn't know about health bars or sounds; it only raises events.",
+   "?.Invoke skips the call when nobody has subscribed.",
+   "The second Damage reaches 0, so both Changed and Died fire."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Passing behaviour",
+   "file": "Rules.cs",
+   "prompt": "In static class Rules write (with your own loops, no LINQ Select):\n- List<int> Apply(List<int> values, Func<int, int> change): a new list with change applied to each value.\n- int CountWhere(List<int> values, Func<int, bool> test): how many pass the test.\n- Func<int, int> Multiplier(int factor): returns a function that multiplies by factor.\n- void Repeat(int times, Action<int> action): calls action(1), action(2) ... action(times).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Rules\n{\n    public static List<int> Apply(List<int> values, Func<int, int> change)\n    {\n        return new List<int>();\n    }\n\n    public static int CountWhere(List<int> values, Func<int, bool> test)\n    {\n        return 0;\n    }\n\n    // Multiplier and Repeat go here\n}\n",
+   "tests": [
+    {
+     "call": "Rules.Apply(new List<int> { 1, 2, 3 }, x => x * 10)",
+     "expect": "[10, 20, 30]",
+     "name": "apply"
+    },
+    {
+     "call": "Rules.CountWhere(new List<int> { 40, 12, 55, 8 }, kg => kg >= 12)",
+     "expect": "3",
+     "name": "count where"
+    },
+    {
+     "call": "Rules.Apply(new List<int> { 5, 7 }, Rules.Multiplier(3))",
+     "expect": "[15, 21]",
+     "name": "a function that makes functions"
+    },
+    {
+     "call": "((Func<string>)(() => { var seen = new List<string>(); Rules.Repeat(3, i => seen.Add(\"wave \" + i)); return string.Join(\", \", seen); }))()",
+     "expect": "wave 1, wave 2, wave 3",
+     "name": "repeat an action"
+    },
+    {
+     "call": "Rules.Apply(new List<int>(), x => x + 1)",
+     "expect": "[]",
+     "hidden": true,
+     "name": "empty list"
+    },
+    {
+     "call": "((Func<string>)(() => { var log = new List<int>(); Rules.Repeat(0, i => log.Add(i)); return log.Count + \" \" + Rules.Multiplier(0)(99); }))()",
+     "expect": "0 0",
+     "hidden": true,
+     "name": "zero times, times zero"
+    },
+    {
+     "src_not": ".Select(",
+     "why": "Write the loop yourself here, so you see what LINQ does inside."
+    }
+   ],
+   "hints": [
+    "Apply: var result = new List<int>(); foreach (int v in values) result.Add(change(v)); return result;",
+    "public static Func<int, int> Multiplier(int factor) => x => x * factor;",
+    "public static void Repeat(int times, Action<int> action) { for (int i = 1; i <= times; i++) action(i); }"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Rules\n{\n    // The caller decides what \"change\" means: double it, add tax, round it...\n    public static List<int> Apply(List<int> values, Func<int, int> change)\n    {\n        var result = new List<int>();\n        foreach (int v in values) result.Add(change(v));\n        return result;\n    }\n\n    public static int CountWhere(List<int> values, Func<int, bool> test)\n    {\n        int n = 0;\n        foreach (int v in values)\n            if (test(v)) n++;\n        return n;\n    }\n\n    // Returns a new function that remembers `factor`.\n    public static Func<int, int> Multiplier(int factor) => x => x * factor;\n\n    public static void Repeat(int times, Action<int> action)\n    {\n        for (int i = 1; i <= times; i++) action(i);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Health that announces changes",
+   "file": "Health.cs",
+   "prompt": "Finish class Health with two events: `public event Action<int> Changed;` (gets the new value) and `public event Action Died;`.\n- Damage(int amount) and Heal(int amount): a negative amount throws ArgumentOutOfRangeException. Current stays between 0 and Max.\n- Raise Changed only if Current really changed (healing at full health stays quiet).\n- Raise Died once, when Current reaches 0. Once dead, Damage and Heal do nothing.\n- It must not crash when nobody is listening.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Health\n{\n    public int Max { get; }\n    public int Current { get; private set; }\n\n    // declare the two events here\n\n    public Health(int max)\n    {\n        Max = max;\n        Current = max;\n    }\n\n    public void Damage(int amount)\n    {\n    }\n\n    public void Heal(int amount)\n    {\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var h = new Health(100); var log = new List<int>(); h.Changed += v => log.Add(v); h.Damage(30); h.Heal(10); return string.Join(\",\", log); }))()",
+     "expect": "70,80",
+     "name": "changes are announced"
+    },
+    {
+     "call": "((Func<string>)(() => { var h = new Health(20); int deaths = 0; h.Died += () => deaths++; h.Damage(15); h.Damage(15); h.Damage(15); return deaths + \" \" + h.Current; }))()",
+     "expect": "1 0",
+     "name": "dies once"
+    },
+    {
+     "call": "((Func<string>)(() => { var h = new Health(10); h.Damage(5); return \"no listeners ok \" + h.Current; }))()",
+     "expect": "no listeners ok 5",
+     "hidden": true,
+     "name": "nobody listening",
+     "hint_if_fail": "Use Changed?.Invoke(Current) so it's safe with no subscribers."
+    },
+    {
+     "call": "((Func<string>)(() => { var h = new Health(50); int calls = 0; h.Changed += v => calls++; h.Heal(10); h.Damage(0); h.Damage(5); return calls.ToString(); }))()",
+     "expect": "1",
+     "hidden": true,
+     "name": "no change, no event"
+    },
+    {
+     "call": "((Func<string>)(() => { var h = new Health(10); var log = new List<int>(); h.Changed += v => log.Add(v); h.Damage(10); h.Heal(5); return string.Join(\",\", log) + \" \" + h.Current; }))()",
+     "expect": "0 0",
+     "hidden": true,
+     "name": "dead stays dead"
+    },
+    {
+     "call": "((Func<string>)(() => { new Health(10).Heal(-1); return \"no error\"; }))()",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "negative heal"
+    }
+   ],
+   "hints": [
+    "public event Action<int> Changed; public event Action Died;",
+    "Write one private method SetCurrent(int value) that both Damage and Heal call: clamp, compare, then raise.",
+    "if (Current == 0) return; int v = Math.Clamp(value, 0, Max); if (v == Current) return; Current = v; Changed?.Invoke(Current); if (Current == 0) Died?.Invoke();"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Health\n{\n    public int Max { get; }\n    public int Current { get; private set; }\n\n    public event Action<int> Changed;   // the new value\n    public event Action Died;\n\n    public Health(int max)\n    {\n        Max = max;\n        Current = max;\n    }\n\n    public void Damage(int amount)\n    {\n        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        SetCurrent(Current - amount);\n    }\n\n    public void Heal(int amount)\n    {\n        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        SetCurrent(Current + amount);\n    }\n\n    // One place that changes Current, so the events can't be forgotten.\n    private void SetCurrent(int value)\n    {\n        if (Current == 0) return;                 // dead stays dead\n        int clamped = Math.Clamp(value, 0, Max);\n        if (clamped == Current) return;           // nothing happened: stay quiet\n        Current = clamped;\n        Changed?.Invoke(Current);                 // ?. means: only if someone is listening\n        if (Current == 0) Died?.Invoke();\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Wave cleared (EventHandler<T>)",
+   "file": "Waves.cs",
+   "prompt": "WaveClearedEventArgs is given. In WaveManager:\n- declare `public event EventHandler<WaveClearedEventArgs> WaveCleared;`\n- StartWave(int enemies): fewer than 1 throws ArgumentOutOfRangeException; starting while enemies remain throws InvalidOperationException. Otherwise Wave goes up by 1 and Remaining = enemies.\n- EnemyKilled(int points): with no enemies remaining throws InvalidOperationException. Otherwise Remaining goes down, the points add to this wave's score and to TotalScore. When Remaining reaches 0, raise WaveCleared with this WaveManager as the sender and (wave number, this wave's score).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class WaveClearedEventArgs : EventArgs\n{\n    public int Wave { get; }\n    public int Score { get; }\n\n    public WaveClearedEventArgs(int wave, int score)\n    {\n        Wave = wave;\n        Score = score;\n    }\n}\n\npublic class WaveManager\n{\n    // the WaveCleared event goes here\n\n    public int Wave { get; private set; }\n    public int Remaining { get; private set; }\n    public int TotalScore { get; private set; }\n\n    public void StartWave(int enemies)\n    {\n    }\n\n    public void EnemyKilled(int points)\n    {\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var w = new WaveManager(); var log = new List<string>(); w.WaveCleared += (s, e) => log.Add($\"wave {e.Wave}: {e.Score}\"); w.StartWave(2); w.EnemyKilled(10); w.EnemyKilled(15); w.StartWave(1); w.EnemyKilled(50); return string.Join(\" | \", log) + \" total \" + w.TotalScore; }))()",
+     "expect": "wave 1: 25 | wave 2: 50 total 75",
+     "name": "two waves"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new WaveManager(); int n = 0; w.WaveCleared += (s, e) => n++; w.StartWave(3); w.EnemyKilled(1); w.EnemyKilled(1); return n + \" \" + w.Remaining; }))()",
+     "expect": "0 1",
+     "name": "not cleared yet"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new WaveManager(); object sender = null; w.WaveCleared += (s, e) => sender = s; w.StartWave(1); w.EnemyKilled(5); return ReferenceEquals(sender, w).ToString(); }))()",
+     "expect": "True",
+     "hidden": true,
+     "name": "the sender is the manager"
+    },
+    {
+     "call": "((Func<string>)(() => { new WaveManager().EnemyKilled(5); return \"no error\"; }))()",
+     "expect": "!ERR InvalidOperationException",
+     "hidden": true,
+     "name": "no wave running"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new WaveManager(); w.StartWave(2); w.StartWave(2); return \"no error\"; }))()",
+     "expect": "!ERR InvalidOperationException",
+     "hidden": true,
+     "name": "can't start a wave mid-wave"
+    },
+    {
+     "call": "((Func<string>)(() => { new WaveManager().StartWave(0); return \"no error\"; }))()",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "empty wave"
+    }
+   ],
+   "hints": [
+    "Keep a private int waveScore; reset it in StartWave.",
+    "In EnemyKilled, after updating the numbers: if (Remaining == 0) WaveCleared?.Invoke(this, new WaveClearedEventArgs(Wave, waveScore));",
+    "`this` is the sender: handlers get (object sender, WaveClearedEventArgs e)."
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class WaveClearedEventArgs : EventArgs\n{\n    public int Wave { get; }\n    public int Score { get; }\n\n    public WaveClearedEventArgs(int wave, int score)\n    {\n        Wave = wave;\n        Score = score;\n    }\n}\n\npublic class WaveManager\n{\n    public event EventHandler<WaveClearedEventArgs> WaveCleared;\n\n    public int Wave { get; private set; }\n    public int Remaining { get; private set; }\n    public int TotalScore { get; private set; }\n\n    private int waveScore;\n\n    public void StartWave(int enemies)\n    {\n        if (enemies < 1) throw new ArgumentOutOfRangeException(nameof(enemies));\n        if (Remaining > 0) throw new InvalidOperationException(\"Finish this wave first.\");\n        Wave++;\n        Remaining = enemies;\n        waveScore = 0;\n    }\n\n    public void EnemyKilled(int points)\n    {\n        if (Remaining == 0) throw new InvalidOperationException(\"No wave is running.\");\n        Remaining--;\n        waveScore += points;\n        TotalScore += points;\n        if (Remaining == 0) OnWaveCleared(new WaveClearedEventArgs(Wave, waveScore));\n    }\n\n    // The usual .NET habit: one protected method that raises the event.\n    protected virtual void OnWaveCleared(WaveClearedEventArgs e) => WaveCleared?.Invoke(this, e);\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What type holds a function that takes an int and returns a bool?",
+   "choices": [
+    "Action<int, bool>",
+    "Func<int, bool>",
+    "Func<bool, int>",
+    "Predicate<bool>"
+   ],
+   "answer": 1,
+   "why": "Func's last type is the return type."
+  },
+  {
+   "q": "Changed(Current); with no subscribers does what?",
+   "choices": [
+    "Nothing",
+    "Throws a NullReferenceException",
+    "Prints a warning",
+    "Waits"
+   ],
+   "answer": 1,
+   "why": "That's why we write Changed?.Invoke(...)."
+  },
+  {
+   "q": "Why should Health raise an event instead of calling healthBar.Refresh() directly?",
+   "choices": [
+    "Events are faster",
+    "Health stays independent; any number of parts can listen without Health knowing them",
+    "It's required by C#",
+    "To use less memory"
+   ],
+   "answer": 1,
+   "why": "Loose coupling: announce, don't call around."
+  },
+  {
+   "q": "What does the `event` keyword stop outside code from doing?",
+   "choices": [
+    "Subscribing",
+    "Firing the event or replacing all the listeners",
+    "Reading properties",
+    "Nothing"
+   ],
+   "answer": 1,
+   "why": "Outside code may only += and -=."
+  },
+  {
+   "q": "What does Multiplier(3) return?",
+   "choices": [
+    "3",
+    "A function that multiplies its input by 3",
+    "A list",
+    "Nothing"
+   ],
+   "answer": 1,
+   "why": "Functions can be returned like any value."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Func vs Action?",
+   "a": "Func returns a value (last type); Action returns nothing"
+  },
+  {
+   "q": "Subscribe / unsubscribe?",
+   "a": "thing.Changed += handler;  thing.Changed -= handler;"
+  },
+  {
+   "q": "Raise an event safely?",
+   "a": "Changed?.Invoke(value);"
+  },
+  {
+   "q": "Standard event shape?",
+   "a": "event EventHandler<TArgs> Name; handlers get (object sender, TArgs e)"
+  }
+ ],
+ "explain": "Explain events in your own words, with an example of a game or app where several parts need to react to one thing happening."
+}

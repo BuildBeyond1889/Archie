@@ -1,0 +1,238 @@
+{
+ "id": "py-2-06",
+ "level": 2,
+ "title": "Modules and packages",
+ "concepts": [
+  "modules",
+  "packages"
+ ],
+ "skills": [
+  "imports",
+  "modules",
+  "__main__"
+ ],
+ "lesson": "One file with 800 lines is hard to find your way around. Real programs split code into **modules**: a module is simply a `.py` file, and other files can **import** what's in it. A farm app might have `farm_tools.py` for calculations, `storage.py` for saving, and `main.py` that runs the menu.\n\n```\n# farm_tools.py\ndef bags_needed(kg, bag_size=90):\n    return -(-kg // bag_size)\n```\n\n```\n# main.py, in the same folder\nimport farm_tools\nprint(farm_tools.bags_needed(250))\n\nfrom farm_tools import bags_needed      # or bring in one name\nprint(bags_needed(250))\n\nimport farm_tools as ft                  # or a short nickname\n```\n\n`import farm_tools` keeps the module name in front (`farm_tools.bags_needed`), which makes it clear where a function came from. `from ... import name` is shorter for names you use a lot. Avoid `from x import *`: you can no longer tell where names come from.\n\n**Where Python looks**: first the folder of the script you ran, then the standard library and installed packages. So keep your modules next to the script, and **never name your file after a standard module**. A file called `random.py` or `json.py` in your folder gets imported instead of the real one, and strange errors follow.\n\n**The main guard.** When a file is imported, all its top-level code runs. If `farm_tools.py` ends with a demo `print(...)`, every program that imports it prints that demo. The fix:\n\n```\nif __name__ == \"__main__\":\n    print(bags_needed(250))     # only when you run THIS file\n```\n\nPython sets `__name__` to `\"__main__\"` for the file you ran, and to the module's own name when it's imported. So the block runs for a quick test or demo, and stays quiet on import. Make this a habit: functions and classes at the top, the \"do things\" part under the guard.\n\n**Packages** group modules in a folder. A folder `game/` with an `__init__.py` file (it can be empty) and modules `enemies.py` and `items.py` lets you write `from game.enemies import Slime`.\n\n**Common mistakes**\n- Circular imports: `a.py` imports `b.py` and `b.py` imports `a.py`. Move the shared part into a third module.\n- Running code with `input()` at the top level of a module: importing it then waits for typing. Put it under the main guard.\n- Copying a function into every file instead of importing it. Then a fix in one copy misses the others.\n\n**In real programs** every library you'll use (pygame, flask, the parts of Archie itself) is a set of modules and packages. Splitting by job (data, rules, display, saving) is the first step towards code that a team, or future you, can work on.",
+ "example": {
+  "file": "example.py",
+  "code": "# tank_tools.py  (a module: things to import)\nimport math\n\n\ndef buckets(litres, bucket=20):\n    \"\"\"How many buckets to carry this many litres.\"\"\"\n    return math.ceil(litres / bucket)\n\n\nif __name__ == \"__main__\":\n    # runs only with: python tank_tools.py\n    print(\"demo:\", buckets(130))\n\n\n# report.py  (a program that uses it, in the same folder)\n#   import tank_tools\n#   from tank_tools import buckets\n#\n#   print(tank_tools.buckets(500))\n#   print(buckets(500, bucket=10))\n",
+  "notes": [
+   "A module is just a .py file with functions and classes.",
+   "Imports go at the top; the module can use the standard library too.",
+   "The main guard keeps the demo from running when another file imports this one.",
+   "import tank_tools keeps the module name; from ... import brings one name in.",
+   "Both files live in the same folder, so Python finds the module."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Use a helper module",
+   "file": "ex1_report.py",
+   "prompt": "The module farm_tools.py is next to your file. It has bags_needed(kg, bag_size=90) and sale_value(kg, price_per_kg). Do NOT copy them: import them.\nAsk for the kg harvested and the price per kg (both whole numbers), then print two lines:\nBags: 3\nValue: 12500 KSh",
+   "extra_files": {
+    "farm_tools.py": "\"\"\"Farm calculations, shared by the farm programs.\"\"\"\nimport math\n\n\ndef bags_needed(kg, bag_size=90):\n    \"\"\"Bags needed for kg of maize. A part-full bag still needs a bag.\"\"\"\n    return math.ceil(kg / bag_size)\n\n\ndef sale_value(kg, price_per_kg):\n    \"\"\"What the harvest sells for.\"\"\"\n    return kg * price_per_kg\n"
+   },
+   "starter": "# import what you need from farm_tools here\n\nkg = int(input(\"Kg harvested? \"))\nprice = int(input(\"Price per kg? \"))\n# print Bags: ... and Value: ... KSh\n",
+   "solution": "from farm_tools import bags_needed, sale_value\n\nkg = int(input(\"Kg harvested? \"))\nprice = int(input(\"Price per kg? \"))\nprint(f\"Bags: {bags_needed(kg)}\")\nprint(f\"Value: {sale_value(kg, price)} KSh\")\n",
+   "tests": [
+    {
+     "stdin": "250\n50\n",
+     "out": [
+      "Bags: 3",
+      "Value: 12500 KSh"
+     ],
+     "name": "250 kg at 50"
+    },
+    {
+     "stdin": "180\n55\n",
+     "out": [
+      "Bags: 2",
+      "Value: 9900 KSh"
+     ],
+     "name": "180 kg at 55"
+    },
+    {
+     "stdin": "0\n50\n",
+     "out": [
+      "Bags: 0",
+      "Value: 0 KSh"
+     ],
+     "hidden": true,
+     "name": "nothing harvested"
+    },
+    {
+     "check": "assert 'import farm_tools' in CODE or 'from farm_tools import' in CODE, 'import from farm_tools'\nassert 'def bags_needed' not in CODE and 'def sale_value' not in CODE, \"don't copy the functions: import them\"",
+     "name": "imports, doesn't copy",
+     "allow_load_error": true
+    }
+   ],
+   "hints": [
+    "from farm_tools import bags_needed, sale_value at the top of your file.",
+    "print(f\"Bags: {bags_needed(kg)}\")",
+    "print(f\"Value: {sale_value(kg, price)} KSh\")"
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "A module with a main guard",
+   "file": "ex2_tankmath.py",
+   "prompt": "Write a module other programs can import.\n- litres_to_buckets(litres, bucket=20): buckets needed, rounding UP.\n- days_left(level, daily_use): whole days the water lasts (round DOWN). daily_use <= 0 raises ValueError.\n- When the file is RUN, it prints: Demo: 100 litres is 5 buckets\n- When it is IMPORTED, it prints nothing (use if __name__ == \"__main__\":).",
+   "starter": "import math\n\n\ndef litres_to_buckets(litres, bucket=20):\n    pass\n\n\ndef days_left(level, daily_use):\n    pass\n\n\nprint(\"Demo: 100 litres is\", litres_to_buckets(100), \"buckets\")\n",
+   "solution": "import math\n\n\ndef litres_to_buckets(litres, bucket=20):\n    return math.ceil(litres / bucket)\n\n\ndef days_left(level, daily_use):\n    if daily_use <= 0:\n        raise ValueError(\"daily use must be more than 0\")\n    return level // daily_use\n\n\nif __name__ == \"__main__\":\n    print(f\"Demo: 100 litres is {litres_to_buckets(100)} buckets\")\n",
+   "tests": [
+    {
+     "call": "[litres_to_buckets(100), litres_to_buckets(101), litres_to_buckets(30, 10)]",
+     "expect": [
+      5,
+      6,
+      3
+     ],
+     "name": "buckets"
+    },
+    {
+     "call": "days_left(500, 120)",
+     "expect": 4,
+     "name": "days left"
+    },
+    {
+     "stdin": "",
+     "out": [
+      "Demo: 100 litres is 5 buckets"
+     ],
+     "name": "runs the demo"
+    },
+    {
+     "check": "import os, subprocess, sys\nname = os.path.splitext(os.path.basename(m.__file__))[0]\nr = subprocess.run([sys.executable, '-c', 'import ' + name], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(m.__file__)))\nassert r.returncode == 0, 'importing the module failed: ' + r.stderr[-200:]\nassert r.stdout.strip() == '', 'importing the module printed %r: put the demo under if __name__ == \"__main__\":' % r.stdout.strip()",
+     "name": "quiet on import",
+     "hidden": true
+    },
+    {
+     "check": "try:\n    days_left(500, 0)\n    raise AssertionError('days_left(500, 0) should raise ValueError')\nexcept ValueError:\n    pass",
+     "name": "no water used",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "math.ceil rounds up; // rounds down for whole numbers.",
+    "Check daily_use <= 0 first and raise ValueError.",
+    "Indent the print under if __name__ == \"__main__\": at the bottom."
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "A module another file uses",
+   "file": "ex3_inventory.py",
+   "prompt": "game.py (next to your file) does `import ex3_inventory as inv` and uses these functions. Write them:\n- new_bag(): returns an empty dict (item name -> quantity).\n- add(bag, item, qty): adds qty of item. qty <= 0 raises ValueError.\n- remove(bag, item, qty): takes qty away. Not enough (or not there) raises ValueError and changes nothing. When an item reaches 0 its key is deleted.\n- describe(bag): like arrow x7, potion x2 (sorted by name, joined with \", \"), or empty for an empty bag.\nNo printing in your module: game.py does that.",
+   "extra_files": {
+    "game.py": "import ex3_inventory as inv\n\nbag = inv.new_bag()\ninv.add(bag, \"potion\", 2)\ninv.add(bag, \"arrow\", 10)\ninv.remove(bag, \"arrow\", 3)\nprint(\"Bag:\", inv.describe(bag))\ninv.remove(bag, \"potion\", 2)\ninv.remove(bag, \"arrow\", 7)\nprint(\"Bag:\", inv.describe(bag))\n"
+   },
+   "starter": "def new_bag():\n    pass\n\n\ndef add(bag, item, qty):\n    pass\n\n\ndef remove(bag, item, qty):\n    pass\n\n\ndef describe(bag):\n    pass\n",
+   "solution": "def new_bag():\n    return {}\n\n\ndef add(bag, item, qty):\n    if qty <= 0:\n        raise ValueError(\"quantity must be more than 0\")\n    bag[item] = bag.get(item, 0) + qty\n\n\ndef remove(bag, item, qty):\n    have = bag.get(item, 0)\n    if qty > have:\n        raise ValueError(f\"only {have} {item} in the bag\")\n    if qty == have:\n        del bag[item]\n    else:\n        bag[item] = have - qty\n\n\ndef describe(bag):\n    if not bag:\n        return \"empty\"\n    return \", \".join(f\"{name} x{qty}\" for name, qty in sorted(bag.items()))\n",
+   "tests": [
+    {
+     "check": "b = new_bag()\nassert b == {}\nadd(b, 'potion', 2)\nadd(b, 'potion', 1)\nadd(b, 'arrow', 5)\nassert b == {'potion': 3, 'arrow': 5}, b",
+     "name": "add"
+    },
+    {
+     "check": "b = {'arrow': 5}\nremove(b, 'arrow', 2)\nassert b == {'arrow': 3}\nremove(b, 'arrow', 3)\nassert b == {}, 'an item at 0 should be deleted, bag is %r' % b\ntry:\n    remove(b, 'potion', 1)\n    raise AssertionError('removing something not in the bag should raise ValueError')\nexcept ValueError:\n    pass",
+     "name": "remove"
+    },
+    {
+     "check": "assert describe({'potion': 2, 'arrow': 7}) == 'arrow x7, potion x2', describe({'potion': 2, 'arrow': 7})\nassert describe({}) == 'empty'",
+     "name": "describe"
+    },
+    {
+     "check": "import os, subprocess, sys\nr = subprocess.run([sys.executable, 'game.py'], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(m.__file__)))\nassert r.returncode == 0, 'game.py crashed: ' + (r.stderr.strip().splitlines() or ['?'])[-1]\nassert r.stdout.split('\\n')[:2] == ['Bag: arrow x7, potion x2', 'Bag: empty'], 'game.py printed: %r' % r.stdout",
+     "name": "game.py works with your module",
+     "hidden": true
+    },
+    {
+     "check": "b = {'arrow': 2}\nfor args in [('arrow', 0), ('arrow', -3)]:\n    try:\n        add(b, *args)\n        raise AssertionError('add%r should raise ValueError' % (args,))\n    except ValueError:\n        pass\ntry:\n    remove(b, 'arrow', 5)\n    raise AssertionError('removing 5 of 2 should raise ValueError')\nexcept ValueError:\n    pass\nassert b == {'arrow': 2}, 'a refused change must leave the bag alone: %r' % b",
+     "name": "refuses bad changes",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "bag[item] = bag.get(item, 0) + qty adds, even for a new item.",
+    "In remove, check qty > bag.get(item, 0) first; if it equals what you have, del bag[item].",
+    "describe: \", \".join(f\"{name} x{qty}\" for name, qty in sorted(bag.items())), or \"empty\"."
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Your folder has my_tools.py with def area(w, h). Which line lets main.py call area(3, 4) directly?",
+   "choices": [
+    "import area",
+    "from my_tools import area",
+    "include my_tools",
+    "import my_tools.area()"
+   ],
+   "answer": 1,
+   "why": "from module import name brings the name in."
+  },
+  {
+   "q": "Why does code under if __name__ == \"__main__\": not run when the file is imported?",
+   "choices": [
+    "Imports skip all code",
+    "__name__ is the module's name on import, not \"__main__\"",
+    "It runs later",
+    "Python deletes it"
+   ],
+   "answer": 1,
+   "why": "Only the file you run gets __name__ == \"__main__\"."
+  },
+  {
+   "q": "You save your own file as random.py and another program does import random. What happens?",
+   "choices": [
+    "Python warns you",
+    "Your file is imported instead of the real random module",
+    "Both are merged",
+    "Nothing different"
+   ],
+   "answer": 1,
+   "why": "The script's folder is searched first."
+  },
+  {
+   "q": "What makes a folder a package you can import from (the classic way)?",
+   "choices": [
+    "A main.py file",
+    "An __init__.py file inside it",
+    "Its name in capitals",
+    "A setup.txt file"
+   ],
+   "answer": 1,
+   "why": "__init__.py marks it as a package."
+  },
+  {
+   "q": "Why is from tools import * discouraged?",
+   "choices": [
+    "It's slower",
+    "You can't tell where names come from, and they can clash",
+    "It imports nothing",
+    "It only works on Windows"
+   ],
+   "answer": 1,
+   "why": "Explicit imports keep code readable."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What is a module?",
+   "a": "A .py file whose functions and classes other files can import."
+  },
+  {
+   "q": "What is the main guard?",
+   "a": "if __name__ == \"__main__\": code that runs only when the file is run directly."
+  },
+  {
+   "q": "Where does Python look first for an import?",
+   "a": "The folder of the script you ran."
+  },
+  {
+   "q": "What's a package?",
+   "a": "A folder of modules (with __init__.py), imported like from game.enemies import Slime."
+  }
+ ],
+ "explain": "Explain how you would split a small game into modules, and what the main guard is for, in your own words."
+}

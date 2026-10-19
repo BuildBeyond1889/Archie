@@ -1,0 +1,63 @@
+{
+ "name": "Relay: pump, valve or light",
+ "kind": "hardware",
+ "lang": "Arduino",
+ "version": "1.0.0",
+ "summary": "Switch a pump, valve, fan or light through a relay module, run it for a set time, and a safety limit stops it running forever if something fails.",
+ "tags": [
+  "relay",
+  "pump",
+  "valve",
+  "irrigation",
+  "switch",
+  "motor",
+  "safety"
+ ],
+ "parts": [
+  "5 V relay module (1 channel)",
+  "12 V pump or solenoid valve and its own power supply",
+  "jumper wires"
+ ],
+ "files": {
+  "sketch/relay.h": "relay.h"
+ },
+ "imports": {
+  "ino": [
+   "#include \"relay.h\""
+  ]
+ },
+ "use": "Relay pump(7, true, 60000UL); setup: pump.begin(); loop: pump.update(); pump.runFor(10000);",
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-Wall",
+   "-x",
+   "c++",
+   "test_relay.cpp",
+   "-o",
+   "t.exe"
+  ],
+  "files": [
+   "test_relay.cpp"
+  ],
+  "stub": true,
+  "then": "t.exe"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "void update()",
+   "note": "Call this every loop: it switches off when the run time is over, or when the safety limit is reached."
+  },
+  {
+   "find": "(on_ ^ low_)",
+   "note": "Cheap relay modules switch ON when the pin is LOW. This flips the signal so on() always means on."
+  }
+ ]
+}

@@ -1,0 +1,45 @@
+{
+ "name": "Forms with checks (web)",
+ "kind": "feature",
+ "lang": "Web (HTML, CSS, JavaScript)",
+ "version": "1.0.0",
+ "summary": "Describe the fields once (text, number with limits, date, choice, phone) and get a phone-friendly form that says exactly what to fix before saving.",
+ "tags": [
+  "form",
+  "input",
+  "validation",
+  "fields",
+  "data-entry",
+  "phone"
+ ],
+ "files": {
+  "js/forms.js": "forms.js"
+ },
+ "imports": {
+  "js": [
+   "<script src=\"js/forms.js\"></script>"
+  ]
+ },
+ "use": "makeForm(document.getElementById('f'), FIELDS, (values) => db.add('harvests', values))",
+ "test": {
+  "run": [
+   "node",
+   "test_forms.js"
+  ],
+  "files": [
+   "test_forms.js"
+  ]
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "function validate(fields, raw)",
+   "note": "Checks every field against its type and limits and returns clean values plus a message per problem. It's separate from the form so it can be tested on its own."
+  }
+ ]
+}

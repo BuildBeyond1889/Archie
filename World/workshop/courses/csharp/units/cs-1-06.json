@@ -1,0 +1,128 @@
+{
+ "id": "cs-1-06",
+ "level": 1,
+ "title": "Loops",
+ "concepts": [
+  "loops"
+ ],
+ "skills": [
+  "loops"
+ ],
+ "bridge": "`for (int i = 0; i < 10; i++)`, `while (cond)`, and `foreach (var item in list)` for every item.",
+ "lesson": "```\nfor (int i = 1; i <= 12; i++) { ... }\nwhile (saved < goal) { ... }\nforeach (string crop in crops) { ... }\n```\n\n`break` leaves, `continue` skips ahead. Same patterns as always: accumulate, count, find the biggest. In Unity, `Update()` runs once per frame: that's a loop the engine runs for you, which is why game code rarely has `while (true)`.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        for (int i = 1; i <= 3; i++) Console.WriteLine($\"7 x {i} = {7 * i}\");\n        int saved = 0, months = 0;\n        while (saved < 1000) { saved += 300; months++; }\n        Console.WriteLine($\"{months} months\");\n        foreach (char c in \"Habari\") Console.Write(c + \" \");\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Count the vowels",
+   "file": "Vowels.cs",
+   "prompt": "Write Count(string text) in class Vowels: how many a, e, i, o, u (capitals count).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Vowels\n{\n    public static int Count(string text)\n    {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Vowels.Count(\"Kilimanjaro\")",
+     "expect": "5"
+    },
+    {
+     "call": "Vowels.Count(\"AEIOU xyz\")",
+     "expect": "5"
+    },
+    {
+     "call": "Vowels.Count(\"\")",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "foreach (char c in text.ToLower())",
+    "if (\"aeiou\".Contains(c)) n++;"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Vowels\n{\n    public static int Count(string text)\n    {\n        int n = 0;\n        foreach (char c in text.ToLower()) if (\"aeiou\".Contains(c)) n++;\n        return n;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Savings goal",
+   "file": "Goal.cs",
+   "prompt": "Write MonthsToGoal(int goal, int monthly) in class Goal with a while loop; -1 if monthly is 0 or less.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Goal\n{\n    public static int MonthsToGoal(int goal, int monthly)\n    {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Goal.MonthsToGoal(1000, 300)",
+     "expect": "4"
+    },
+    {
+     "call": "Goal.MonthsToGoal(900, 300)",
+     "expect": "3"
+    },
+    {
+     "call": "Goal.MonthsToGoal(500, 0)",
+     "expect": "-1",
+     "hidden": true
+    },
+    {
+     "call": "Goal.MonthsToGoal(0, 50)",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "if (monthly <= 0) return -1;",
+    "int saved = 0, months = 0; while (saved < goal) { saved += monthly; months++; }"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Goal\n{\n    public static int MonthsToGoal(int goal, int monthly)\n    {\n        if (monthly <= 0) return -1;\n        int saved = 0, months = 0;\n        while (saved < goal) { saved += monthly; months++; }\n        return months;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Every item of a list in C#?",
+   "choices": [
+    "for each x of list",
+    "foreach (var x in list)",
+    "for (x in list)",
+    "list.each"
+   ],
+   "answer": 1,
+   "why": "foreach … in."
+  },
+  {
+   "q": "Unity's Update() is…",
+   "choices": [
+    "a loop you write",
+    "called by the engine every frame",
+    "called once",
+    "a property"
+   ],
+   "answer": 1,
+   "why": "The engine's game loop calls it."
+  },
+  {
+   "q": "i++ means",
+   "choices": [
+    "i = i + 1",
+    "i = 1",
+    "print i",
+    "i = i * 2"
+   ],
+   "answer": 0,
+   "why": "Add one."
+  }
+ ],
+ "cards": [
+  {
+   "q": "foreach?",
+   "a": "foreach (var x in items) { }"
+  },
+  {
+   "q": "Leave a loop?",
+   "a": "break"
+  },
+  {
+   "q": "Counting loop?",
+   "a": "for (int i = 0; i < n; i++)"
+  }
+ ],
+ "explain": "Explain loops to someone who has never programmed, in your own words, with an example you make up."
+}

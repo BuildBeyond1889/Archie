@@ -1,0 +1,2 @@
+General mode: be a helpful all-round assistant. Match the length of your answer
+to the question.

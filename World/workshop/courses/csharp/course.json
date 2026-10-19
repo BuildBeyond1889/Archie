@@ -1,0 +1,72 @@
+{
+ "name": "C#",
+ "lang": "C#",
+ "grader": "C#",
+ "version": "1.1.0",
+ "summary": "C# the way Microsoft Learn and game-dev courses teach it: types, strings, decisions, loops, lists and LINQ, methods, dictionaries, exceptions and classes, ending with game inventory logic you could drop into Unity. Graded by real tests.",
+ "levels": [
+  {
+   "n": 1,
+   "name": "Basics: types, input, strings, decisions, loops, collections, methods, exceptions, classes",
+   "ready": true
+  },
+  {
+   "n": 2,
+   "name": "Objects in depth: interfaces, inheritance, generics, testing",
+   "ready": true
+  },
+  {
+   "n": 3,
+   "name": "Algorithms and data structures in C#",
+   "ready": false
+  },
+  {
+   "n": 4,
+   "name": "Games: Unity scripting, components, physics, UI",
+   "ready": false
+  },
+  {
+   "n": 5,
+   "name": "Systems: files, async, networking, databases",
+   "ready": false
+  },
+  {
+   "n": 6,
+   "name": "Professional craft: design patterns, code review, performance",
+   "ready": false
+  },
+  {
+   "n": 7,
+   "name": "Capstone: a real game or app, then a defense",
+   "ready": false
+  }
+ ],
+ "units": [
+  "cs-1-01",
+  "cs-1-02",
+  "cs-1-03",
+  "cs-1-04",
+  "cs-1-05",
+  "cs-1-06",
+  "cs-1-07",
+  "cs-1-08",
+  "cs-1-09",
+  "cs-1-10",
+  "cs-1-11",
+  "cs-1-12",
+  "cs-2-01",
+  "cs-2-02",
+  "cs-2-03",
+  "cs-2-04",
+  "cs-2-05",
+  "cs-2-06",
+  "cs-2-07",
+  "cs-2-08",
+  "cs-2-09",
+  "cs-2-10"
+ ],
+ "certs": [
+  "Unity Certified User: Programmer covers Level 1 plus Unity basics",
+  "Microsoft's free Foundational C# certification (freeCodeCamp)"
+ ]
+}

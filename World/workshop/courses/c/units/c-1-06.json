@@ -1,0 +1,125 @@
+{
+ "id": "c-1-06",
+ "level": 1,
+ "title": "Arrays",
+ "concepts": [
+  "lists"
+ ],
+ "skills": [
+  "arrays"
+ ],
+ "bridge": "C arrays are fixed-size rows of one type: `int scores[5] = {72, 85, 90, 64, 70};`. They **don't know their own length**, so functions take the array *and* a count: `double average(const int a[], int n)`. Indexes run 0 to n-1 and nothing checks them.",
+ "lesson": "```\nint scores[4] = {72, 85, 90, 64};\nscores[0];                        /* 72 */\nscores[3] = 66;                   /* change one */\nint n = sizeof(scores) / sizeof(scores[0]);   /* 4, but ONLY where the array was made */\n\nint total = 0;\nfor (int i = 0; i < n; i++) total += scores[i];\n```\n\nAn array can't grow: you choose the size when you make it. (Python's lists and C++'s vectors are built on top of arrays that get swapped for bigger ones when full.)\n\n**Arrays don't carry their length.** When you pass one to a function, it arrives as just the address of the first item, so you always pass the count too:\n\n```\ndouble average(const int a[], int n)\n{\n    if (n == 0) return 0;\n    int total = 0;\n    for (int i = 0; i < n; i++) total += a[i];\n    return (double)total / n;\n}\n```\n\n`const` promises the function won't change the array.\n\n**Nothing checks the index.** `scores[10]` on a 4-item array reads (or worse, writes) whatever memory comes next. This \"buffer overflow\" is the source of countless crashes and security holes, so check your loop bounds.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\nint main(void)\n{\n    int scores[4] = {72, 85, 90, 64};\n    int n = sizeof(scores) / sizeof(scores[0]);\n    int total = 0;\n    for (int i = 0; i < n; i++) total += scores[i];\n    printf(\"%d scores, total %d, average %.2f\\n\", n, total, (double)total / n);\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Average of an array",
+   "file": "average.c",
+   "prompt": "Write double average(const int a[], int n): the average of the n items, or 0 when n is 0.",
+   "starter": "double average(const int a[], int n)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "average((int[]){4, 5, 6}, 3)",
+     "fmt": "%.2f",
+     "expect": "5.00"
+    },
+    {
+     "call": "average((int[]){1, 2}, 2)",
+     "fmt": "%.2f",
+     "expect": "1.50",
+     "hint_if_fail": "Divide as a double."
+    },
+    {
+     "call": "average((int[]){9}, 0)",
+     "fmt": "%.2f",
+     "expect": "0.00",
+     "hint_if_fail": "With n == 0 there's nothing to divide by."
+    }
+   ],
+   "hints": [
+    "Loop i from 0 to n-1 adding a[i].",
+    "return (double)total / n;"
+   ],
+   "solution": "double average(const int a[], int n)\n{\n    if (n == 0) return 0;\n    int total = 0;\n    for (int i = 0; i < n; i++) total += a[i];\n    return (double)total / n;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Biggest reading",
+   "file": "maxof.c",
+   "prompt": "Write int max_of(const int a[], int n) (n is at least 1): the largest value. It must work when every value is negative.",
+   "starter": "int max_of(const int a[], int n)\n{\n    int best = 0;\n    for (int i = 0; i < n; i++) if (a[i] > best) best = a[i];\n    return best;\n}\n",
+   "tests": [
+    {
+     "call": "max_of((int[]){3, 9, 2}, 3)",
+     "expect": "9"
+    },
+    {
+     "call": "max_of((int[]){-5, -2, -8}, 3)",
+     "expect": "-2",
+     "hint_if_fail": "Starting best at 0 beats every negative number. Start at a[0]."
+    },
+    {
+     "call": "max_of((int[]){4}, 1)",
+     "expect": "4"
+    }
+   ],
+   "hints": [
+    "What if every value is below 0?",
+    "int best = a[0]; then loop from i = 1."
+   ],
+   "solution": "int max_of(const int a[], int n)\n{\n    int best = a[0];\n    for (int i = 1; i < n; i++) if (a[i] > best) best = a[i];\n    return best;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "How does a C function know an array's length?",
+   "choices": [
+    "a.length",
+    "sizeof(a) inside the function",
+    "You pass the count as another parameter",
+    "It can't be done"
+   ],
+   "answer": 2,
+   "why": "Inside the function, the array is just an address."
+  },
+  {
+   "q": "scores[10] on a 4-item array...",
+   "choices": [
+    "is an error message",
+    "reads whatever memory is next (undefined behaviour)",
+    "returns 0",
+    "grows the array"
+   ],
+   "answer": 1,
+   "why": "C doesn't check indexes."
+  },
+  {
+   "q": "Can a C array grow?",
+   "choices": [
+    "Yes, with push",
+    "No, its size is fixed when made"
+   ],
+   "answer": 1,
+   "why": "You'd make a bigger one and copy (or use malloc)."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Count of items where the array was made?",
+   "a": "sizeof(a) / sizeof(a[0])"
+  },
+  {
+   "q": "Pass an array to a function?",
+   "a": "f(const int a[], int n)"
+  },
+  {
+   "q": "Buffer overflow?",
+   "a": "Reading/writing past the end of an array."
+  }
+ ],
+ "explain": "Explain arrays to someone who has never programmed, in your own words, with an example you make up."
+}

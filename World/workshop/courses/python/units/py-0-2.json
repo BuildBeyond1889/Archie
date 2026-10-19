@@ -1,0 +1,144 @@
+{
+ "id": "py-0-2",
+ "level": 0,
+ "title": "Bits, numbers and text",
+ "skills": [
+  "numbers",
+  "strings",
+  "how computers work"
+ ],
+ "lesson": "Inside, a computer only stores **bits**: switches that are on or off, written 1 and 0. Eight bits make a **byte**. Everything (numbers, letters, photos, music) is stored as bytes, and a program decides what they mean.\n\n**Whole numbers** are stored in binary (base 2). In base 10 each place is worth 10 times the one to its right (1, 10, 100). In base 2 each place is worth 2 times: 1, 2, 4, 8, 16... So 1101 in binary is 8 + 4 + 0 + 1 = 13. Python shows it with `bin(13)` → `'0b1101'`.\n\n**Text** is stored as numbers too: each character has a code (A is 65, a is 97). The modern system, **Unicode**, has codes for every alphabet and even emoji, so Swahili, Arabic and Chinese all work. `ord(\"A\")` gives 65 and `chr(65)` gives \"A\". `len(\"Habari\")` counts the characters: 6.\n\n**Decimal numbers** (floats) are stored in binary fractions, and some decimals can't be stored exactly, the way 1/3 can't be written exactly in decimal. That's why `0.1 + 0.2` prints `0.30000000000000004`. It's not a bug in Python; every language does it. For money, people count in whole cents, or round.\n\nTwo kinds of division: `7 / 2` is 3.5, and `7 // 2` is 3 (whole times it fits). `7 % 2` is the **remainder**, 1. The remainder is surprisingly useful: `n % 2` is 0 for even numbers and 1 for odd ones.",
+ "example": {
+  "code": "print(bin(13))        # 0b1101\nprint(ord(\"A\"), chr(97))\nprint(len(\"Habari\"))\nprint(0.1 + 0.2)\nprint(7 / 2, 7 // 2, 7 % 2)\n",
+  "notes": [
+   "bin shows a number in binary.",
+   "ord gives a character's code, chr goes back.",
+   "len counts characters.",
+   "Floats are close, not exact.",
+   "Normal division, whole division, remainder."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Division three ways",
+   "file": "ex1_divide.py",
+   "prompt": "Print three lines: 17 divided by 5 (normal division), 17 whole-divided by 5, and the remainder of 17 divided by 5. Let Python do the maths: don't type the answers.",
+   "starter": "# 17 / 5, then 17 // 5, then 17 % 5\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "3.4",
+      "3",
+      "2"
+     ],
+     "name": "three answers"
+    },
+    {
+     "check": "s = CODE.replace(' ', '')\nassert '17/5' in s and '17//5' in s and '17%5' in s, 'Let Python work it out: use 17 / 5, 17 // 5 and 17 % 5'",
+     "name": "Python does the maths"
+    }
+   ],
+   "hints": [
+    "Three print lines, each with a calculation inside.",
+    "print(17 / 5) then print(17 // 5) then print(17 % 5)"
+   ],
+   "solution": "print(17 / 5)\nprint(17 // 5)\nprint(17 % 5)\n"
+  },
+  {
+   "id": "e2",
+   "title": "Codes for letters",
+   "file": "ex2_codes.py",
+   "prompt": "Print the Unicode code of the letter K, then print the character whose code is 107, then print how many characters are in the word Kilimanjaro.",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "75",
+      "k",
+      "11"
+     ],
+     "case": true,
+     "name": "75, k, 11"
+    }
+   ],
+   "hints": [
+    "ord gives a code, chr gives a character, len counts.",
+    "print(ord(\"K\")), print(chr(107)), print(len(\"Kilimanjaro\"))"
+   ],
+   "solution": "print(ord(\"K\"))\nprint(chr(107))\nprint(len(\"Kilimanjaro\"))\n"
+  },
+  {
+   "id": "e3",
+   "title": "Binary by hand",
+   "file": "ex3_binary.py",
+   "prompt": "Work out by hand what the binary number 101101 is in normal numbers. Then print your answer, and on the next line print int(\"101101\", 2) so Python checks you. Both lines should match.",
+   "starter": "# Places from the right: 1, 2, 4, 8, 16, 32\n",
+   "tests": [
+    {
+     "stdin": "",
+     "exact": "45\n45",
+     "name": "both lines are 45"
+    }
+   ],
+   "hints": [
+    "Write the place values under each digit: 32 16 8 4 2 1.",
+    "Add the places that have a 1: 32 + 8 + 4 + 1."
+   ],
+   "solution": "print(45)\nprint(int(\"101101\", 2))\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "How many bits are in a byte?",
+   "choices": [
+    "2",
+    "8",
+    "10",
+    "1024"
+   ],
+   "answer": 1,
+   "why": "8 bits make a byte."
+  },
+  {
+   "q": "What does 9 % 4 give?",
+   "choices": [
+    "2.25",
+    "2",
+    "1",
+    "36"
+   ],
+   "answer": 2,
+   "why": "9 = 2 × 4 + 1, so the remainder is 1."
+  },
+  {
+   "q": "Why does 0.1 + 0.2 print 0.30000000000000004?",
+   "choices": [
+    "Python has a bug",
+    "Some decimals can't be stored exactly in binary",
+    "The computer is old",
+    "You must use a newer Python"
+   ],
+   "answer": 1,
+   "why": "Like 1/3 in decimal, 0.1 has no exact binary form."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What is 1011 in binary as a normal number?",
+   "a": "8 + 0 + 2 + 1 = 11"
+  },
+  {
+   "q": "What does n % 2 tell you?",
+   "a": "0 if n is even, 1 if odd."
+  },
+  {
+   "q": "What does ord('a') give?",
+   "a": "97, the character's Unicode code."
+  }
+ ],
+ "concepts": [],
+ "explain": "Explain bits, numbers and text to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

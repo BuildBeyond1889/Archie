@@ -1,0 +1,188 @@
+{
+ "id": "java-1-05",
+ "level": 1,
+ "title": "Decisions: if and switch",
+ "concepts": [
+  "conditions"
+ ],
+ "skills": [
+  "conditions",
+  "booleans"
+ ],
+ "bridge": "Java's `if` puts the condition in **brackets** and the block in **braces**: `if (kg > 100) { ... } else if (kg > 0) { ... } else { ... }`. \"And\" is `&&`, \"or\" is `||`, \"not\" is `!`. Java also has `switch` for choosing among fixed values.",
+ "lesson": "```\nif (temp < 2) {\n    System.out.println(\"Too cold\");\n} else if (temp <= 8) {\n    System.out.println(\"OK\");\n} else {\n    System.out.println(\"Too warm\");\n}\n```\n\nThe condition goes in round brackets and must be a `boolean`. Comparisons: `==` `!=` `<` `>` `<=` `>=` (for numbers and chars; Strings use `.equals`). Combine with `&&` (and), `||` (or), `!` (not). Only the first true branch runs, so check the most specific case first.\n\nBraces are optional for a single line, but always use them: leaving them out is a classic source of bugs when someone adds a second line later.\n\n**switch** picks among fixed values, neatly. Modern Java (14+) has the arrow form:\n\n```\nString day = switch (n) {\n    case 1 -> \"Monday\";\n    case 2 -> \"Tuesday\";\n    default -> \"Another day\";\n};\n```\n\nThe **ternary** operator is a one-line if for values: `String size = kg > 100 ? \"big\" : \"small\";`",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    static String fridge(double t) {\n        if (t < 2) return \"too cold\";\n        else if (t <= 8) return \"ok\";\n        else return \"too warm\";\n    }\n\n    public static void main(String[] args) {\n        System.out.println(fridge(5) + \" \" + fridge(-1) + \" \" + fridge(9.5));\n        int n = 2;\n        String day = switch (n) {\n            case 1 -> \"Monday\";\n            case 2 -> \"Tuesday\";\n            default -> \"Another day\";\n        };\n        System.out.println(day);\n        System.out.println(40 > 100 ? \"big\" : \"small\");\n    }\n}\n",
+  "notes": [
+   "if / else if / else in a method.",
+   "switch with arrows returns a value.",
+   "Ternary: a one-line choice."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Grades",
+   "file": "Grades.java",
+   "prompt": "Write grade(int score): 80+ \"A\", 65+ \"B\", 50+ \"C\", 40+ \"D\", below 40 \"E\", and \"invalid\" if below 0 or above 100.",
+   "starter": "public class Grades {\n    public static String grade(int score) {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Grades.grade(85)",
+     "expect": "A"
+    },
+    {
+     "call": "Grades.grade(65)",
+     "expect": "B"
+    },
+    {
+     "call": "Grades.grade(51)",
+     "expect": "C"
+    },
+    {
+     "call": "Grades.grade(40)",
+     "expect": "D"
+    },
+    {
+     "call": "Grades.grade(12)",
+     "expect": "E"
+    },
+    {
+     "call": "Grades.grade(101)",
+     "expect": "invalid",
+     "hidden": true
+    },
+    {
+     "call": "Grades.grade(-5)",
+     "expect": "invalid",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Check invalid first: if (score < 0 || score > 100) return \"invalid\";",
+    "Then from the top grade down."
+   ],
+   "solution": "public class Grades {\n    public static String grade(int score) {\n        if (score < 0 || score > 100) return \"invalid\";\n        if (score >= 80) return \"A\";\n        if (score >= 65) return \"B\";\n        if (score >= 50) return \"C\";\n        if (score >= 40) return \"D\";\n        return \"E\";\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Leap years",
+   "file": "Leap.java",
+   "prompt": "Write isLeap(int year): divisible by 4, except years divisible by 100 aren't, except years divisible by 400 are.",
+   "starter": "public class Leap {\n    public static boolean isLeap(int year) {\n        return false;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Leap.isLeap(2024)",
+     "expect": "true"
+    },
+    {
+     "call": "Leap.isLeap(1900)",
+     "expect": "false"
+    },
+    {
+     "call": "Leap.isLeap(2000)",
+     "expect": "true"
+    },
+    {
+     "call": "Leap.isLeap(2023)",
+     "expect": "false"
+    },
+    {
+     "call": "Leap.isLeap(2100)",
+     "expect": "false",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "year % 4 == 0 means divisible by 4.",
+    "return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);"
+   ],
+   "solution": "public class Leap {\n    public static boolean isLeap(int year) {\n        return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Day names with switch",
+   "file": "Days.java",
+   "prompt": "Write dayName(int n) using a switch: 1 is \"Monday\" … 7 is \"Sunday\", anything else \"?\".",
+   "starter": "public class Days {\n    public static String dayName(int n) {\n        return \"?\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Days.dayName(1)",
+     "expect": "Monday"
+    },
+    {
+     "call": "Days.dayName(7)",
+     "expect": "Sunday"
+    },
+    {
+     "call": "Days.dayName(4)",
+     "expect": "Thursday"
+    },
+    {
+     "call": "Days.dayName(0)",
+     "expect": "?",
+     "hidden": true
+    },
+    {
+     "src_has": "switch",
+     "why": "Use a switch for this one."
+    }
+   ],
+   "hints": [
+    "return switch (n) { case 1 -> \"Monday\"; ... default -> \"?\"; };"
+   ],
+   "solution": "public class Days {\n    public static String dayName(int n) {\n        return switch (n) {\n            case 1 -> \"Monday\";\n            case 2 -> \"Tuesday\";\n            case 3 -> \"Wednesday\";\n            case 4 -> \"Thursday\";\n            case 5 -> \"Friday\";\n            case 6 -> \"Saturday\";\n            case 7 -> \"Sunday\";\n            default -> \"?\";\n        };\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Java's 'and' is…",
+   "choices": [
+    "and",
+    "&",
+    "&&",
+    "+"
+   ],
+   "answer": 2,
+   "why": "&& (the single & is a different, bitwise operator)."
+  },
+  {
+   "q": "What does x > 5 ? \"yes\" : \"no\" give when x is 3?",
+   "choices": [
+    "\"yes\"",
+    "\"no\"",
+    "3",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "The ternary picks the second value when the condition is false."
+  },
+  {
+   "q": "Why always use braces even for one line?",
+   "choices": [
+    "Faster",
+    "Adding a second line later silently falls outside the if",
+    "Required by Java",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Without braces, only the first line belongs to the if."
+  }
+ ],
+ "cards": [
+  {
+   "q": "and / or / not in Java?",
+   "a": "&& / || / !"
+  },
+  {
+   "q": "One-line if for a value?",
+   "a": "condition ? valueIfTrue : valueIfFalse"
+  },
+  {
+   "q": "Arrow switch?",
+   "a": "switch (n) { case 1 -> ...; default -> ...; }"
+  }
+ ],
+ "explain": "Explain decisions: if and switch to someone who has never programmed, in your own words, with an example you make up."
+}

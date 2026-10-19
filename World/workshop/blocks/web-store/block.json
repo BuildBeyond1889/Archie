@@ -1,0 +1,50 @@
+{
+ "name": "Save data (browser)",
+ "kind": "feature",
+ "lang": "Web (HTML, CSS, JavaScript)",
+ "version": "1.0.0",
+ "summary": "Keeps the app's records on the phone or computer, offline, with ids added for you. Backup to a file (and restore) so data can move by USB or messaging.",
+ "tags": [
+  "save",
+  "data",
+  "storage",
+  "localstorage",
+  "offline",
+  "backup",
+  "records"
+ ],
+ "files": {
+  "js/store.js": "store.js"
+ },
+ "imports": {
+  "js": [
+   "<script src=\"js/store.js\"></script>"
+  ]
+ },
+ "use": "const db = new Store('farm'); db.add('harvests', {crop: 'maize', kg: 40}); db.list('harvests')",
+ "test": {
+  "run": [
+   "node",
+   "test_store.js"
+  ],
+  "files": [
+   "test_store.js"
+  ]
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "Store.prototype.save = function",
+   "note": "Everything is saved as text in the browser's localStorage; if the phone's storage is full it says so instead of silently losing data."
+  },
+  {
+   "find": "Store.prototype.add = function",
+   "note": "Gives each record the next id and the time it was added."
+  }
+ ]
+}

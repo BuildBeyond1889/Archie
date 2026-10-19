@@ -1,0 +1,124 @@
+{
+ "id": "cpp-1-08",
+ "level": 1,
+ "title": "Functions and references",
+ "concepts": [
+  "functions"
+ ],
+ "skills": [
+  "functions",
+  "references"
+ ],
+ "bridge": "C++ functions declare a return type and parameter types: `int clampValue(int v, int lo, int hi)`. Parameters are **copies** by default; add `&` (`int& health`) to let the function change the caller's variable. Functions must be declared above where they're used (or announced with a prototype).",
+ "lesson": "```\nint clampValue(int v, int lo, int hi)\n{\n    if (v < lo) return lo;\n    if (v > hi) return hi;\n    return v;\n}\n```\n\n**Copies vs references.** Normally a function gets a *copy*:\n\n```\nvoid hit(int health) { health -= 10; }   // changes the copy only\nint h = 50; hit(h);                       // h is still 50!\n```\n\nPut `&` after the type and the parameter becomes another name for the caller's variable:\n\n```\nvoid hit(int& health) { health -= 10; }\nint h = 50; hit(h);                       // h is now 40\n```\n\nThat's how C++ functions \"give back\" more than one result, and why game code is full of `&`. `void` means the function returns nothing.\n\n**Order matters.** C++ reads top to bottom, so a function must appear before it's called. In bigger programs you put declarations (prototypes) in a `.h` header file and the code in a `.cpp` file. Unreal does exactly this: `Turret.h` and `Turret.cpp`.\n\nYou can also give a parameter a default: `void heal(int& h, int amount = 10)`.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n\nvoid hitCopy(int health) { health -= 10; }\nvoid hitRef(int& health) { health -= 10; }\n\nint main()\n{\n    int h = 50;\n    hitCopy(h);\n    std::cout << \"after copy: \" << h << \"\\n\";\n    hitRef(h);\n    std::cout << \"after reference: \" << h << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Take damage",
+   "file": "damage.cpp",
+   "prompt": "Fix void addDamage so it really lowers the caller's health by dmg, never going below 0.",
+   "starter": "\nvoid addDamage(int health, int dmg)\n{\n    health -= dmg;\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int h = 10; addDamage(h, 4); return h; }()",
+     "expect": "6",
+     "hint_if_fail": "The function changes a copy. Make health a reference: int& health."
+    },
+    {
+     "call": "[]{ int h = 3; addDamage(h, 10); return h; }()",
+     "expect": "0",
+     "hint_if_fail": "Health can't go below 0."
+    },
+    {
+     "src_has": "int&",
+     "why": "Use a reference parameter: int& health"
+    }
+   ],
+   "hints": [
+    "Without & the function gets its own copy.",
+    "void addDamage(int& health, int dmg) { health -= dmg; if (health < 0) health = 0; }"
+   ],
+   "solution": "\nvoid addDamage(int& health, int dmg)\n{\n    health -= dmg;\n    if (health < 0) health = 0;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Swap",
+   "file": "swap.cpp",
+   "prompt": "Write void swapValues(int& a, int& b) that swaps the two variables.",
+   "starter": "\nvoid swapValues(int& a, int& b)\n{\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int a = 1, b = 2; swapValues(a, b); return a * 10 + b; }()",
+     "expect": "21"
+    },
+    {
+     "call": "[]{ int a = 7, b = 7; swapValues(a, b); return a * 10 + b; }()",
+     "expect": "77"
+    },
+    {
+     "src_not": "std::swap",
+     "why": "Write it yourself this time, without std::swap."
+    }
+   ],
+   "hints": [
+    "You need a third variable to hold one value for a moment.",
+    "int t = a; a = b; b = t;"
+   ],
+   "solution": "\nvoid swapValues(int& a, int& b)\n{\n    int t = a;\n    a = b;\n    b = t;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "void f(int x) { x = 0; } leaves the caller's variable...",
+   "choices": [
+    "at 0",
+    "unchanged",
+    "undefined",
+    "deleted"
+   ],
+   "answer": 1,
+   "why": "x was a copy."
+  },
+  {
+   "q": "What does & in int& h mean?",
+   "choices": [
+    "Address-of",
+    "h is another name for the caller's variable",
+    "and",
+    "a pointer"
+   ],
+   "answer": 1,
+   "why": "A reference."
+  },
+  {
+   "q": "Where do Unreal declarations go?",
+   "choices": [
+    "The .cpp",
+    "The .h header",
+    "main",
+    "A .txt"
+   ],
+   "answer": 1,
+   "why": "Headers declare; .cpp files define."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Let a function change the caller's variable?",
+   "a": "Reference parameter: int& x"
+  },
+  {
+   "q": "Return nothing?",
+   "a": "void"
+  },
+  {
+   "q": "Read a big object without copying or changing it?",
+   "a": "const Type& x"
+  }
+ ],
+ "explain": "Explain functions and references to someone who has never programmed, in your own words, with an example you make up."
+}

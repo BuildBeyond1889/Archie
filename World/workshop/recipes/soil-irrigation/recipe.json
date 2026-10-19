@@ -1,0 +1,210 @@
+{
+ "name": "Soil-moisture irrigation",
+ "lang": "Arduino",
+ "summary": "Waters a bed or greenhouse only when the soil is dry: a soil sensor decides, a relay runs a 12 V pump or valve for a set time, a safety limit stops it running forever, a button waters by hand, and readings go to the computer as CSV.",
+ "for": "farms, school gardens, greenhouses, WWOOF hosts",
+ "cheap": "Arduino Nano clone + capacitive soil sensor + relay + 12 V pump: roughly KSh 2,500-4,000; runs from a small solar panel and battery.",
+ "parts": [
+  "Arduino Uno or Nano",
+  "capacitive soil moisture sensor",
+  "5 V relay module",
+  "12 V pump or solenoid valve + 12 V supply",
+  "push button",
+  "jumper wires"
+ ],
+ "tags": [
+  "irrigation",
+  "soil",
+  "water",
+  "pump",
+  "garden",
+  "greenhouse",
+  "farm",
+  "arduino",
+  "solar"
+ ],
+ "shell": "ino-shell",
+ "blocks": [
+  "ino-timer",
+  "ino-soil",
+  "ino-relay",
+  "ino-button",
+  "ino-csvlog"
+ ],
+ "files": {
+  "sketch/sketch.ino": "sketch/sketch.ino"
+ },
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-fsyntax-only",
+   "-x",
+   "c++",
+   "-include",
+   "Arduino.h",
+   "sketch/sketch.ino"
+  ],
+  "stub": true
+ },
+ "version": "1.1.0",
+ "guide": {
+  "main": "sketch/sketch.ino",
+  "order": [
+   "sketch/sketch.ino",
+   "sketch/soil.h",
+   "sketch/relay.h",
+   "sketch/button.h",
+   "sketch/every.h",
+   "sketch/csvlog.h"
+  ],
+  "overview": "The board checks the soil every 5 seconds. When it's drier than you set, it turns the pump on through a relay for 20 seconds, then waits 10 minutes for the water to soak in before deciding again, so it never floods the bed. A button waters by hand, a safety limit stops the pump after 1 minute no matter what, and every reading goes to the computer over USB as a spreadsheet line.\n\nThe main file, sketch.ino, is the brain: it decides *when* to water. The .h files are building blocks from the library that each do one job (read the sensor, drive the relay safely, read the button, time things without delay(), send CSV lines). Read sketch.ino first, then each block as it comes up.",
+  "wiring": [
+   [
+    "Soil sensor VCC",
+    "5V",
+    ""
+   ],
+   [
+    "Soil sensor GND",
+    "GND",
+    ""
+   ],
+   [
+    "Soil sensor AOUT",
+    "A0",
+    "the analog reading"
+   ],
+   [
+    "Relay module VCC / GND",
+    "5V / GND",
+    ""
+   ],
+   [
+    "Relay module IN",
+    "pin 7",
+    "most cheap modules switch ON when this is LOW"
+   ],
+   [
+    "Pump + (12 V)",
+    "relay COM → NO",
+    "the relay is a switch in the pump's own 12 V circuit; never put the pump on the Arduino's pins"
+   ],
+   [
+    "Push button",
+    "pin 2 and GND",
+    "no resistor needed (INPUT_PULLUP)"
+   ]
+  ],
+  "files": [
+   {
+    "file": "sketch/sketch.ino",
+    "why": "The brain: the settings at the top (your calibration and timings), then setup() starts everything and loop() decides when to water.",
+    "points": [
+     {
+      "find": "const int SOIL_DRY",
+      "note": "Your calibration: the reading in dry air and in a glass of water. Every sensor is a bit different, so measure yours."
+     },
+     {
+      "find": "SOAK_MS",
+      "note": "After watering, wait 10 minutes before deciding again: water takes time to reach the sensor. Without this it would keep watering a soggy bed."
+     },
+     {
+      "find": "Relay pump(7, true, 60000UL)",
+      "note": "true = the module switches on when the pin is LOW. 60000 ms is the safety limit: the pump can never run more than a minute in one go."
+     },
+     {
+      "find": "pump.update();",
+      "note": "Called every loop: this is what turns the pump off on time. Everything else in loop() returns early until it's time to check the soil."
+     },
+     {
+      "find": "if (!check.ready()) return;",
+      "note": "The non-blocking pattern: instead of delay(5000), check a timer and leave loop() straight away if it isn't time yet, so the button still works."
+     }
+    ]
+   }
+  ],
+  "starter": "// Soil-moisture irrigation: you build it step by step.\n#include \"every.h\"\n#include \"soil.h\"\n#include \"relay.h\"\n#include \"button.h\"\n#include \"csvlog.h\"\n// archie:includes\n\nvoid setup() {\n}\n\nvoid loop() {\n}\n",
+  "lessons": [
+   {
+    "title": "Read the soil sensor",
+    "concept": "analog input",
+    "explain": "A soil sensor gives a voltage that the Arduino reads as a number from 0 to 1023 with analogRead. The SoilSensor block averages a few readings (they're noisy) and can turn them into a percentage. CsvLog sends lines like `12,40,390` to the computer so you can watch them.",
+    "task": "Make a SoilSensor on A0 (use 520 and 260 for now), a CsvLog with the header \"seconds,soil_percent,raw\", and an Every timer of 2000 ms. In setup() call logger.begin(9600). In loop(), when the timer is ready, log millis()/1000, soil.percent() and soil.raw().",
+    "check": "It compiles. On the board, the Serial Monitor (9600 baud) shows a new line every 2 seconds, and raw changes when you dip the sensor in water.",
+    "must": [
+     "SoilSensor soil(",
+     "logger.begin(",
+     "soil.raw()",
+     "ready()"
+    ],
+    "code": "SoilSensor soil(A0, 520, 260);\nCsvLog logger(\"seconds,soil_percent,raw\");\nEvery check(2000);\n\nvoid setup() {\n  logger.begin(9600);\n}\n\nvoid loop() {\n  if (!check.ready()) return;\n  logger.row(millis() / 1000, soil.percent(), soil.raw());\n}"
+   },
+   {
+    "title": "Calibrate it",
+    "concept": "calibration and constants",
+    "explain": "Every sensor reads a little differently, so you measure two points: the raw value in dry air and in a glass of water. Put them in named constants at the top so the numbers have meaning and are easy to change. That's what calibration is in every kind of engineering.",
+    "task": "Add const int SOIL_DRY and const int SOIL_WET at the top with your readings (or 520 and 260 if you don't have the sensor yet), and use them when you make the SoilSensor.",
+    "check": "It compiles; dry air reads about 0% and water about 100%.",
+    "must": [
+     "const int SOIL_DRY",
+     "const int SOIL_WET",
+     "SoilSensor soil(A0, SOIL_DRY, SOIL_WET)"
+    ],
+    "code": "const int SOIL_DRY = 520, SOIL_WET = 260;   // your readings\nSoilSensor soil(A0, SOIL_DRY, SOIL_WET);"
+   },
+   {
+    "title": "Switch the pump with a relay",
+    "concept": "relays and safety limits",
+    "explain": "An Arduino pin gives a tiny current; a pump needs far more, and often 12 V. A relay is a switch the Arduino flips, sitting in the pump's own circuit. The Relay block also has a safety limit: whatever happens in your code, the pump stops after that long. Hardware that moves water or heat should always fail safe.",
+    "task": "Make Relay pump(7, true, 60000UL). In setup(): pump.begin() and, just for testing, pump.runFor(3000). In loop(): call pump.update() FIRST, before the timer check.",
+    "check": "It compiles; on the board the relay clicks on for 3 seconds after reset, then off.",
+    "must": [
+     "Relay pump(",
+     "pump.begin()",
+     "pump.update()"
+    ],
+    "code": "Relay pump(7, true, 60000UL);   // pin 7, switches on LOW, never more than 60 s\n\nvoid setup() {\n  logger.begin(9600);\n  pump.begin();\n  pump.runFor(3000);   // test: 3 seconds, remove later\n}\n\nvoid loop() {\n  pump.update();\n  if (!check.ready()) return;\n  ..."
+   },
+   {
+    "title": "Water when it's dry",
+    "concept": "decisions from sensor data",
+    "explain": "Now the brain: if the soil is drier than a threshold and the pump isn't already running, run it for a set time. Put the threshold and time in constants. Remove the 3-second test from setup().",
+    "task": "Add const int WATER_BELOW_PERCENT = 35 and const unsigned long WATER_FOR_MS = 20000. In loop() after reading, if soil.percent() < WATER_BELOW_PERCENT and !pump.isOn(), call pump.runFor(WATER_FOR_MS). Also log pump.isOn() ? 1 : 0 as a fourth column.",
+    "check": "It compiles; with the sensor in dry air the pump runs for 20 s.",
+    "must": [
+     "WATER_BELOW_PERCENT",
+     "pump.runFor(WATER_FOR_MS)",
+     "pump.isOn()"
+    ],
+    "code": "int pct = soil.percent();\nif (pct < WATER_BELOW_PERCENT && !pump.isOn()) {\n  pump.runFor(WATER_FOR_MS);\n}\nlogger.row(millis() / 1000, pct, soil.raw(), pump.isOn() ? 1 : 0);"
+   },
+   {
+    "title": "Let it soak",
+    "concept": "state and timing",
+    "explain": "Water takes minutes to reach the sensor, so right after watering it still reads dry, and your code would water again and again. Remember *when* you last watered (a variable that keeps its value between loops: state) and don't decide again until a soak time has passed.",
+    "task": "Add const unsigned long SOAK_MS = 10UL * 60UL * 1000UL, unsigned long lastWatered = 0 and bool everWatered = false. Set both when you water. Only water if !(everWatered && millis() - lastWatered < SOAK_MS).",
+    "check": "It compiles; after watering, it waits 10 minutes before watering again even if still dry.",
+    "must": [
+     "SOAK_MS",
+     "lastWatered",
+     "everWatered"
+    ],
+    "code": "bool soaking = everWatered && millis() - lastWatered < SOAK_MS;\nif (pct < WATER_BELOW_PERCENT && !pump.isOn() && !soaking) {\n  pump.runFor(WATER_FOR_MS);\n  lastWatered = millis();\n  everWatered = true;\n}"
+   },
+   {
+    "title": "A button to water by hand",
+    "concept": "buttons and events",
+    "explain": "A Button block reads a push button cleanly, one press per press. Check it on every loop, before the timer, so a press is never missed.",
+    "task": "Make Button manual(2); call manual.begin() in setup(). At the top of loop() (after pump.update()), if manual.pressed(), run the pump for WATER_FOR_MS and update lastWatered/everWatered.",
+    "check": "It compiles; pressing the button runs the pump.",
+    "must": [
+     "Button manual(",
+     "manual.begin()",
+     "manual.pressed()"
+    ],
+    "code": "Button manual(2);\n...\nvoid loop() {\n  pump.update();\n  if (manual.pressed()) {\n    pump.runFor(WATER_FOR_MS);\n    lastWatered = millis();\n    everWatered = true;\n  }\n  if (!check.ready()) return;\n  ..."
+   }
+  ]
+ }
+}

@@ -1,0 +1,7 @@
+{"name": "2D game (Python)", "kind": "shell", "lang": "Python", "version": "1.0.0",
+ "summary": "A game loop in a window: a player you move with the arrow keys, things to collect, a score. Uses tkinter, so no installs. A good first game before moving to Godot or Unity.",
+ "tags": ["game", "2d", "arcade", "tkinter", "loop", "keyboard"],
+ "files": {"main.py": "main.py"},
+ "use": "update() moves things every frame (60 times a second); draw() shows them.",
+ "test": {"run": ["python", "main.py", "--selftest"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

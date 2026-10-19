@@ -1,0 +1,118 @@
+{
+ "id": "cpp-1-04",
+ "level": 1,
+ "title": "Strings",
+ "concepts": [
+  "strings"
+ ],
+ "skills": [
+  "strings"
+ ],
+ "bridge": "`std::string` (from `<string>`) is C++'s text type. `s.size()` is the length, `s[0]` the first `char`, `+` joins strings, `s.substr(start, count)` cuts a piece, `s.find(\"x\")` searches (it returns `std::string::npos` when not found). Characters are their own type, `char`, written in single quotes.",
+ "lesson": "```\n#include <string>\n#include <cctype>   // std::toupper, std::isdigit ...\n\nstd::string crop = \"maize\";\ncrop.size();            // 5\ncrop[0];                // 'm'   (a char)\ncrop + \" flour\";        // \"maize flour\"\ncrop.substr(1, 3);      // \"aiz\"  (start at 1, take 3)\ncrop.find(\"ize\");       // 2\ncrop.find(\"x\") == std::string::npos;  // true: not found\n```\n\nA `std::string` is a row of `char`s, and you can change them in place:\n\n```\nstd::string s = \"hello\";\ns[0] = std::toupper(s[0]);      // \"Hello\"\nfor (char& c : s) c = std::toupper(c);   // \"HELLO\" (the & lets you change each one)\n```\n\n`'a'` (single quotes) is one `char`; `\"a\"` (double quotes) is a string. Mixing them up is a common compile error.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <string>\n#include <cctype>\n\nint main()\n{\n    std::string crop = \"maize\";\n    std::cout << crop.size() << \" \" << crop[0] << \" \" << crop.substr(1, 3) << \"\\n\";\n    for (char& c : crop) c = std::toupper(c);\n    std::cout << crop + \"!\" << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Shout",
+   "file": "shout.cpp",
+   "prompt": "Write std::string shout(std::string s) that returns s in capitals with ! added: shout(\"go\") is GO!",
+   "starter": "#include <string>\n#include <cctype>\n\nstd::string shout(std::string s)\n{\n    return s;\n}\n",
+   "tests": [
+    {
+     "call": "shout(\"go\")",
+     "expect": "GO!"
+    },
+    {
+     "call": "shout(\"Turret ready\")",
+     "expect": "TURRET READY!"
+    },
+    {
+     "call": "shout(\"\")",
+     "expect": "!",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Loop over the characters with for (char& c : s).",
+    "c = std::toupper(c); then return s + \"!\";"
+   ],
+   "solution": "#include <string>\n#include <cctype>\n\nstd::string shout(std::string s)\n{\n    for (char& c : s) c = std::toupper(c);\n    return s + \"!\";\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Initials",
+   "file": "initials.cpp",
+   "prompt": "Write std::string initials(std::string first, std::string last): initials(\"ada\", \"lovelace\") is A.L.",
+   "starter": "#include <string>\n#include <cctype>\n\nstd::string initials(std::string first, std::string last)\n{\n    return \"\";\n}\n",
+   "tests": [
+    {
+     "call": "initials(\"ada\", \"lovelace\")",
+     "expect": "A.L."
+    },
+    {
+     "call": "initials(\"Grace\", \"Hopper\")",
+     "expect": "G.H."
+    }
+   ],
+   "hints": [
+    "first[0] is the first letter, as a char.",
+    "std::string r; r += (char)std::toupper(first[0]); r += '.'; ..."
+   ],
+   "solution": "#include <string>\n#include <cctype>\n\nstd::string initials(std::string first, std::string last)\n{\n    std::string r;\n    r += (char)std::toupper(first[0]);\n    r += '.';\n    r += (char)std::toupper(last[0]);\n    r += '.';\n    return r;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is std::string(\"maize\").substr(1, 3)?",
+   "choices": [
+    "mai",
+    "aiz",
+    "aize",
+    "ize"
+   ],
+   "answer": 1,
+   "why": "Start at index 1, take 3."
+  },
+  {
+   "q": "What type is 'a'?",
+   "choices": [
+    "std::string",
+    "char",
+    "int",
+    "bool"
+   ],
+   "answer": 1,
+   "why": "Single quotes make one char."
+  },
+  {
+   "q": "s.find(\"x\") when there's no x?",
+   "choices": [
+    "-1",
+    "0",
+    "std::string::npos",
+    "it crashes"
+   ],
+   "answer": 2,
+   "why": "npos means 'not found'."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Length of a std::string?",
+   "a": "s.size()"
+  },
+  {
+   "q": "Change every char in a loop?",
+   "a": "for (char& c : s) ..."
+  },
+  {
+   "q": "Not found from find()?",
+   "a": "std::string::npos"
+  }
+ ],
+ "explain": "Explain strings to someone who has never programmed, in your own words, with an example you make up."
+}

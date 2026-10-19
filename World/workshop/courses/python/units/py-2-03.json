@@ -1,0 +1,220 @@
+{
+ "id": "py-2-03",
+ "level": 2,
+ "title": "Encapsulation and properties",
+ "concepts": [
+  "encapsulation",
+  "properties",
+  "exceptions",
+  "classes"
+ ],
+ "skills": [
+  "properties",
+  "validation",
+  "invariants"
+ ],
+ "lesson": "A class is only useful if its objects stay **valid**. A medicine count of -3, a tank holding more than it can, a bank balance that changed with no record: once an object is in a bad state, every part of the program that trusts it goes wrong, often far from the line that caused it. **Encapsulation** means the object guards its own data: outside code asks the object to do things, and the object checks the rules.\n\nPython has no hard \"private\". It uses a **convention**: a name starting with one underscore, like `self._count`, means \"inside detail, don't touch from outside\". Other programmers (and future you) respect it.\n\nTo still let people read and set values in a normal way, use a **property**. It looks like an attribute from outside, but runs your code:\n\n```\nclass MedicineStock:\n    def __init__(self, name, count):\n        self.name = name\n        self.count = count          # goes through the setter below\n\n    @property\n    def count(self):\n        return self._count\n\n    @count.setter\n    def count(self, value):\n        if not isinstance(value, int) or value < 0:\n            raise ValueError(f\"count must be a whole number 0 or more, not {value!r}\")\n        self._count = value\n```\n\nNow `stock.count = -3` raises a **ValueError** with a clear message instead of quietly storing nonsense. Notice `__init__` also assigns `self.count`, so even a brand new object is checked.\n\nA property with no setter is **read-only**: `stock.percent = 5` raises AttributeError. Use that for values worked out from others (percent full, total value), and for things that should only change through a method, like a balance that must change through `deposit()` so it's recorded.\n\n**Raising errors well**: raise as early as possible, before you change anything, and say what was wrong and what you got. `ValueError` is for a value of the right type but a bad amount; `TypeError` for the wrong type entirely.\n\n**Common mistakes**\n- In the setter, writing `self.count = value` instead of `self._count = value`. That calls the setter again, forever: RecursionError.\n- Returning the inside list from a property. The caller can then `.append` to it and skip all your rules. Return a copy: `list(self._history)`.\n- Making everything a property. Plain attributes are fine when any value is valid; add a property when a rule appears.\n\n**In real programs** this is how a game makes sure health stays between 0 and max, how a robot controller refuses a motor speed above its limit, and how clinic software makes sure stock never goes negative.",
+ "example": {
+  "file": "example.py",
+  "code": "class Thermostat:\n    \"\"\"Keeps a target temperature between 5 and 30 degrees.\"\"\"\n\n    def __init__(self, target):\n        self.target = target          # uses the setter, so it's checked\n\n    @property\n    def target(self):\n        return self._target\n\n    @target.setter\n    def target(self, value):\n        if not 5 <= value <= 30:\n            raise ValueError(f\"target must be 5-30, not {value}\")\n        self._target = value\n\n    @property\n    def fahrenheit(self):             # read-only: no setter\n        return self._target * 9 / 5 + 32\n\n\nt = Thermostat(21)\nt.target = 25\nprint(t.target, t.fahrenheit)\ntry:\n    t.target = 90\nexcept ValueError as e:\n    print(\"refused:\", e)\nprint(t.target)\n",
+  "notes": [
+   "The real value lives in self._target; the underscore says 'inside detail'.",
+   "@property makes t.target run the getter.",
+   "@target.setter runs on every assignment, including the one in __init__.",
+   "fahrenheit has no setter, so it is read-only and always up to date.",
+   "The bad value is refused and the old value stays."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Stock that can't go negative",
+   "file": "ex1_stock.py",
+   "prompt": "Class MedicineStock(name, count).\n- count is a property. Its setter raises ValueError if the value is not an int or is below 0. Store the real value in self._count.\n- __init__ must set self.count (so a bad starting count raises too).\n- dispense(n): takes n out and returns the new count. If n is more than the count, raise ValueError and leave the count unchanged.",
+   "starter": "class MedicineStock:\n    def __init__(self, name, count):\n        self.name = name\n        self._count = count\n\n    def dispense(self, n):\n        self._count -= n\n        return self._count\n",
+   "solution": "class MedicineStock:\n    def __init__(self, name, count):\n        self.name = name\n        self.count = count            # through the setter: checked from the start\n\n    @property\n    def count(self):\n        return self._count\n\n    @count.setter\n    def count(self, value):\n        if not isinstance(value, int) or value < 0:\n            raise ValueError(f\"count must be a whole number 0 or more, not {value!r}\")\n        self._count = value\n\n    def dispense(self, n):\n        if n > self.count:\n            raise ValueError(f\"only {self.count} {self.name} left, can't give {n}\")\n        self.count -= n\n        return self.count\n",
+   "tests": [
+    {
+     "check": "s = MedicineStock('Amoxicillin', 50)\nassert isinstance(type(s).__dict__.get('count'), property), 'count should be a @property'\nassert s.count == 50\ns.count = 20\nassert s.count == 20",
+     "name": "count is a property"
+    },
+    {
+     "check": "s = MedicineStock('Amoxicillin', 50)\ntry:\n    s.count = -1\n    raise AssertionError('setting count to -1 should raise ValueError')\nexcept ValueError:\n    pass\nassert s.count == 50, 'a refused value must not be stored'",
+     "name": "refuses negative"
+    },
+    {
+     "check": "s = MedicineStock('ORS', 10)\nassert s.dispense(4) == 6\ntry:\n    s.dispense(7)\n    raise AssertionError('dispensing 7 of 6 should raise ValueError')\nexcept ValueError:\n    pass\nassert s.count == 6, 'count should still be 6 after a refused dispense, got %r' % s.count",
+     "name": "dispense"
+    },
+    {
+     "check": "try:\n    MedicineStock('ORS', -3)\n    raise AssertionError('MedicineStock(\"ORS\", -3) should raise ValueError: set self.count in __init__')\nexcept ValueError:\n    pass",
+     "name": "checked from the start",
+     "hidden": true
+    },
+    {
+     "check": "s = MedicineStock('ORS', 10)\nfor bad in [2.5, '10', None]:\n    try:\n        s.count = bad\n        raise AssertionError('count = %r should raise ValueError' % (bad,))\n    except ValueError:\n        pass\nassert s.count == 10",
+     "name": "whole numbers only",
+     "hidden": true,
+     "hint_if_fail": "isinstance(value, int) is False for 2.5, '10' and None."
+    }
+   ],
+   "hints": [
+    "Add a @property def count(self): return self._count, then @count.setter def count(self, value): ...",
+    "In the setter: if not isinstance(value, int) or value < 0: raise ValueError(...). Then self._count = value.",
+    "In __init__ write self.count = count (no underscore) so the setter checks it. dispense checks n > self.count before changing anything."
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "Read-only tank values",
+   "file": "ex2_tank.py",
+   "prompt": "Class Tank(capacity).\n- capacity: read-only property (no setter). capacity <= 0 in __init__ raises ValueError.\n- level: property, starts at 0. Its setter raises ValueError if the value is below 0 or above capacity.\n- percent: read-only property, level / capacity * 100.",
+   "starter": "class Tank:\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.level = 0\n",
+   "solution": "class Tank:\n    def __init__(self, capacity):\n        if capacity <= 0:\n            raise ValueError(\"capacity must be more than 0\")\n        self._capacity = capacity\n        self.level = 0\n\n    @property\n    def capacity(self):\n        return self._capacity\n\n    @property\n    def level(self):\n        return self._level\n\n    @level.setter\n    def level(self, value):\n        if not 0 <= value <= self._capacity:\n            raise ValueError(f\"level must be 0-{self._capacity}, not {value}\")\n        self._level = value\n\n    @property\n    def percent(self):\n        return self._level / self._capacity * 100\n",
+   "tests": [
+    {
+     "check": "t = Tank(1000)\nassert t.capacity == 1000 and t.level == 0\nt.level = 250\nassert t.percent == 25, 'percent should be 25, got %r' % (t.percent,)",
+     "name": "level and percent"
+    },
+    {
+     "check": "t = Tank(1000)\ntry:\n    t.capacity = 5000\n    raise AssertionError('capacity should be read-only (a property with no setter)')\nexcept AttributeError:\n    pass",
+     "name": "capacity is read-only"
+    },
+    {
+     "check": "t = Tank(100)\nfor bad in [-1, 101]:\n    try:\n        t.level = bad\n        raise AssertionError('level = %r should raise ValueError' % bad)\n    except ValueError:\n        pass\nassert t.level == 0",
+     "name": "level stays in range"
+    },
+    {
+     "check": "t = Tank(100)\nt.level = 100\nassert t.percent == 100\nt.level = 0\ntry:\n    t.percent = 50\n    raise AssertionError('percent should be read-only')\nexcept AttributeError:\n    pass",
+     "name": "edges and read-only percent",
+     "hidden": true,
+     "hint_if_fail": "A level exactly equal to capacity is fine: use <=."
+    },
+    {
+     "check": "for bad in [0, -5]:\n    try:\n        Tank(bad)\n        raise AssertionError('Tank(%r) should raise ValueError' % bad)\n    except ValueError:\n        pass",
+     "name": "bad capacity",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Store the real values as self._capacity and self._level; the properties read them.",
+    "A property with only @property (no .setter) is read-only: assigning to it raises AttributeError by itself.",
+    "In the level setter: if not 0 <= value <= self._capacity: raise ValueError(...)."
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "An account you can trust",
+   "file": "ex3_account.py",
+   "prompt": "Class Account(owner).\n- balance: read-only property, starts at 0.\n- deposit(amount): amount <= 0 raises ValueError. Adds it and records (\"deposit\", amount).\n- withdraw(amount): amount <= 0 or more than the balance raises ValueError. Takes it out and records (\"withdraw\", amount).\n- history: read-only property giving a list of those tuples in order. It must be a COPY, so changing the returned list doesn't change the account.\nA refused deposit or withdraw changes nothing.",
+   "starter": "class Account:\n    def __init__(self, owner):\n        self.owner = owner\n        self.balance = 0\n        self.history = []\n\n    def deposit(self, amount):\n        pass\n\n    def withdraw(self, amount):\n        pass\n",
+   "solution": "class Account:\n    def __init__(self, owner):\n        self.owner = owner\n        self._balance = 0\n        self._history = []\n\n    @property\n    def balance(self):\n        return self._balance\n\n    @property\n    def history(self):\n        return list(self._history)    # a copy: outside code can't edit our record\n\n    def deposit(self, amount):\n        if amount <= 0:\n            raise ValueError(\"deposit must be more than 0\")\n        self._balance += amount\n        self._history.append((\"deposit\", amount))\n\n    def withdraw(self, amount):\n        if amount <= 0:\n            raise ValueError(\"withdrawal must be more than 0\")\n        if amount > self._balance:\n            raise ValueError(f\"only {self._balance} available\")\n        self._balance -= amount\n        self._history.append((\"withdraw\", amount))\n",
+   "tests": [
+    {
+     "check": "a = Account('Wanjiru')\na.deposit(500)\na.withdraw(200)\nassert a.balance == 300, a.balance\nassert a.history == [('deposit', 500), ('withdraw', 200)], a.history",
+     "name": "deposit, withdraw, history"
+    },
+    {
+     "check": "a = Account('Wanjiru')\na.deposit(100)\nfor bad in [(a.withdraw, 500), (a.deposit, 0), (a.deposit, -20), (a.withdraw, -5)]:\n    try:\n        bad[0](bad[1])\n        raise AssertionError('%s(%r) should raise ValueError' % (bad[0].__name__, bad[1]))\n    except ValueError:\n        pass\nassert a.balance == 100 and a.history == [('deposit', 100)], 'a refused action must change nothing'",
+     "name": "refuses bad amounts"
+    },
+    {
+     "check": "a = Account('Wanjiru')\ntry:\n    a.balance = 1000000\n    raise AssertionError('balance should be read-only')\nexcept AttributeError:\n    pass",
+     "name": "balance is read-only"
+    },
+    {
+     "check": "a = Account('Wanjiru')\na.deposit(50)\nh = a.history\nh.append(('deposit', 999))\nh.clear()\nassert a.history == [('deposit', 50)], 'changing the list from .history changed the account: return a copy'",
+     "name": "history is a copy",
+     "hidden": true,
+     "hint_if_fail": "return list(self._history) gives back a new list each time."
+    },
+    {
+     "check": "a = Account('Juma')\na.deposit(80)\na.withdraw(80)\nassert a.balance == 0, 'withdrawing everything is allowed'",
+     "name": "withdraw it all",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Keep self._balance and self._history; give each a @property with no setter.",
+    "Check every bad case and raise BEFORE changing the balance or the history.",
+    "The history property should return list(self._history), a new list."
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does a leading underscore in self._count mean in Python?",
+   "choices": [
+    "Python blocks outside access",
+    "It's a convention: an inside detail, don't use it from outside",
+    "It makes the value constant",
+    "Nothing at all"
+   ],
+   "answer": 1,
+   "why": "Python trusts programmers; the underscore is a signal."
+  },
+  {
+   "q": "Inside a setter for count you write self.count = value. What happens when it runs?",
+   "choices": [
+    "It works",
+    "It calls the setter again and again: RecursionError",
+    "It stores None",
+    "A SyntaxError"
+   ],
+   "answer": 1,
+   "why": "Assign the hidden name self._count instead."
+  },
+  {
+   "q": "Why should __init__ assign self.count rather than self._count?",
+   "choices": [
+    "It's shorter",
+    "So the setter checks the starting value too",
+    "_count isn't allowed in __init__",
+    "It makes count read-only"
+   ],
+   "answer": 1,
+   "why": "Otherwise a bad starting value slips in unchecked."
+  },
+  {
+   "q": "A property has a getter but no setter. What does obj.prop = 5 do?",
+   "choices": [
+    "Stores 5",
+    "Raises AttributeError",
+    "Ignores it silently",
+    "Creates a second attribute"
+   ],
+   "answer": 1,
+   "why": "No setter means read-only."
+  },
+  {
+   "q": "A property returns self._items directly. What's the risk?",
+   "choices": [
+    "None",
+    "Callers can change the inside list and skip your rules",
+    "It's slow",
+    "It raises an error"
+   ],
+   "answer": 1,
+   "why": "Return a copy to keep the object in control."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What is encapsulation?",
+   "a": "The object guards its own data; outside code goes through its methods and properties."
+  },
+  {
+   "q": "How do you make a validated attribute?",
+   "a": "@property getter plus @name.setter that checks and stores in self._name."
+  },
+  {
+   "q": "Which error for a right-type, wrong-amount value?",
+   "a": "ValueError"
+  },
+  {
+   "q": "How do you make a property read-only?",
+   "a": "Give it no setter."
+  }
+ ],
+ "explain": "Explain why a game character's health should be a property and not a plain attribute, with a bug it would prevent."
+}

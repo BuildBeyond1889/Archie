@@ -1,0 +1,132 @@
+{
+ "id": "cs-1-10",
+ "level": 1,
+ "title": "Exceptions",
+ "concepts": [
+  "errors"
+ ],
+ "skills": [
+  "errors",
+  "exceptions"
+ ],
+ "bridge": "`try { } catch (FormatException e) { } finally { }`; throw your own with `throw new ArgumentException(\"why\");`. For input, prefer `TryParse`, which avoids exceptions entirely.",
+ "lesson": "When something goes wrong, C# **throws an exception**; uncaught, the program stops and prints its type, message and **stack trace** (where it happened, most recent first). Common ones: `FormatException` (`int.Parse(\"abc\")`), `NullReferenceException` (using something that is `null`, the most common bug in C# and Unity), `IndexOutOfRangeException`, `KeyNotFoundException`, `DivideByZeroException`, `ArgumentException`.\n\n```\ntry\n{\n    int age = int.Parse(text);\n}\ncatch (FormatException)\n{\n    Console.WriteLine(\"Please type a number\");\n}\n```\n\nCatch the specific type you expect. For typed input, `int.TryParse(text, out int age)` is cleaner: no exception, just true or false. Throw when a method gets bad arguments: `throw new ArgumentOutOfRangeException(nameof(kg), \"must be positive\");` (`nameof` gives the parameter's name as text).",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(int.TryParse(\"42\", out int a) ? a : -1);\n        Console.WriteLine(int.TryParse(\"abc\", out int b) ? b : -1);\n        try\n        {\n            int[] x = new int[2];\n            x[5] = 1;\n        }\n        catch (IndexOutOfRangeException e)\n        {\n            Console.WriteLine(\"Problem: \" + e.Message);\n        }\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Safe number",
+   "file": "SafeNum.cs",
+   "prompt": "Write ToNumber(string text) in class SafeNum returning a double? (a double or null): the number for \"42\", \"2.5\", \"2,5\" or \" 7 \", null for anything else. Use double.TryParse with CultureInfo.InvariantCulture.",
+   "starter": "using System;\nusing System.Globalization;\n\npublic static class SafeNum\n{\n    public static double? ToNumber(string text)\n    {\n        return null;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "SafeNum.ToNumber(\"42\")",
+     "expect": "42"
+    },
+    {
+     "call": "SafeNum.ToNumber(\"2,5\")",
+     "expect": "2.5"
+    },
+    {
+     "call": "SafeNum.ToNumber(\"abc\")",
+     "expect": "null"
+    },
+    {
+     "call": "SafeNum.ToNumber(\" 7 \")",
+     "expect": "7",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "text.Trim().Replace(\",\", \".\")",
+    "double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : null"
+   ],
+   "solution": "using System;\nusing System.Globalization;\n\npublic static class SafeNum\n{\n    public static double? ToNumber(string text)\n    {\n        string s = text.Trim().Replace(\",\", \".\");\n        return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : null;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Refuse bad input",
+   "file": "PerKg.cs",
+   "prompt": "Write PricePerKg(double total, double kg) in class PerKg: total / kg rounded to 2 decimals; throw ArgumentException if kg <= 0 or total < 0.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class PerKg\n{\n    public static double PricePerKg(double total, double kg)\n    {\n        return total / kg;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "PerKg.PricePerKg(100, 8)",
+     "expect": "12.5"
+    },
+    {
+     "call": "PerKg.PricePerKg(10, 3)",
+     "expect": "3.33"
+    },
+    {
+     "call": "PerKg.PricePerKg(100, 0)",
+     "expect": "!ERR ArgumentException"
+    },
+    {
+     "call": "PerKg.PricePerKg(-5, 2)",
+     "expect": "!ERR ArgumentException",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "if (kg <= 0 || total < 0) throw new ArgumentException(\"bad input\");",
+    "return Math.Round(total / kg, 2);"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class PerKg\n{\n    public static double PricePerKg(double total, double kg)\n    {\n        if (kg <= 0 || total < 0) throw new ArgumentException(\"bad input\");\n        return Math.Round(total / kg, 2);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "int.Parse(\"3.5\") throws…",
+   "choices": [
+    "FormatException",
+    "DivideByZeroException",
+    "NullReferenceException",
+    "nothing"
+   ],
+   "answer": 0,
+   "why": "Not a whole number."
+  },
+  {
+   "q": "The most common C#/Unity bug?",
+   "choices": [
+    "FormatException",
+    "NullReferenceException",
+    "StackOverflow",
+    "IndexOutOfRange"
+   ],
+   "answer": 1,
+   "why": "Using something that's null, like a component that was never assigned."
+  },
+  {
+   "q": "Cleanest way to read a number someone typed?",
+   "choices": [
+    "int.Parse in try/catch",
+    "int.TryParse",
+    "(int)text",
+    "Convert.ToInt32 always"
+   ],
+   "answer": 1,
+   "why": "No exception needed."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Parse without exceptions?",
+   "a": "int.TryParse(text, out int n)"
+  },
+  {
+   "q": "Reject a bad argument?",
+   "a": "throw new ArgumentException(\"why\");"
+  },
+  {
+   "q": "Name of a parameter as text?",
+   "a": "nameof(kg)"
+  }
+ ],
+ "explain": "Explain exceptions to someone who has never programmed, in your own words, with an example you make up."
+}

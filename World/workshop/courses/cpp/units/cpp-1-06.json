@@ -1,0 +1,124 @@
+{
+ "id": "cpp-1-06",
+ "level": 1,
+ "title": "Loops",
+ "concepts": [
+  "loops"
+ ],
+ "skills": [
+  "for",
+  "while"
+ ],
+ "bridge": "C++ has `for (int i = 0; i < n; i++)`, `while (cond)`, and the range-for `for (char c : text)` that walks through every item. `break` leaves a loop, `continue` skips to the next round. Same shapes as Java, C# and JavaScript.",
+ "lesson": "```\nfor (int i = 1; i <= 5; i++) {      // start; keep going while; step\n    std::cout << i << \"\\n\";\n}\n\nint fuel = 100;\nwhile (fuel > 0) {                   // repeat while true\n    fuel -= 30;\n}\n\nstd::string word = \"turret\";\nfor (char c : word) {                // every item in turn\n    std::cout << c << \" \";\n}\n```\n\n- `i++` adds one; `i += 5` adds five.\n- `break;` jumps out of the loop. `continue;` skips the rest of this round.\n- A loop whose condition never becomes false runs forever. In a game, the main loop is meant to; anywhere else it's a bug.\n\nGame engines run your code inside a loop: Unreal calls `Tick(DeltaTime)` every frame, which is a loop you don't write yourself.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <string>\n\nint main()\n{\n    for (int i = 3; i >= 1; i--) std::cout << i << \"\\n\";\n    std::cout << \"Go!\\n\";\n    int vowels = 0;\n    for (char c : std::string(\"turret\")) if (c == 'u' || c == 'e') vowels++;\n    std::cout << vowels << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Count vowels",
+   "file": "vowels.cpp",
+   "prompt": "Write int countVowels(std::string s): how many a, e, i, o, u it has (upper or lower case).",
+   "starter": "#include <string>\n#include <cctype>\n\nint countVowels(std::string s)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "countVowels(\"turret\")",
+     "expect": "2"
+    },
+    {
+     "call": "countVowels(\"AEIOU\")",
+     "expect": "5",
+     "hint_if_fail": "Capitals count too: compare std::tolower(c)."
+    },
+    {
+     "call": "countVowels(\"rhythm\")",
+     "expect": "0"
+    }
+   ],
+   "hints": [
+    "for (char c : s) { ... }",
+    "char l = std::tolower(c); if (l == 'a' || l == 'e' || ...) count++;"
+   ],
+   "solution": "#include <string>\n#include <cctype>\n\nint countVowels(std::string s)\n{\n    int count = 0;\n    for (char c : s) {\n        char l = std::tolower(c);\n        if (l == 'a' || l == 'e' || l == 'i' || l == 'o' || l == 'u') count++;\n    }\n    return count;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Countdown",
+   "file": "countdown.cpp",
+   "prompt": "Read a number n, print n down to 1 (one per line), then Go!",
+   "starter": "#include <iostream>\n\nint main()\n{\n    int n;\n    std::cin >> n;\n    return 0;\n}\n",
+   "tests": [
+    {
+     "stdin": "3\n",
+     "out": [
+      "3\n2\n1\nGo!"
+     ],
+     "name": "from 3"
+    },
+    {
+     "stdin": "1\n",
+     "out": [
+      "1\nGo!"
+     ]
+    }
+   ],
+   "hints": [
+    "for (int i = n; i >= 1; i--)",
+    "Print \"Go!\" after the loop ends."
+   ],
+   "solution": "#include <iostream>\n\nint main()\n{\n    int n;\n    std::cin >> n;\n    for (int i = n; i >= 1; i--) std::cout << i << \"\\n\";\n    std::cout << \"Go!\\n\";\n    return 0;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "How many times does for (int i = 0; i < 3; i++) run?",
+   "choices": [
+    "2",
+    "3",
+    "4",
+    "forever"
+   ],
+   "answer": 1,
+   "why": "i is 0, 1, 2."
+  },
+  {
+   "q": "continue; does what?",
+   "choices": [
+    "Leaves the loop",
+    "Skips to the next round",
+    "Restarts from 0",
+    "Nothing"
+   ],
+   "answer": 1,
+   "why": "It skips the rest of this round."
+  },
+  {
+   "q": "Which loop walks every char in a string?",
+   "choices": [
+    "for (char c : s)",
+    "while (s)",
+    "for (s)",
+    "foreach s"
+   ],
+   "answer": 0,
+   "why": "The range-for."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Counting loop?",
+   "a": "for (int i = 0; i < n; i++)"
+  },
+  {
+   "q": "Every item?",
+   "a": "for (auto x : items)"
+  },
+  {
+   "q": "Leave a loop early?",
+   "a": "break;"
+  }
+ ],
+ "explain": "Explain loops to someone who has never programmed, in your own words, with an example you make up."
+}

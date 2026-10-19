@@ -1,0 +1,8 @@
+{"name": "Spreadsheet import/export (web)", "kind": "feature", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "Download records as a CSV file for Excel, LibreOffice or Google Sheets, and load CSV files back in (commas, semicolons or tabs, quotes handled).",
+ "tags": ["csv", "excel", "spreadsheet", "export", "import", "download"],
+ "files": {"js/csv.js": "csv.js"},
+ "imports": {"js": ["<script src=\"js/csv.js\"></script>"]},
+ "use": "downloadCSV('harvests.csv', db.list('harvests'))",
+ "test": {"run": ["node", "test_csv.js"], "files": ["test_csv.js"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

@@ -1,0 +1,165 @@
+{
+ "id": "py-1-08",
+ "level": 1,
+ "title": "Lists",
+ "skills": [
+  "lists",
+  "loops"
+ ],
+ "lesson": "A **list** keeps many values in order: `kg = [40, 12, 55]`. Indexing and slicing work like strings (`kg[0]` is 40, `kg[-1]` is 55), but lists can **change**:\n- `kg.append(30)` adds to the end; `kg.insert(0, 5)` adds at a position\n- `kg.remove(12)` removes that value; `kg.pop()` removes and gives back the last one\n- `kg[1] = 13` replaces one\n- `len(kg)`, `sum(kg)`, `max(kg)`, `min(kg)`, `sorted(kg)` (new sorted list), `kg.sort()` (sorts in place)\n- `40 in kg` checks if it's there\n\nLooping over a list with `for` is the most common thing you'll do in programming. When you need the position too, `for i, value in enumerate(kg):` gives both.\n\nBuilding a new list from an old one: start empty and append, or use a **list comprehension**, a one-line loop: `big = [k for k in kg if k > 20]`, `doubled = [k * 2 for k in kg]`.",
+ "example": {
+  "code": "kg = [40, 12, 55]\nkg.append(30)\nprint(kg, len(kg), sum(kg), max(kg))\nprint(sorted(kg), kg)\nfor i, k in enumerate(kg, start=1):\n    print(f\"day {i}: {k} kg\")\nbig = [k for k in kg if k >= 30]\nprint(big)\n",
+  "notes": [
+   "append changes the list.",
+   "sorted gives a new list; kg is unchanged.",
+   "enumerate gives position and value.",
+   "Comprehension keeps the big ones."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Average harvest",
+   "file": "ex1_average.py",
+   "prompt": "Write average(nums): the average of a list of numbers, rounded to 1 decimal. An empty list gives 0.",
+   "starter": "def average(nums):\n    return 0\n",
+   "tests": [
+    {
+     "call": "average([40, 12, 55])",
+     "expect": 35.7
+    },
+    {
+     "call": "average([10])",
+     "expect": 10
+    },
+    {
+     "call": "average([])",
+     "expect": 0,
+     "hidden": true,
+     "hint_if_fail": "Dividing by len([]) is dividing by zero: check for an empty list first."
+    }
+   ],
+   "hints": [
+    "sum(nums) / len(nums)",
+    "Check if not nums: return 0 first, then round(..., 1)."
+   ],
+   "solution": "def average(nums):\n    if not nums:\n        return 0\n    return round(sum(nums) / len(nums), 1)\n"
+  },
+  {
+   "id": "e2",
+   "title": "Above average",
+   "file": "ex2_above.py",
+   "prompt": "Write above_average(nums): a new list with only the numbers bigger than the average, in the same order.",
+   "starter": "def above_average(nums):\n    return []\n",
+   "tests": [
+    {
+     "call": "above_average([40, 12, 55, 30])",
+     "expect": [
+      40,
+      55
+     ]
+    },
+    {
+     "call": "above_average([5, 5, 5])",
+     "expect": []
+    },
+    {
+     "call": "above_average([])",
+     "expect": [],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Work out the average once, before the loop (watch for an empty list).",
+    "[n for n in nums if n > avg]"
+   ],
+   "solution": "def above_average(nums):\n    if not nums:\n        return []\n    avg = sum(nums) / len(nums)\n    return [n for n in nums if n > avg]\n"
+  },
+  {
+   "id": "e3",
+   "title": "Biggest without max",
+   "file": "ex3_biggest.py",
+   "prompt": "Write biggest(nums) WITHOUT using max(): loop through and keep the biggest seen so far. Return None for an empty list. (This is how max works inside.)",
+   "starter": "def biggest(nums):\n    return None\n",
+   "tests": [
+    {
+     "call": "biggest([3, 9, 2])",
+     "expect": 9
+    },
+    {
+     "call": "biggest([-5, -2, -9])",
+     "expect": -2,
+     "hint_if_fail": "Starting the 'best so far' at 0 breaks for all-negative lists: start with nums[0]."
+    },
+    {
+     "call": "biggest([])",
+     "expect": null,
+     "hidden": true
+    },
+    {
+     "check": "assert 'max(' not in CODE, 'Do it without max()'",
+     "name": "no max()"
+    }
+   ],
+   "hints": [
+    "best = nums[0], then for n in nums: if n > best: best = n",
+    "Handle the empty list first."
+   ],
+   "solution": "def biggest(nums):\n    if not nums:\n        return None\n    best = nums[0]\n    for n in nums:\n        if n > best:\n            best = n\n    return best\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "a = [1, 2, 3]; a.append([4, 5]); len(a) is…",
+   "choices": [
+    "5",
+    "4",
+    "3",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "The whole list [4, 5] goes in as one item."
+  },
+  {
+   "q": "What does sorted(a) do to a?",
+   "choices": [
+    "Sorts a",
+    "Nothing: it returns a new sorted list",
+    "Empties it",
+    "Reverses it"
+   ],
+   "answer": 1,
+   "why": "sorted makes a new list; a.sort() changes a."
+  },
+  {
+   "q": "[x * 2 for x in [1, 2, 3] if x != 2] is…",
+   "choices": [
+    "[2, 4, 6]",
+    "[2, 6]",
+    "[1, 3]",
+    "[4]"
+   ],
+   "answer": 1,
+   "why": "Skip 2, double the rest."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Add to the end of a list?",
+   "a": "lst.append(x)"
+  },
+  {
+   "q": "Position and value in a loop?",
+   "a": "for i, v in enumerate(lst):"
+  },
+  {
+   "q": "Keep only some items?",
+   "a": "[x for x in lst if condition]"
+  }
+ ],
+ "concepts": [
+  "lists"
+ ],
+ "bridge": "Python's list is `[40, 12, 55]` and grows freely: `.append()`, `len(list)`, `sum()`, `max()`, slicing, and list comprehensions `[k * 2 for k in kg if k > 20]`.",
+ "explain": "Explain lists to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

@@ -1,0 +1,169 @@
+{
+ "id": "web-1-10",
+ "level": 1,
+ "title": "JavaScript: arrays and objects",
+ "concepts": [
+  "lists",
+  "maps"
+ ],
+ "skills": [
+  "javascript",
+  "arrays",
+  "objects",
+  "data"
+ ],
+ "bridge": "Arrays are `[1, 2, 3]` with `.length`, `.push()`, and the powerful trio `.map()` (change each), `.filter()` (keep some) and `.reduce()` (combine into one). Objects are JavaScript's dictionaries/records: `{ crop: \"maize\", kg: 40 }`, read with `h.crop` or `h[\"crop\"]`.",
+ "lesson": "**Arrays** hold lists: `const kg = [40, 12, 55];` with `kg.length`, `kg[0]`, `kg.push(30)`, `kg.includes(12)`, `kg.indexOf(55)`, `kg.slice(0, 2)`, `kg.join(\", \")`, `[...kg].sort((a, b) => a - b)` (numbers need that compare function, or they sort as text!).\n\nThe three methods you'll use most, each taking a function:\n\n```\nconst doubled = kg.map((k) => k * 2);              // [80, 24, 110]\nconst big = kg.filter((k) => k > 20);              // [40, 55]\nconst total = kg.reduce((sum, k) => sum + k, 0);   // 107\n```\n\n**Objects** group named values, like a record or a dictionary:\n\n```\nconst h = { crop: \"maize\", kg: 40 };\nh.kg += 5;               // or h[\"kg\"]\nh.plot = \"north\";        // add a property\nObject.keys(h);          // [\"crop\", \"kg\", \"plot\"]\n```\n\nAn array of objects is a small database, exactly the shape of a spreadsheet or of data from a web API: `const harvests = [{ crop: \"maize\", kg: 40 }, { crop: \"beans\", kg: 12 }];`. Grouping is the same idea as everywhere: `totals[h.crop] = (totals[h.crop] || 0) + h.kg;`.",
+ "example": {
+  "file": "example.js",
+  "code": "const harvests = [{ crop: \"maize\", kg: 40 }, { crop: \"beans\", kg: 12 }, { crop: \"maize\", kg: 25 }];\nconst totals = {};\nfor (const h of harvests) totals[h.crop] = (totals[h.crop] || 0) + h.kg;\nconsole.log(totals);\nconst all = harvests.reduce((sum, h) => sum + h.kg, 0);\nconst bigOnes = harvests.filter((h) => h.kg > 20).map((h) => h.crop);\nconsole.log(all, bigOnes);\n",
+  "notes": [
+   "Records as objects in an array.",
+   "Group and add.",
+   "reduce, filter and map chained."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Average",
+   "file": "ex1_average.js",
+   "prompt": "Write average(nums): the average rounded to 1 decimal, 0 for an empty array. Use reduce.",
+   "starter": "function average(nums) {\n  return 0;\n}\n",
+   "tests": [
+    {
+     "call": "average([40, 12, 55])",
+     "expect": 35.7
+    },
+    {
+     "call": "average([10])",
+     "expect": 10
+    },
+    {
+     "call": "average([])",
+     "expect": 0,
+     "hidden": true
+    },
+    {
+     "src_has": "reduce(",
+     "why": "Use reduce to add them up."
+    }
+   ],
+   "hints": [
+    "const sum = nums.reduce((s, n) => s + n, 0);",
+    "Guard the empty array, then Math.round(sum / nums.length * 10) / 10."
+   ],
+   "solution": "function average(nums) {\n  if (nums.length === 0) return 0;\n  const sum = nums.reduce((s, n) => s + n, 0);\n  return Math.round((sum / nums.length) * 10) / 10;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Kg per crop",
+   "file": "ex2_group.js",
+   "prompt": "Write kgPerCrop(harvests): an object of total kg per crop, from an array like [{ crop: \"maize\", kg: 40 }, ...].",
+   "starter": "function kgPerCrop(harvests) {\n  const totals = {};\n  return totals;\n}\n",
+   "tests": [
+    {
+     "call": "kgPerCrop([{ crop: \"maize\", kg: 40 }, { crop: \"beans\", kg: 12 }, { crop: \"maize\", kg: 25 }])",
+     "expect": {
+      "maize": 65,
+      "beans": 12
+     }
+    },
+    {
+     "call": "kgPerCrop([])",
+     "expect": {},
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "for (const h of harvests)",
+    "totals[h.crop] = (totals[h.crop] || 0) + h.kg;"
+   ],
+   "solution": "function kgPerCrop(harvests) {\n  const totals = {};\n  for (const h of harvests) totals[h.crop] = (totals[h.crop] || 0) + h.kg;\n  return totals;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Who's above average?",
+   "file": "ex3_above.js",
+   "prompt": "Write aboveAverage(people) where people is like [{ name: \"Amina\", score: 80 }, ...]: return the NAMES of those above the average score, in order. Use filter and map.",
+   "starter": "function aboveAverage(people) {\n  return [];\n}\n",
+   "tests": [
+    {
+     "call": "aboveAverage([{ name: \"Amina\", score: 80 }, { name: \"Juma\", score: 50 }, { name: \"Chebet\", score: 71 }])",
+     "expect": [
+      "Amina",
+      "Chebet"
+     ]
+    },
+    {
+     "call": "aboveAverage([])",
+     "expect": [],
+     "hidden": true
+    },
+    {
+     "src_has": ".filter(",
+     "why": "Use filter."
+    },
+    {
+     "src_has": ".map(",
+     "why": "Use map to get the names."
+    }
+   ],
+   "hints": [
+    "Work out the average first.",
+    "return people.filter((p) => p.score > avg).map((p) => p.name);"
+   ],
+   "solution": "function aboveAverage(people) {\n  if (!people.length) return [];\n  const avg = people.reduce((s, p) => s + p.score, 0) / people.length;\n  return people.filter((p) => p.score > avg).map((p) => p.name);\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "[3, 10, 2].sort() gives…",
+   "choices": [
+    "[2, 3, 10]",
+    "[10, 2, 3]",
+    "[3, 10, 2]",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Without a compare function, sort compares as text: \"10\" < \"2\". Use sort((a, b) => a - b)."
+  },
+  {
+   "q": "Which keeps only some items?",
+   "choices": [
+    "map",
+    "filter",
+    "reduce",
+    "push"
+   ],
+   "answer": 1,
+   "why": "filter keeps items where the function returns true."
+  },
+  {
+   "q": "h = { kg: 5 }; h.crop is…",
+   "choices": [
+    "\"\"",
+    "null",
+    "undefined",
+    "an error"
+   ],
+   "answer": 2,
+   "why": "A missing property is undefined."
+  }
+ ],
+ "cards": [
+  {
+   "q": "map / filter / reduce?",
+   "a": "Change each / keep some / combine into one."
+  },
+  {
+   "q": "Sort numbers correctly?",
+   "a": "arr.sort((a, b) => a - b)"
+  },
+  {
+   "q": "Group and add with objects?",
+   "a": "t[k] = (t[k] || 0) + v"
+  }
+ ],
+ "explain": "Explain javascript: arrays and objects to someone who has never programmed, in your own words, with an example you make up."
+}

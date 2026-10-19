@@ -1,0 +1,154 @@
+{
+ "name": "Farm log",
+ "lang": "Web (HTML, CSS, JavaScript)",
+ "summary": "Record harvests, plantings and expenses on a phone, offline. Search the list, see kg by crop as a chart, print a monthly report, and back up to a file. English and Swahili, bigger-text mode.",
+ "for": "farms, WWOOF hosts, school gardens, cooperatives",
+ "cheap": "Runs on any Android phone with a browser; install it to the home screen once from a laptop or Raspberry Pi hotspot.",
+ "tags": [
+  "farm",
+  "harvest",
+  "log",
+  "records",
+  "kenya",
+  "wwoof",
+  "garden",
+  "phone",
+  "offline"
+ ],
+ "shell": "web-offline-app",
+ "blocks": [
+  "web-store",
+  "web-forms",
+  "web-table",
+  "web-chart",
+  "web-csv",
+  "web-print",
+  "web-i18n",
+  "web-access"
+ ],
+ "files": {
+  "js/app.js": "js/app.js"
+ },
+ "version": "1.1.0",
+ "guide": {
+  "main": "js/app.js",
+  "order": [
+   "index.html",
+   "js/app.js",
+   "js/store.js",
+   "js/forms.js",
+   "js/table.js",
+   "js/chart.js",
+   "js/csv.js",
+   "js/print.js",
+   "js/i18n.js",
+   "js/access.js",
+   "sw.js",
+   "manifest.webmanifest",
+   "css/app.css"
+  ],
+  "overview": "A phone app for a farm's records. It works with no internet: everything is saved on the phone itself, and once it's been opened from a laptop or Raspberry Pi it can be added to the home screen like any app.\n\nindex.html is the page; it loads each block's script, then js/app.js, which is the app itself: what the forms ask, what the table shows, the chart, and the buttons. Each block does one job: store.js saves records, forms.js builds forms that check what's typed, table.js the searchable list, chart.js the bar chart, csv.js the spreadsheet export, print.js the monthly report, i18n.js English and Swahili, access.js bigger text. sw.js and the manifest make it installable and offline.",
+  "files": [
+   {
+    "file": "js/app.js",
+    "why": "The app itself: the words in both languages, what each form asks, and how the page reacts. Everything else is a block it uses.",
+    "points": [
+     {
+      "find": "T.add({",
+      "note": "Every word the app shows, in English and Swahili. Add a language by adding another block like sw: {...}."
+     },
+     {
+      "find": "const FORMS = {",
+      "note": "What each form asks. Each field says its type and limits, and forms.js checks them before saving: a weight can't be 'lots' or -3."
+     },
+     {
+      "find": "const db = new Store",
+      "note": "Where the records live: the phone's own storage, under the name farm-log."
+     },
+     {
+      "find": "function render()",
+      "note": "One function redraws everything from the saved data. Simple and hard to get wrong: change the data, call render()."
+     },
+     {
+      "find": "sumBy(db.list(\"harvest\")",
+      "note": "Adds up kg per crop for the chart."
+     },
+     {
+      "find": "navigator.serviceWorker.register",
+      "note": "Turns on the offline copy. It only works when the app is served (laptop or Pi), not opened as a file."
+     }
+    ]
+   },
+   {
+    "file": "index.html",
+    "why": "The page: the header, an empty main area that app.js fills, and the scripts in order (blocks first, the app last)."
+   }
+  ],
+  "starter": "// Farm log: you build it step by step. The blocks (Store, makeForm, makeTable, barChart,\n// downloadCSV, printReport, T, addAccessButtons) are already loaded by index.html.\n(function () {\n  const app = document.getElementById(\"app\");\n\n})();\n",
+  "lessons": [
+   {
+    "title": "Save a harvest",
+    "concept": "storage and forms",
+    "explain": "Store keeps records on the phone; makeForm builds a form from a list of fields and only calls your function when everything typed is valid. A field list is just data: name, label, type, limits.",
+    "task": "Make const db = new Store(\"farm-log\"). Put a div with id form in app.innerHTML. Call makeForm on it with fields date (date, required), crop (choice of a few crops, required) and kg (number, min 0, required); when saved, db.add(\"harvest\", values).",
+    "check": "Preview the page: the form appears, refuses an empty or negative weight, and saving clears it.",
+    "must": [
+     "new Store(",
+     "makeForm(",
+     "db.add("
+    ],
+    "code": "const db = new Store(\"farm-log\");\napp.innerHTML = \"<div class='card' id='form'></div><div id='list'></div>\";\nconst FIELDS = [\n  { name: \"date\", label: \"Date\", type: \"date\", required: true },\n  { name: \"crop\", label: \"Crop\", type: \"choice\", choices: [\"maize\", \"beans\", \"kale\"], required: true },\n  { name: \"kg\", label: \"Kg\", type: \"number\", min: 0, required: true },\n];\nmakeForm(document.getElementById(\"form\"), FIELDS, (v) => { db.add(\"harvest\", v); render(); });"
+   },
+   {
+    "title": "Show the list",
+    "concept": "rendering from data",
+    "explain": "Keep one function, render(), that draws everything from what's saved. Whenever data changes, call it. makeTable gives a search box, sorting by tapping a column and totals.",
+    "task": "Write function render() that calls makeTable on the list div with columns date, crop and kg (num: true), totals: [\"kg\"], and shows db.list(\"harvest\"). Call render() at the end and after saving.",
+    "check": "Saved harvests appear in the table, with a total.",
+    "must": [
+     "function render()",
+     "makeTable(",
+     "db.list("
+    ],
+    "code": "function render() {\n  makeTable(document.getElementById(\"list\"), [\n    { key: \"date\", label: \"Date\" }, { key: \"crop\", label: \"Crop\" }, { key: \"kg\", label: \"Kg\", num: true }],\n    { totals: [\"kg\"] }).show(db.list(\"harvest\"));\n}\nrender();"
+   },
+   {
+    "title": "A chart",
+    "concept": "summarising data",
+    "explain": "sumBy adds up a value per category; barChart draws it. Add a canvas to the page and draw on every render.",
+    "task": "Add <canvas id='chart' style='width:100%;height:220px'></canvas> to the page. In render(): const s = sumBy(db.list(\"harvest\"), \"crop\", \"kg\"); barChart(the canvas, s.labels, s.values, { title: \"Kg by crop\" }).",
+    "check": "A bar per crop appears and grows when you add harvests.",
+    "must": [
+     "sumBy(",
+     "barChart("
+    ],
+    "code": "const s = sumBy(db.list(\"harvest\"), \"crop\", \"kg\");\nbarChart(document.getElementById(\"chart\"), s.labels, s.values, { title: \"Kg by crop\" });"
+   },
+   {
+    "title": "Export and back up",
+    "concept": "getting data out",
+    "explain": "Data stuck on one phone is fragile. downloadCSV makes a spreadsheet; db.exportFile makes a backup file that can travel by USB or messaging and be restored on another phone.",
+    "task": "Add two buttons: one that calls downloadCSV(\"harvests.csv\", db.list(\"harvest\")) and one that calls db.exportFile().",
+    "check": "Both buttons download a file.",
+    "must": [
+     "downloadCSV(",
+     "exportFile()"
+    ],
+    "code": "app.insertAdjacentHTML(\"beforeend\", \"<button id='csv'>Export</button> <button id='bk'>Backup</button>\");\ndocument.getElementById(\"csv\").onclick = () => downloadCSV(\"harvests.csv\", db.list(\"harvest\"));\ndocument.getElementById(\"bk\").onclick = () => db.exportFile();"
+   },
+   {
+    "title": "Kiswahili, and bigger text",
+    "concept": "making it usable for everyone",
+    "explain": "Every word goes through T(), so switching language is one line. addAccessButtons adds bigger-text and high-contrast buttons for older eyes and bright sun.",
+    "task": "T.add({ en: {...}, sw: {...} }) for your labels (Mavuno, Zao, Kilo...), use T(\"...\") for the labels in your fields and columns, add a language select that calls T.setLang(value) and render(), and call addAccessButtons(document.querySelector(\".bar\")).",
+    "check": "Switching to Kiswahili changes the labels; A+ makes the text bigger.",
+    "must": [
+     "T.add(",
+     "T.setLang(",
+     "addAccessButtons("
+    ],
+    "code": "T.add({ en: { crop: \"Crop\", kg: \"Kg\" }, sw: { crop: \"Zao\", kg: \"Kilo\" } });\n// labels: label: T(\"crop\") ...\naddAccessButtons(document.querySelector(\".bar\"));"
+   }
+  ]
+ }
+}

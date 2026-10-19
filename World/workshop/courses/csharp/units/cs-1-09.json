@@ -1,0 +1,124 @@
+{
+ "id": "cs-1-09",
+ "level": 1,
+ "title": "Dictionary",
+ "concepts": [
+  "maps"
+ ],
+ "skills": [
+  "maps",
+  "data"
+ ],
+ "bridge": "`var price = new Dictionary<string, int>();` then `price[\"maize\"] = 55;`, `price.TryGetValue(key, out int p)`, `price.ContainsKey(...)`, `price.GetValueOrDefault(key)`. Loop: `foreach (var (k, v) in price)` or `foreach (var kv in price)` with `kv.Key`, `kv.Value`.",
+ "lesson": "```\nvar price = new Dictionary<string, int>();\nprice[\"maize\"] = 55;               // add or replace\nprice.Add(\"beans\", 120);           // add (throws if it's already there)\nint p = price[\"maize\"];            // throws KeyNotFoundException if missing\nif (price.TryGetValue(\"rice\", out int r)) { ... }    // the safe way\nprice.GetValueOrDefault(\"rice\", 0);\nforeach (var (crop, kes) in price) Console.WriteLine($\"{crop}: {kes}\");\n```\n\nCounting: `counts[w] = counts.GetValueOrDefault(w) + 1;`. A `Dictionary` doesn't promise any order; `SortedDictionary` keeps keys sorted. In games: item name → count in an inventory, enemy type → stats.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\n\nclass Program\n{\n    static void Main()\n    {\n        var totals = new SortedDictionary<string, int>();\n        foreach (var (crop, kg) in new[] { (\"maize\", 40), (\"beans\", 12), (\"maize\", 25) })\n            totals[crop] = totals.GetValueOrDefault(crop) + kg;\n        foreach (var (crop, kg) in totals) Console.WriteLine($\"{crop}: {kg} kg\");\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Word counts",
+   "file": "Words.cs",
+   "prompt": "Write Count(string text) in class Words returning a SortedDictionary<string, int> of word counts (lowercase, any spaces).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Words\n{\n    public static SortedDictionary<string, int> Count(string text)\n    {\n        return new SortedDictionary<string, int>();\n    }\n}\n",
+   "tests": [
+    {
+     "call": "string.Join(\" \", Words.Count(\"the cat and the hat\"))",
+     "expect": "[and, 1] [cat, 1] [hat, 1] [the, 2]"
+    },
+    {
+     "call": "string.Join(\" \", Words.Count(\"Rain rain RAIN\"))",
+     "expect": "[rain, 3]"
+    },
+    {
+     "call": "Words.Count(\"\").Count",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "foreach (var w in text.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries))",
+    "d[w] = d.GetValueOrDefault(w) + 1;"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Words\n{\n    public static SortedDictionary<string, int> Count(string text)\n    {\n        var d = new SortedDictionary<string, int>();\n        foreach (var w in text.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries))\n            d[w] = d.GetValueOrDefault(w) + 1;\n        return d;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Inventory counts",
+   "file": "Bag.cs",
+   "prompt": "A game inventory: write Add(Dictionary<string, int> bag, string item, int n) that adds n of an item (creating it if new) and Take(bag, item, n) that removes up to n and deletes the entry when it reaches 0. Take returns how many were actually taken.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Bag\n{\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var b = new Dictionary<string, int>(); Bag.Add(b, \"arrow\", 10); Bag.Add(b, \"arrow\", 5); return b[\"arrow\"].ToString(); }))()",
+     "expect": "15"
+    },
+    {
+     "call": "((Func<string>)(() => { var b = new Dictionary<string, int>(); Bag.Add(b, \"potion\", 2); int t = Bag.Take(b, \"potion\", 5); return t + \" \" + b.ContainsKey(\"potion\"); }))()",
+     "expect": "2 False"
+    },
+    {
+     "call": "((Func<int>)(() => Bag.Take(new Dictionary<string, int>(), \"sword\", 1)))()",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Add: bag[item] = bag.GetValueOrDefault(item) + n;",
+    "Take: int have = bag.GetValueOrDefault(item); int t = Math.Min(have, n); then update or Remove."
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Bag\n{\n    public static void Add(Dictionary<string, int> bag, string item, int n)\n    {\n        bag[item] = bag.GetValueOrDefault(item) + n;\n    }\n\n    public static int Take(Dictionary<string, int> bag, string item, int n)\n    {\n        int have = bag.GetValueOrDefault(item);\n        int t = Math.Min(have, n);\n        if (have - t <= 0) bag.Remove(item); else bag[item] = have - t;\n        return t;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "dict[\"missing\"] for a missing key…",
+   "choices": [
+    "returns 0",
+    "returns null",
+    "throws KeyNotFoundException",
+    "adds it"
+   ],
+   "answer": 2,
+   "why": "Use TryGetValue or GetValueOrDefault."
+  },
+  {
+   "q": "Sorted keys?",
+   "choices": [
+    "Dictionary",
+    "SortedDictionary",
+    "List",
+    "HashSet"
+   ],
+   "answer": 1,
+   "why": "Keeps keys in order."
+  },
+  {
+   "q": "Safe lookup?",
+   "choices": [
+    "dict[key]",
+    "dict.TryGetValue(key, out var v)",
+    "dict.Get(key)",
+    "dict.Find(key)"
+   ],
+   "answer": 1,
+   "why": "Returns false when missing."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Value or default?",
+   "a": "dict.GetValueOrDefault(key)"
+  },
+  {
+   "q": "Safe lookup?",
+   "a": "if (dict.TryGetValue(k, out var v)) { }"
+  },
+  {
+   "q": "Loop pairs?",
+   "a": "foreach (var (k, v) in dict)"
+  }
+ ],
+ "explain": "Explain dictionary to someone who has never programmed, in your own words, with an example you make up."
+}

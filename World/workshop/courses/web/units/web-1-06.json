@@ -1,0 +1,130 @@
+{
+ "id": "web-1-06",
+ "level": 1,
+ "title": "Layout with flexbox",
+ "concepts": [
+  "css"
+ ],
+ "skills": [
+  "css",
+  "layout",
+  "flexbox"
+ ],
+ "lesson": "To put boxes **side by side**, make their parent a **flex container**:\n\n```\n.row { display: flex; gap: 12px; }\n```\n\nEvery child of `.row` now sits in a row with 12px between them. The useful extras:\n- `flex-wrap: wrap;` lets items drop to the next line when there's no room (essential on phones).\n- `justify-content` spaces items along the row: `space-between`, `center`, `flex-start`.\n- `align-items` lines them up across: `center`, `flex-start`, `stretch`.\n- On a child, `flex: 1` means \"share the leftover space\"; `flex: 1 1 200px` means \"start at 200px, grow and shrink as needed\", which gives a grid of cards that reflows by itself.\n- `flex-direction: column` stacks instead of rows.\n\nA header with a title on the left and buttons on the right is three lines: `header { display: flex; justify-content: space-between; align-items: center; }`.\n\n(For two-dimensional grids there's also `display: grid`, which you'll meet in Level 2.)",
+ "example": {
+  "file": "example.html",
+  "code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<style>\n* { box-sizing: border-box; }\nbody { font-family: system-ui, sans-serif; margin: 0; padding: 12px; }\nheader { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }\n.row { display: flex; flex-wrap: wrap; gap: 12px; }\n.card { flex: 1 1 160px; border: 1px solid #ccc; border-radius: 8px; padding: 12px; }\n</style>\n</head>\n<body>\n<header><b>Market</b><span>Updated today</span></header>\n<div class=\"row\">\n  <div class=\"card\">Maize<br>55 KSh</div>\n  <div class=\"card\">Beans<br>120 KSh</div>\n  <div class=\"card\">Kale<br>30 KSh</div>\n</div>\n</body>\n</html>\n",
+  "notes": [
+   "Title left, date right.",
+   "Cards in a row that wraps.",
+   "Each card starts at 160px and shares the space."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Cards in a row",
+   "file": "ex1_row.html",
+   "prompt": "Wrap the three cards in a div with class row. Make .row a flex container that wraps, with a gap, and give .card flex: 1 1 160px.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n</head>\n<body>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": ".row .card",
+       "min": 3
+      }
+     ],
+     "name": "cards inside .row"
+    },
+    {
+     "html": [
+      {
+       "css": ".row",
+       "prop": "display",
+       "value": "flex"
+      },
+      {
+       "css": ".row",
+       "prop": "flex-wrap",
+       "value": "wrap"
+      },
+      {
+       "css": ".row",
+       "prop": "gap"
+      }
+     ],
+     "name": "flex, wrap and gap"
+    },
+    {
+     "html": [
+      {
+       "css": ".card",
+       "prop": "flex"
+      }
+     ],
+     "name": "cards share the space"
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "<div class=\"row\"> … the three cards … </div>",
+    ".row { display: flex; flex-wrap: wrap; gap: 12px; } .card { flex: 1 1 160px; }"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<style>\n.row { display: flex; flex-wrap: wrap; gap: 12px; }\n.card { flex: 1 1 160px; }\n</style>\n</head>\n<body>\n<h1>Market</h1>\n<div class=\"row\">\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</div>\n</body>\n</html>\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does display: flex do?",
+   "choices": [
+    "Hides the element",
+    "Lays its children out in a row",
+    "Makes it bigger",
+    "Centres the text"
+   ],
+   "answer": 1,
+   "why": "Children become flex items."
+  },
+  {
+   "q": "Cards overflow off a phone screen. Add…",
+   "choices": [
+    "flex-wrap: wrap",
+    "display: none",
+    "gap: 0",
+    "overflow: hidden"
+   ],
+   "answer": 0,
+   "why": "Let them wrap."
+  },
+  {
+   "q": "Title left, buttons right in a header?",
+   "choices": [
+    "float",
+    "justify-content: space-between",
+    "text-align: right",
+    "margin: auto"
+   ],
+   "answer": 1,
+   "why": "Space between the two ends."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Side by side with a gap?",
+   "a": "parent { display: flex; gap: 12px; }"
+  },
+  {
+   "q": "Let flex items wrap?",
+   "a": "flex-wrap: wrap"
+  },
+  {
+   "q": "Cards that reflow by themselves?",
+   "a": "flex: 1 1 200px on each card"
+  }
+ ],
+ "explain": "Explain layout with flexbox to someone who has never programmed, in your own words, with an example you make up."
+}

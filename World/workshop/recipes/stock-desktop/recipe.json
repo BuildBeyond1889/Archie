@@ -1,0 +1,53 @@
+{
+ "name": "Stock and records (desktop)",
+ "lang": "Python",
+ "summary": "A desktop app for a shop, store room or school supplies: add items with a checked form, search as you type, export to Excel, print a stock report, and back up to a USB stick. Uses a real database, so it stays fast with thousands of items.",
+ "for": "small shops, store rooms, schools, cooperatives",
+ "cheap": "Any old Windows or Linux laptop with Python (including 10-year-old ones).",
+ "tags": [
+  "stock",
+  "inventory",
+  "records",
+  "shop",
+  "database",
+  "python",
+  "desktop",
+  "school"
+ ],
+ "shell": "py-window",
+ "blocks": [
+  "py-db",
+  "py-forms",
+  "py-search",
+  "py-csv",
+  "py-report",
+  "py-backup"
+ ],
+ "files": {
+  "main.py": "main.py"
+ },
+ "version": "1.0.0",
+ "guide": {
+  "main": "main.py",
+  "overview": "A desktop app for a shop, store room or school supplies, built on a real SQLite database so it stays fast with thousands of items. Add items with a checked form, search as you type, double-click to add or take stock, export to Excel, print a stock report with its value, and back up to a USB stick.",
+  "files": [
+   {
+    "file": "main.py",
+    "why": "The app itself: everything specific to it. The other files are library blocks it uses.",
+    "points": [
+     {
+      "find": "self.items = self.db.table(",
+      "note": "The database table: each field and its type. New fields can be added later without losing data."
+     },
+     {
+      "find": "def rows(self):",
+      "note": "Search as you type: every refresh asks the database for all items and filters them by what's in the search box."
+     }
+    ]
+   }
+  ],
+  "order": [
+   "main.py"
+  ]
+ }
+}

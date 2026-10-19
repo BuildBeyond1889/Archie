@@ -1,0 +1,227 @@
+{
+ "id": "c-2-01",
+ "level": 2,
+ "title": "Pointers again, properly",
+ "concepts": [
+  "pointers"
+ ],
+ "skills": [
+  "pointers",
+  "out-parameters",
+  "NULL",
+  "->"
+ ],
+ "lesson": "In Level 1 you met pointers: `&x` is the address of `x`, `*p` is the value at that address, and passing `&h` lets a function change the caller's variable. Level 2 is about memory you ask for **while the program runs**, and every byte of it is reached through a pointer. So first, let's make pointers feel solid.\n\n**A pointer is just an address with a type.** The address says *where*; the type says *how to read what's there*.\n\n```\nint stock = 40;\nint *p = &stock;   /* p holds stock's address */\n*p = 35;           /* stock is now 35 */\n```\n\n**Out-parameters.** A C function returns one value. When you need two results, the caller passes addresses and the function writes through them:\n\n```\nvoid split_kg(int total, int people, int *each, int *left)\n{\n    *each = total / people;\n    *left = total % people;\n}\n\nint each, left;\nsplit_kg(17, 5, &each, &left);   /* each 3, left 2 */\n```\n\nThat's how `scanf` hands back what it read, and how real libraries return a value plus an error code.\n\n**NULL means \"nothing here\".** A function that *looks for* something can return a pointer to it, or `NULL` if there's no answer. The caller must check before using it:\n\n```\nEnemy *t = weakest(wave, 3);\nif (t != NULL) t->hp -= 4;\n```\n\n**`->` for a struct through a pointer.** `t->hp` is short for `(*t).hp`. Because `t` points *into* the caller's array, changing `t->hp` changes the real enemy, not a copy.\n\n**Common mistakes, and the habit that avoids them:**\n- Using a pointer you never set. `int *p; *p = 5;` writes to a random place. Give pointers a value straight away, even if it's `NULL`.\n- Returning the address of a local variable. The local disappears when the function ends, so the pointer points at junk.\n- Forgetting the `&` when calling: `split_kg(17, 5, each, left)` passes values, not addresses (the compiler warns; read the warning).\n- Dereferencing `NULL`. Professional C code checks pointer parameters at the top of a function: `if (p == NULL) return 0;`\n\nIn robots and games, functions like `read_sensor(&value)` that return a status and fill in a value are everywhere. Get comfortable with them now and the rest of this level is much easier.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\ntypedef struct { const char *kind; int hp; } Enemy;\n\nvoid split_kg(int total, int people, int *each, int *left)\n{\n    *each = total / people;\n    *left = total % people;\n}\n\nEnemy *first_alive(Enemy *list, int n)\n{\n    for (int i = 0; i < n; i++)\n        if (list[i].hp > 0) return &list[i];\n    return NULL;\n}\n\nint main(void)\n{\n    int each, left;\n    split_kg(17, 5, &each, &left);\n    printf(\"each gets %d kg, %d kg left over\\n\", each, left);\n\n    Enemy wave[3] = {{\"slime\", 0}, {\"bat\", 6}, {\"wolf\", 12}};\n    Enemy *target = first_alive(wave, 3);\n    if (target != NULL) {\n        target->hp -= 4;\n        printf(\"hit the %s, %d hp left\\n\", target->kind, target->hp);\n    }\n    printf(\"wave[1].hp is now %d\\n\", wave[1].hp);\n    return 0;\n}\n",
+  "notes": [
+   "split_kg returns two results by writing through the pointers each and left.",
+   "The caller passes &each and &left: the addresses of its own variables.",
+   "first_alive returns &list[i], a pointer into the caller's array, or NULL when nobody is alive.",
+   "main checks target != NULL before using it.",
+   "target->hp -= 4 changes the real enemy, which is why wave[1].hp shows 2 afterwards."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Share the harvest",
+   "file": "share.c",
+   "prompt": "Write void split_kg(int total, int people, int *each, int *left). Store how many whole kg each person gets in *each and what is left over in *left. If people is 0 or negative, nobody can share: set *each to 0 and *left to total.",
+   "starter": "void split_kg(int total, int people, int *each, int *left)\n{\n    /* write the answers through each and left */\n}\n",
+   "tests": [
+    {
+     "call": "({ int e = -1, l = -1; split_kg(17, 5, &e, &l); e * 100 + l; })",
+     "expect": "302",
+     "name": "17 kg for 5 people"
+    },
+    {
+     "call": "({ int e = -1, l = -1; split_kg(40, 4, &e, &l); e * 100 + l; })",
+     "expect": "1000",
+     "name": "shares evenly"
+    },
+    {
+     "call": "({ int e = -1, l = -1; split_kg(9, 0, &e, &l); e * 100 + l; })",
+     "expect": "9",
+     "hidden": true,
+     "name": "nobody to share with",
+     "hint_if_fail": "With 0 people, *each is 0 and *left is the whole total. Check before you divide."
+    },
+    {
+     "call": "({ int e = -1, l = -1; split_kg(9, -2, &e, &l); e * 100 + l; })",
+     "expect": "9",
+     "hidden": true,
+     "name": "negative people"
+    }
+   ],
+   "hints": [
+    "Write through the pointers: *each = ...; *left = ...;",
+    "/ gives whole kg each, % gives what's left.",
+    "Check people <= 0 first, set both, and return."
+   ],
+   "solution": "void split_kg(int total, int people, int *each, int *left)\n{\n    if (people <= 0) {          /* nobody to share with: it all stays */\n        *each = 0;\n        *left = total;\n        return;\n    }\n    *each = total / people;\n    *left = total % people;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Heal through a pointer",
+   "file": "heal.c",
+   "prompt": "With the Player struct given, write int heal(Player *p, int amount). Add amount to p->hp but never above p->max_hp, and return how much was actually healed. If p is NULL or amount is 0 or negative, change nothing and return 0.",
+   "starter": "#include <stdlib.h>\n\ntypedef struct { const char *name; int hp; int max_hp; } Player;\n\nint heal(Player *p, int amount)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "({ Player p = {\"Juma\", 40, 100}; int h = heal(&p, 25); h * 1000 + p.hp; })",
+     "expect": "25065",
+     "name": "normal heal"
+    },
+    {
+     "call": "({ Player p = {\"Amina\", 90, 100}; int h = heal(&p, 25); h * 1000 + p.hp; })",
+     "expect": "10100",
+     "name": "stops at max_hp",
+     "hint_if_fail": "Cap hp at max_hp, and return the difference between after and before."
+    },
+    {
+     "call": "heal(NULL, 10)",
+     "expect": "0",
+     "hidden": true,
+     "name": "NULL player"
+    },
+    {
+     "call": "({ Player p = {\"Otieno\", 50, 100}; int h = heal(&p, -20); h * 1000 + p.hp; })",
+     "expect": "50",
+     "hidden": true,
+     "name": "negative amount changes nothing"
+    }
+   ],
+   "hints": [
+    "Check p == NULL || amount <= 0 first.",
+    "Remember int before = p->hp; then add and cap.",
+    "return p->hp - before;"
+   ],
+   "solution": "#include <stdlib.h>\n\ntypedef struct { const char *name; int hp; int max_hp; } Player;\n\nint heal(Player *p, int amount)\n{\n    if (p == NULL || amount <= 0) return 0;\n    int before = p->hp;\n    p->hp += amount;\n    if (p->hp > p->max_hp) p->hp = p->max_hp;\n    return p->hp - before;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Target the weakest",
+   "file": "weakest.c",
+   "prompt": "With the Enemy struct given, write Enemy *weakest(Enemy *list, int n). Return a pointer to the living enemy (hp above 0) with the lowest hp; on a tie, the earliest one. If no enemy is alive (or n is 0), return NULL. The pointer must point into the caller's array so they can change that enemy.",
+   "starter": "#include <stdlib.h>\n\ntypedef struct { const char *kind; int hp; } Enemy;\n\nEnemy *weakest(Enemy *list, int n)\n{\n    return NULL;\n}\n",
+   "tests": [
+    {
+     "call": "({ Enemy w[3] = {{\"bat\", 6}, {\"wolf\", 3}, {\"slime\", 9}}; weakest(w, 3)->kind; })",
+     "fmt": "%s",
+     "expect": "wolf",
+     "name": "finds the weakest"
+    },
+    {
+     "call": "({ Enemy w[3] = {{\"bat\", 6}, {\"wolf\", 3}, {\"slime\", 9}}; weakest(w, 3)->hp = 0; weakest(w, 3)->kind; })",
+     "fmt": "%s",
+     "expect": "bat",
+     "name": "points into the array",
+     "hint_if_fail": "Return &list[i], not a pointer to a copy."
+    },
+    {
+     "call": "({ Enemy w[2] = {{\"bat\", 5}, {\"rat\", 5}}; weakest(w, 2)->kind; })",
+     "fmt": "%s",
+     "expect": "bat",
+     "hidden": true,
+     "name": "tie goes to the earliest"
+    },
+    {
+     "call": "({ Enemy w[2] = {{\"bat\", 0}, {\"rat\", -2}}; weakest(w, 2) == NULL; })",
+     "expect": "1",
+     "hidden": true,
+     "name": "nobody alive gives NULL"
+    },
+    {
+     "call": "weakest(NULL, 0) == NULL",
+     "expect": "1",
+     "hidden": true,
+     "name": "empty list"
+    }
+   ],
+   "hints": [
+    "Keep Enemy *best = NULL; and walk the array.",
+    "Skip enemies with hp <= 0.",
+    "if (best == NULL || list[i].hp < best->hp) best = &list[i];"
+   ],
+   "solution": "#include <stdlib.h>\n\ntypedef struct { const char *kind; int hp; } Enemy;\n\nEnemy *weakest(Enemy *list, int n)\n{\n    Enemy *best = NULL;\n    for (int i = 0; i < n; i++) {\n        if (list[i].hp <= 0) continue;        /* dead enemies don't count */\n        if (best == NULL || list[i].hp < best->hp) best = &list[i];\n    }\n    return best;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why does split_kg take int *each instead of returning two values?",
+   "choices": [
+    "C functions can return two values but it's slow",
+    "A C function returns one value; writing through pointers gives the caller more results",
+    "Pointers are faster than ints",
+    "It's required for division"
+   ],
+   "answer": 1,
+   "why": "Out-parameters are C's way to hand back several results."
+  },
+  {
+   "q": "A search function finds nothing. What should a pointer-returning function give back?",
+   "choices": [
+    "0 as an int",
+    "A pointer to a local variable",
+    "NULL, and the caller checks for it",
+    "Any address"
+   ],
+   "answer": 2,
+   "why": "NULL is the standard 'no answer'."
+  },
+  {
+   "q": "t is an Enemy *. What is t->hp the same as?",
+   "choices": [
+    "*t.hp",
+    "(*t).hp",
+    "&t.hp",
+    "t.hp"
+   ],
+   "answer": 1,
+   "why": "-> follows the pointer, then picks the field."
+  },
+  {
+   "q": "What is wrong with: int *p; *p = 5;",
+   "choices": [
+    "Nothing",
+    "p was never given an address, so 5 is written to a random place",
+    "It should be p = 5",
+    "int pointers can't hold 5"
+   ],
+   "answer": 1,
+   "why": "An uninitialised pointer holds garbage."
+  },
+  {
+   "q": "A function returns &total where total is its own local variable. What happens?",
+   "choices": [
+    "It works fine",
+    "The caller gets an address of memory that is gone once the function ends",
+    "The compiler copies total to the heap",
+    "total becomes global"
+   ],
+   "answer": 1,
+   "why": "Locals vanish when the function returns."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Return two results from a C function?",
+   "a": "Out-parameters: pass &a, &b and write *a = ..., *b = ...."
+  },
+  {
+   "q": "What does NULL mean for a pointer?",
+   "a": "It points at nothing; check before using it."
+  },
+  {
+   "q": "p->field is short for?",
+   "a": "(*p).field"
+  },
+  {
+   "q": "Safe first line for a function taking a pointer?",
+   "a": "if (p == NULL) return ...;"
+  }
+ ],
+ "explain": "Explain what an out-parameter is in your own words, with an example function you make up (say, reading a sensor that returns a status and a value)."
+}

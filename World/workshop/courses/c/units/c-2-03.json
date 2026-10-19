@@ -1,0 +1,225 @@
+{
+ "id": "c-2-03",
+ "level": 2,
+ "title": "malloc and free",
+ "concepts": [
+  "memory",
+  "malloc"
+ ],
+ "skills": [
+  "malloc",
+  "free",
+  "leaks"
+ ],
+ "lesson": "So far every array had a size fixed when you wrote the program: `double temps[5]`. But a sensor log might hold 10 readings or 10,000, and you only find out while the program runs. Local arrays also vanish when their function returns. For both problems, C lets you ask for memory from the **heap**: a big pool that lasts until you give it back.\n\n```\n#include <stdlib.h>\n\nint n = 500;\ndouble *readings = malloc(n * sizeof *readings);\nif (readings == NULL) {\n    printf(\"out of memory\\n\");\n    return 1;\n}\nreadings[0] = 21.5;          /* use it like an array */\n...\nfree(readings);              /* give it back, exactly once */\nreadings = NULL;             /* so nobody uses it by mistake */\n```\n\n- `malloc(bytes)` returns a pointer to a new block, or **NULL** if there isn't enough memory. On a PC that's rare; on a microcontroller with 2 KB it's real. Always check.\n- `n * sizeof *readings` asks for n items of whatever `readings` points to. If you later change the type, this stays right.\n- The block is **not cleared**: it holds leftover junk until you write to it. (`calloc(n, size)` gives zeroed memory.)\n- Every `malloc` needs exactly one `free`. Whoever owns the pointer is responsible for freeing it.\n\n**Three bugs in plain words:**\n- **Leak**: you forget to free. The memory stays taken until the program ends. In a program that runs for days (a weather station, a game server), leaks pile up until it crashes.\n- **Use-after-free**: you free a block, then read or write it. It may seem to work, then break later in strange ways. Set the pointer to `NULL` after freeing.\n- **Double free**: freeing the same block twice. This can corrupt the heap. `free(NULL)` is safe and does nothing, which is another reason to set pointers to `NULL`.\n\n**How Archie checks your memory.** In these exercises your file has three small helpers: `my_alloc`, `my_realloc` and `my_free`. They call the real functions and also count: `live_allocs` goes up on each allocation and down on each free. The tests check that it's back where it started when your code is done, so a leak shows up as a failed test, not a mystery crash next week. Real projects use tools like this too (Valgrind, AddressSanitizer, or a counter in an embedded build).\n\n**The professional habit:** write the `free` at the same time you write the `malloc`, then fill in the code between them.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <stdlib.h>\n\ndouble *make_log(int n)\n{\n    if (n <= 0) return NULL;\n    double *log = malloc(n * sizeof *log);\n    if (log == NULL) return NULL;          /* the caller must check */\n    for (int i = 0; i < n; i++)\n        log[i] = 20.0 + i * 0.5;           /* pretend readings */\n    return log;                            /* the caller now owns it */\n}\n\nint main(void)\n{\n    int n = 6;\n    double *log = make_log(n);\n    if (log == NULL) {\n        printf(\"no memory\\n\");\n        return 1;\n    }\n    for (int i = 0; i < n; i++) printf(\"%.1f \", log[i]);\n    printf(\"\\n\");\n    free(log);       /* exactly once */\n    log = NULL;      /* no accidental use afterwards */\n    return 0;\n}\n",
+  "notes": [
+   "make_log asks for n doubles with malloc(n * sizeof *log).",
+   "It returns NULL when n is 0 or when malloc fails, and main checks for that.",
+   "Returning the pointer hands ownership to main: main must free it.",
+   "The array outlives make_log, which a local array never could.",
+   "free(log) then log = NULL: free once, and make any later mistake obvious."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "An array of n readings",
+   "file": "makereadings.c",
+   "prompt": "Write int *make_readings(int n, int start, int step). It allocates an array of n ints with malloc and fills it with start, start + step, start + 2*step, ... The caller frees it. If n is 0 or negative, or malloc fails, return NULL.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint *make_readings(int n, int start, int step)\n{\n    /* malloc n ints, fill them, return the pointer */\n    return NULL;\n}\n",
+   "tests": [
+    {
+     "call": "({ int *a = make_readings(4, 10, 5); int r = a[0] * 1000 + a[3]; free(a); r; })",
+     "expect": "10025",
+     "name": "four readings"
+    },
+    {
+     "call": "({ int *a = make_readings(3, 100, -20); int r = a[2]; free(a); r; })",
+     "expect": "60",
+     "name": "counting down"
+    },
+    {
+     "call": "make_readings(0, 1, 1) == NULL",
+     "expect": "1",
+     "hidden": true,
+     "name": "zero readings gives NULL",
+     "hint_if_fail": "Check n <= 0 before calling malloc."
+    },
+    {
+     "call": "make_readings(-3, 1, 1) == NULL",
+     "expect": "1",
+     "hidden": true,
+     "name": "negative n gives NULL"
+    }
+   ],
+   "hints": [
+    "int *a = malloc(n * sizeof *a);",
+    "Check n <= 0 at the top, and a == NULL after malloc.",
+    "for (int i = 0; i < n; i++) a[i] = start + i * step;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint *make_readings(int n, int start, int step)\n{\n    if (n <= 0) return NULL;\n    int *a = malloc(n * sizeof *a);\n    if (a == NULL) return NULL;       /* out of memory */\n    for (int i = 0; i < n; i++)\n        a[i] = start + i * step;\n    return a;                         /* the caller frees it */\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Copy the log",
+   "file": "copylog.c",
+   "prompt": "Write double *copy_log(const double *src, int n): a new heap copy of the n readings, made with my_alloc (not malloc), so the caller can change the copy without touching the original. If n is 0 or negative, return NULL without allocating.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ndouble *copy_log(const double *src, int n)\n{\n    return NULL;\n}\n",
+   "tests": [
+    {
+     "call": "({ double a[] = {1.5, 2.5, 4.0}; double *c = copy_log(a, 3); double r = c[0] + c[2]; my_free(c); r; })",
+     "fmt": "%.1f",
+     "expect": "5.5",
+     "name": "copies the values"
+    },
+    {
+     "call": "({ double a[] = {1.5}; double *c = copy_log(a, 1); c[0] = 9.0; double r = a[0]; my_free(c); r; })",
+     "fmt": "%.1f",
+     "expect": "1.5",
+     "name": "a real copy, not the same memory",
+     "hint_if_fail": "Allocate a new block and copy into it; don't return src."
+    },
+    {
+     "call": "({ int before = live_allocs; double a[] = {1, 2, 3}; double *c = copy_log(a, 3); int r = (live_allocs - before) * 100 + (int)(last_alloc_size / sizeof(double)); my_free(c); r; })",
+     "expect": "103",
+     "name": "one block of n doubles",
+     "hint_if_fail": "Use my_alloc(n * sizeof *copy) once."
+    },
+    {
+     "call": "({ int before = live_allocs; double a[] = {1}; double *c = copy_log(a, 0); (c == NULL) * 10 + (live_allocs - before); })",
+     "expect": "10",
+     "hidden": true,
+     "name": "n of 0: NULL, nothing allocated"
+    }
+   ],
+   "hints": [
+    "double *copy = my_alloc(n * sizeof *copy);",
+    "Check copy == NULL, then copy each value in a loop (or memcpy).",
+    "memcpy(copy, src, n * sizeof *copy); also works."
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ndouble *copy_log(const double *src, int n)\n{\n    if (n <= 0) return NULL;\n    double *copy = my_alloc(n * sizeof *copy);\n    if (copy == NULL) return NULL;\n    for (int i = 0; i < n; i++)\n        copy[i] = src[i];\n    return copy;                  /* the caller owns it now */\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Fix the leak",
+   "file": "leak.c",
+   "prompt": "int max_smoothed(const int *a, int n) works out the average of each neighbouring pair, (a[i] + a[i+1]) / 2 in whole numbers, into a temporary heap array and returns the biggest. It gives the right answers, but it leaks: every call loses a block. Fix it so it frees what it allocates. With fewer than 2 values it returns 0 and allocates nothing.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\nint max_smoothed(const int *a, int n)\n{\n    if (n < 2) return 0;\n    int *s = my_alloc((n - 1) * sizeof *s);\n    if (s == NULL) return 0;\n    for (int i = 0; i < n - 1; i++)\n        s[i] = (a[i] + a[i + 1]) / 2;\n    int best = s[0];\n    for (int i = 1; i < n - 1; i++)\n        if (s[i] > best) best = s[i];\n    return best;\n}\n",
+   "tests": [
+    {
+     "call": "max_smoothed((int[]){10, 20, 30, 50}, 4)",
+     "expect": "40",
+     "name": "still gives the right answer"
+    },
+    {
+     "call": "max_smoothed((int[]){-10, -20, -30}, 3)",
+     "expect": "-15",
+     "name": "negative readings"
+    },
+    {
+     "call": "({ int before = live_allocs; max_smoothed((int[]){1, 2, 3}, 3); live_allocs - before; })",
+     "expect": "0",
+     "name": "no leak",
+     "hint_if_fail": "Free the temporary array before returning (save best first)."
+    },
+    {
+     "call": "({ int before = live_allocs; for (int i = 0; i < 100; i++) max_smoothed((int[]){5, 7}, 2); live_allocs - before; })",
+     "expect": "0",
+     "hidden": true,
+     "name": "no leak over 100 calls"
+    },
+    {
+     "call": "({ int before = live_allocs; int r = max_smoothed((int[]){5}, 1); r * 10 + (live_allocs - before); })",
+     "expect": "0",
+     "hidden": true,
+     "name": "one value: 0, nothing allocated"
+    }
+   ],
+   "hints": [
+    "The block s is never given back.",
+    "You need best after freeing, so keep it in a variable first.",
+    "my_free(s); return best;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\nint max_smoothed(const int *a, int n)\n{\n    if (n < 2) return 0;\n    int *s = my_alloc((n - 1) * sizeof *s);\n    if (s == NULL) return 0;\n    for (int i = 0; i < n - 1; i++)\n        s[i] = (a[i] + a[i + 1]) / 2;\n    int best = s[0];\n    for (int i = 1; i < n - 1; i++)\n        if (s[i] > best) best = s[i];\n    my_free(s);                   /* the temporary is done with */\n    return best;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "malloc returns NULL. What does that mean?",
+   "choices": [
+    "The block is empty",
+    "There wasn't enough memory; you must not use the pointer",
+    "The block is zeroed",
+    "You asked for 0 items"
+   ],
+   "answer": 1,
+   "why": "NULL means the allocation failed."
+  },
+  {
+   "q": "Why write malloc(n * sizeof *p) instead of malloc(n * 8)?",
+   "choices": [
+    "It's shorter",
+    "It stays correct for whatever type p points to",
+    "8 is never right",
+    "malloc needs sizeof"
+   ],
+   "answer": 1,
+   "why": "The size follows the type automatically."
+  },
+  {
+   "q": "A program frees a block and later reads from it. This is called...",
+   "choices": [
+    "A leak",
+    "Use-after-free",
+    "Double free",
+    "Fine, if it prints the right thing"
+   ],
+   "answer": 1,
+   "why": "Freed memory can be reused for something else at any time."
+  },
+  {
+   "q": "A logger mallocs a buffer for each reading and never frees it. After running for a week...",
+   "choices": [
+    "Nothing happens",
+    "Memory use keeps growing until the program fails",
+    "C frees it automatically every hour",
+    "It gets faster"
+   ],
+   "answer": 1,
+   "why": "That's a leak; C has no garbage collector."
+  },
+  {
+   "q": "Why set p = NULL after free(p)?",
+   "choices": [
+    "free needs it",
+    "Using p afterwards then fails clearly, and free(NULL) is safe if it happens again",
+    "It frees the memory twice",
+    "It's required by the compiler"
+   ],
+   "answer": 1,
+   "why": "A NULL pointer can't silently point at reused memory."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Allocate n doubles?",
+   "a": "double *p = malloc(n * sizeof *p); then check p != NULL."
+  },
+  {
+   "q": "Rule for free?",
+   "a": "Exactly once for every successful malloc, by whoever owns it."
+  },
+  {
+   "q": "What is a memory leak?",
+   "a": "Allocated memory that is never freed."
+  },
+  {
+   "q": "Is free(NULL) safe?",
+   "a": "Yes, it does nothing."
+  }
+ ],
+ "explain": "Explain the difference between a leak and a use-after-free in your own words, with a short made-up story about a program that has each."
+}

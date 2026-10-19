@@ -1,0 +1,161 @@
+{
+ "id": "py-1-10",
+ "level": 1,
+ "title": "Dictionaries",
+ "skills": [
+  "dictionaries",
+  "data"
+ ],
+ "lesson": "A **dictionary** stores values by **key** instead of by position, like a real dictionary looks up a word:\n\n```\nprice = {\"maize\": 55, \"beans\": 120}\nprice[\"maize\"]          # 55\nprice[\"kale\"] = 40      # add or change\n```\n\nKeys are usually strings, and each key appears once. Useful tools:\n- `\"beans\" in price`: is the key there?\n- `price.get(\"rice\", 0)`: the value, or 0 if it's missing (no error)\n- `for crop, p in price.items():` loops over key and value together\n- `price.keys()`, `price.values()`, `del price[\"kale\"]`, `len(price)`\n\nTwo patterns you'll use forever:\n1. **A record**: one thing's details. `child = {\"name\": \"Amina\", \"age\": 9, \"class\": \"3B\"}`\n2. **Counting / grouping**: `counts[word] = counts.get(word, 0) + 1` inside a loop counts how often each thing appears. Add up kg per crop the same way.\n\nA list of dictionaries is a little database: `harvests = [{\"crop\": \"maize\", \"kg\": 40}, ...]`. That's exactly the shape of data in spreadsheets, JSON files and web APIs.",
+ "example": {
+  "code": "harvests = [{\"crop\": \"maize\", \"kg\": 40}, {\"crop\": \"beans\", \"kg\": 12}, {\"crop\": \"maize\", \"kg\": 25}]\ntotals = {}\nfor h in harvests:\n    totals[h[\"crop\"]] = totals.get(h[\"crop\"], 0) + h[\"kg\"]\nprint(totals)\nfor crop, kg in sorted(totals.items()):\n    print(f\"{crop}: {kg} kg\")\n",
+  "notes": [
+   "A list of records.",
+   "Group and add with get(..., 0).",
+   "Loop over key and value, sorted by name."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Word counts",
+   "file": "ex1_words.py",
+   "prompt": "Write word_counts(text) returning a dict of how many times each word appears (lowercase, split on spaces).",
+   "starter": "def word_counts(text):\n    counts = {}\n    return counts\n",
+   "tests": [
+    {
+     "call": "word_counts(\"the cat and the hat\")",
+     "expect": {
+      "the": 2,
+      "cat": 1,
+      "and": 1,
+      "hat": 1
+     }
+    },
+    {
+     "call": "word_counts(\"Rain rain RAIN\")",
+     "expect": {
+      "rain": 3
+     }
+    },
+    {
+     "call": "word_counts(\"\")",
+     "expect": {},
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "for w in text.lower().split():",
+    "counts[w] = counts.get(w, 0) + 1"
+   ],
+   "solution": "def word_counts(text):\n    counts = {}\n    for w in text.lower().split():\n        counts[w] = counts.get(w, 0) + 1\n    return counts\n"
+  },
+  {
+   "id": "e2",
+   "title": "Kg per crop",
+   "file": "ex2_group.py",
+   "prompt": "Write kg_per_crop(harvests) where harvests is a list of dicts like {\"crop\": \"maize\", \"kg\": 40}. Return a dict of total kg per crop.",
+   "starter": "def kg_per_crop(harvests):\n    return {}\n",
+   "tests": [
+    {
+     "call": "kg_per_crop([{\"crop\": \"maize\", \"kg\": 40}, {\"crop\": \"beans\", \"kg\": 12}, {\"crop\": \"maize\", \"kg\": 25}])",
+     "expect": {
+      "maize": 65,
+      "beans": 12
+     }
+    },
+    {
+     "call": "kg_per_crop([])",
+     "expect": {},
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Same pattern as counting, but add h[\"kg\"] instead of 1."
+   ],
+   "solution": "def kg_per_crop(harvests):\n    t = {}\n    for h in harvests:\n        t[h[\"crop\"]] = t.get(h[\"crop\"], 0) + h[\"kg\"]\n    return t\n"
+  },
+  {
+   "id": "e3",
+   "title": "Translate",
+   "file": "ex3_translate.py",
+   "prompt": "A small English to Swahili dictionary is given. Write translate(sentence): translate each word it knows and leave unknown words as they are. translate(\"the water is good\") gives \"the maji is nzuri\".",
+   "starter": "SW = {\"water\": \"maji\", \"good\": \"nzuri\", \"food\": \"chakula\", \"school\": \"shule\", \"friend\": \"rafiki\", \"thank\": \"asante\"}\n\n\ndef translate(sentence):\n    return sentence\n",
+   "tests": [
+    {
+     "call": "translate(\"the water is good\")",
+     "expect": "the maji is nzuri"
+    },
+    {
+     "call": "translate(\"school friend\")",
+     "expect": "shule rafiki"
+    },
+    {
+     "call": "translate(\"Good FOOD\")",
+     "expect": "nzuri chakula",
+     "hidden": true,
+     "hint_if_fail": "Look words up in lowercase: SW.get(w.lower(), w)."
+    }
+   ],
+   "hints": [
+    "Split into words, look each up with SW.get(word, word), join with spaces.",
+    "\" \".join(SW.get(w.lower(), w) for w in sentence.split())"
+   ],
+   "solution": "SW = {\"water\": \"maji\", \"good\": \"nzuri\", \"food\": \"chakula\", \"school\": \"shule\", \"friend\": \"rafiki\", \"thank\": \"asante\"}\n\n\ndef translate(sentence):\n    return \" \".join(SW.get(w.lower(), w) for w in sentence.split())\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "d = {\"a\": 1}; d[\"b\"] gives…",
+   "choices": [
+    "None",
+    "0",
+    "KeyError",
+    "\"b\""
+   ],
+   "answer": 2,
+   "why": "A missing key is an error; d.get(\"b\") gives None."
+  },
+  {
+   "q": "Best way to loop over keys and values together?",
+   "choices": [
+    "for k in d",
+    "for k, v in d.items()",
+    "for v in d.values()",
+    "while d"
+   ],
+   "answer": 1,
+   "why": ".items() gives both."
+  },
+  {
+   "q": "Counting pattern?",
+   "choices": [
+    "counts[w] += 1 always",
+    "counts[w] = counts.get(w, 0) + 1",
+    "counts.append(w)",
+    "len(w)"
+   ],
+   "answer": 1,
+   "why": "get with 0 handles the first time."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Value or a default if the key is missing?",
+   "a": "d.get(key, default)"
+  },
+  {
+   "q": "List of dicts?",
+   "a": "A little database: each dict is one record."
+  },
+  {
+   "q": "Is a key in a dict?",
+   "a": "key in d"
+  }
+ ],
+ "concepts": [
+  "maps"
+ ],
+ "bridge": "Python's map is the **dict**: `{\"maize\": 55}`, `d[\"maize\"]`, `d.get(key, 0)`, `for k, v in d.items():`.",
+ "explain": "Explain dictionaries to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

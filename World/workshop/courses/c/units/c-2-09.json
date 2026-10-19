@@ -1,0 +1,295 @@
+{
+ "id": "c-2-09",
+ "level": 2,
+ "title": "Project: sensor log tool",
+ "project": true,
+ "concepts": [
+  "dynamic-arrays",
+  "linked-lists",
+  "malloc",
+  "memory",
+  "data-modeling"
+ ],
+ "skills": [
+  "putting it together",
+  "memory ownership",
+  "reports"
+ ],
+ "lesson": "In Level 1 you built a sensor report that kept running totals, because a tiny board can't store a whole log. Now you're on the PC side: the log arrives from a water tank, a greenhouse or a cold room at a clinic, it can be any length, and you want to keep every reading so you can look back. That needs everything from this level: a growing array, a linked list, out-parameters, and memory that ends up fully freed.\n\n**The input.** The first number is the **alarm limit**. Every number after it is a reading, until the input ends:\n\n```\n30\n18.5\n22.0\n31.0\n25.0\n26.5\n34.0\n```\n\n**What the program keeps:**\n- a `Readings` dynamic array (`vals`, `len`, `cap`) that grows with the safe realloc pattern, starting at 8 and doubling;\n- an `AlarmList`: a linked list of every reading **above** the limit, in the order they arrived. It keeps a `tail` pointer as well as `head`, so adding at the end is instant instead of walking the whole list each time. Each alarm remembers which reading it was (counting from 1) and its value.\n\n**The report:**\n\n```\nreadings 6\nmin 18.5\nmax 34.0\naverage 26.2\nalarms 2\nalarm at reading 3: 31.0\nalarm at reading 6: 34.0\nlive allocations 0\n```\n\nNumbers have one decimal place. With no readings at all (or not even a limit), print `no readings` instead of the six summary lines. The last line is always `live allocations` followed by Archie's counter, printed **after** you free everything. If it isn't 0, something leaked.\n\n**How to build it.** Professionals build a tool like this in pieces and test each piece before joining them, so the project has three parts:\n1. The readings array: add, stats (with out-parameters for min, max and average), free.\n2. The alarm list: add at the tail, free the whole list.\n3. The program: paste your pieces in, write `main`, and print the report.\n\n**Ownership plan, written down first:** `main` owns the Readings and the AlarmList. `readings_free` frees the array; `alarms_free` frees every alarm node. Both reset their struct to empty. Nothing else allocates. With a plan like this, \"where does this get freed?\" always has a one-line answer.\n\nOnce it works, this is a real tool: point it at a log file with `sensorlog < tank.txt` and it tells you what happened overnight.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <stdlib.h>\n\n/* The shape of the tool, in miniature: grow, remember, report, free. */\nint main(void)\n{\n    double *vals = NULL;\n    int len = 0, cap = 0;\n    double x;\n    double demo[] = {18.5, 22.0, 31.0};\n\n    for (int i = 0; i < 3; i++) {          /* the real tool reads with scanf */\n        x = demo[i];\n        if (len == cap) {\n            int new_cap = cap ? cap * 2 : 8;\n            double *tmp = realloc(vals, new_cap * sizeof *tmp);\n            if (tmp == NULL) break;\n            vals = tmp;\n            cap = new_cap;\n        }\n        vals[len++] = x;\n    }\n    printf(\"kept %d readings in room for %d\\n\", len, cap);\n    for (int i = 0; i < len; i++)\n        if (vals[i] > 30.0) printf(\"alarm at reading %d: %.1f\\n\", i + 1, vals[i]);\n    free(vals);\n    return 0;\n}\n",
+  "notes": [
+   "The readings go into a growing heap array with the safe realloc pattern.",
+   "Capacity starts at 8 and doubles, exactly like the project.",
+   "Alarms count readings from 1 (i + 1), the way people number them.",
+   "The real tool keeps alarms in their own linked list instead of searching again.",
+   "Everything allocated is freed before main ends."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Part 1: the readings array",
+   "file": "readings.c",
+   "prompt": "With Readings and readings_init given, write three functions. int readings_add(Readings *r, double v): append v, growing with my_realloc when full (capacity 8 at first, then double; safe pattern); return 1, or 0 if memory runs out. int readings_stats(const Readings *r, double *lo, double *hi, double *avg): if there are no readings return 0; otherwise store the smallest, largest and average and return 1. void readings_free(Readings *r): free with my_free and reset to empty.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    double *vals;   /* the readings, on the heap */\n    int len;\n    int cap;\n} Readings;\n\nvoid readings_init(Readings *r)\n{\n    r->vals = NULL;\n    r->len = 0;\n    r->cap = 0;\n}\n\nint readings_add(Readings *r, double v)\n{\n    return 0;\n}\n\nint readings_stats(const Readings *r, double *lo, double *hi, double *avg)\n{\n    return 0;\n}\n\nvoid readings_free(Readings *r)\n{\n}\n",
+   "tests": [
+    {
+     "call": "({ Readings r; readings_init(&r); for (int i = 0; i < 20; i++) readings_add(&r, i * 1.5); int x = r.len * 100 + r.cap; readings_free(&r); x; })",
+     "expect": "2032",
+     "name": "20 readings, capacity 32"
+    },
+    {
+     "call": "({ Readings r; readings_init(&r); double v[] = {18.5, 22.0, 31.0, 25.0, 26.5, 34.0}; for (int i = 0; i < 6; i++) readings_add(&r, v[i]); double lo = 0, hi = 0, avg = 0; readings_stats(&r, &lo, &hi, &avg); readings_free(&r); lo * 10000 + hi * 10 + avg / 1000; })",
+     "fmt": "%.4f",
+     "expect": "185340.0262",
+     "name": "min, max, average"
+    },
+    {
+     "call": "({ Readings r; readings_init(&r); double lo = -1, hi = -1, avg = -1; int ok = readings_stats(&r, &lo, &hi, &avg); ok * 100 + lo + hi + avg; })",
+     "fmt": "%.1f",
+     "expect": "-3.0",
+     "name": "no readings: 0, outputs untouched"
+    },
+    {
+     "call": "({ Readings r; readings_init(&r); readings_add(&r, -4.0); readings_add(&r, -9.5); double lo, hi, avg; readings_stats(&r, &lo, &hi, &avg); readings_free(&r); lo * 100 + hi; })",
+     "fmt": "%.1f",
+     "expect": "-954.0",
+     "hidden": true,
+     "name": "all negative",
+     "hint_if_fail": "Start min and max from the first reading, not 0."
+    },
+    {
+     "call": "({ int before = live_allocs; Readings r; readings_init(&r); for (int i = 0; i < 5000; i++) readings_add(&r, i); int during = live_allocs - before; readings_free(&r); during * 100 + (live_allocs - before) * 10 + (r.vals == NULL) + r.len + r.cap; })",
+     "expect": "101",
+     "hidden": true,
+     "name": "one block, freed and reset"
+    }
+   ],
+   "hints": [
+    "readings_add is unit 4's list_push with doubles and a starting capacity of 8.",
+    "readings_stats: if (r->len == 0) return 0; then *lo = *hi = r->vals[0]; and loop with a total.",
+    "readings_free: my_free(r->vals); then reset vals, len and cap."
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    double *vals;   /* the readings, on the heap */\n    int len;\n    int cap;\n} Readings;\n\nvoid readings_init(Readings *r)\n{\n    r->vals = NULL;\n    r->len = 0;\n    r->cap = 0;\n}\n\nint readings_add(Readings *r, double v)\n{\n    if (r->len == r->cap) {\n        int new_cap = r->cap ? r->cap * 2 : 8;\n        double *tmp = my_realloc(r->vals, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;          /* old readings are safe */\n        r->vals = tmp;\n        r->cap = new_cap;\n    }\n    r->vals[r->len++] = v;\n    return 1;\n}\n\nint readings_stats(const Readings *r, double *lo, double *hi, double *avg)\n{\n    if (r->len == 0) return 0;\n    double total = 0;\n    *lo = *hi = r->vals[0];\n    for (int i = 0; i < r->len; i++) {\n        double v = r->vals[i];\n        if (v < *lo) *lo = v;\n        if (v > *hi) *hi = v;\n        total += v;\n    }\n    *avg = total / r->len;\n    return 1;\n}\n\nvoid readings_free(Readings *r)\n{\n    my_free(r->vals);\n    r->vals = NULL;\n    r->len = 0;\n    r->cap = 0;\n}\n\n"
+  },
+  {
+   "id": "e2",
+   "title": "Part 2: the alarm list",
+   "file": "alarms.c",
+   "prompt": "With Alarm, AlarmList and alarms_to_text given (start with AlarmList a = {NULL, NULL, 0};), write int alarm_add(AlarmList *a, int index, double value): a new Alarm (my_alloc) added at the END using the tail pointer (no walking), count goes up, return 1 (0 if memory runs out). Then void alarms_free(AlarmList *a): free every alarm and reset head, tail and count.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct Alarm {\n    int index;            /* which reading, counting from 1 */\n    double value;\n    struct Alarm *next;\n} Alarm;\n\ntypedef struct {\n    Alarm *head;          /* oldest alarm */\n    Alarm *tail;          /* newest alarm, so adding at the end is instant */\n    int count;\n} AlarmList;\n\n/* Writes the alarms as \"3:31.0 6:34.0\", or \"(none)\". For tests. */\nvoid alarms_to_text(const AlarmList *a, char *buf)\n{\n    if (a->head == NULL) {\n        strcpy(buf, \"(none)\");\n        return;\n    }\n    buf[0] = '\\0';\n    for (const Alarm *n = a->head; n != NULL; n = n->next) {\n        char part[40];\n        sprintf(part, n == a->head ? \"%d:%.1f\" : \" %d:%.1f\", n->index, n->value);\n        strcat(buf, part);\n    }\n}\n\nint alarm_add(AlarmList *a, int index, double value)\n{\n    return 0;\n}\n\nvoid alarms_free(AlarmList *a)\n{\n}\n",
+   "tests": [
+    {
+     "call": "({ static char b[200]; AlarmList a = {NULL, NULL, 0}; alarm_add(&a, 3, 31.0); alarm_add(&a, 6, 34.0); alarms_to_text(&a, b); alarms_free(&a); b; })",
+     "fmt": "%s",
+     "expect": "3:31.0 6:34.0",
+     "name": "in arrival order"
+    },
+    {
+     "call": "({ AlarmList a = {NULL, NULL, 0}; for (int i = 1; i <= 7; i++) alarm_add(&a, i, 40.0); int r = a.count * 100 + a.tail->index * 10 + (a.tail->next == NULL); alarms_free(&a); r; })",
+     "expect": "771",
+     "name": "count and tail",
+     "hint_if_fail": "After adding, a->tail must point at the new alarm."
+    },
+    {
+     "call": "({ static char b[200]; AlarmList a = {NULL, NULL, 0}; alarm_add(&a, 1, 50.5); alarms_to_text(&a, b); int same = a.head == a.tail; alarms_free(&a); same ? b : \"head and tail differ\"; })",
+     "fmt": "%s",
+     "expect": "1:50.5",
+     "name": "first alarm is head and tail"
+    },
+    {
+     "call": "({ int before = live_allocs; AlarmList a = {NULL, NULL, 0}; for (int i = 0; i < 30; i++) alarm_add(&a, i, 1.0); alarms_free(&a); (live_allocs - before) * 100 + a.count * 10 + (a.head == NULL && a.tail == NULL); })",
+     "expect": "1",
+     "hidden": true,
+     "name": "frees and resets"
+    },
+    {
+     "call": "({ static char b[200]; AlarmList a = {NULL, NULL, 0}; alarm_add(&a, 2, 33.0); alarms_free(&a); alarm_add(&a, 9, 35.0); alarms_to_text(&a, b); alarms_free(&a); b; })",
+     "fmt": "%s",
+     "expect": "9:35.0",
+     "hidden": true,
+     "name": "usable again after freeing",
+     "hint_if_fail": "alarms_free must set head and tail back to NULL."
+    },
+    {
+     "call": "({ static char b[50]; AlarmList a = {NULL, NULL, 0}; alarms_free(&a); alarms_to_text(&a, b); b; })",
+     "fmt": "%s",
+     "expect": "(none)",
+     "hidden": true,
+     "name": "freeing an empty list"
+    }
+   ],
+   "hints": [
+    "Make the node with next = NULL. If a->tail is NULL the list was empty: a->head = n.",
+    "Otherwise a->tail->next = n. Either way a->tail = n; a->count++;",
+    "alarms_free: walk from head saving next before each my_free, then a->head = a->tail = NULL; a->count = 0;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct Alarm {\n    int index;            /* which reading, counting from 1 */\n    double value;\n    struct Alarm *next;\n} Alarm;\n\ntypedef struct {\n    Alarm *head;          /* oldest alarm */\n    Alarm *tail;          /* newest alarm, so adding at the end is instant */\n    int count;\n} AlarmList;\n\n/* Writes the alarms as \"3:31.0 6:34.0\", or \"(none)\". For tests. */\nvoid alarms_to_text(const AlarmList *a, char *buf)\n{\n    if (a->head == NULL) {\n        strcpy(buf, \"(none)\");\n        return;\n    }\n    buf[0] = '\\0';\n    for (const Alarm *n = a->head; n != NULL; n = n->next) {\n        char part[40];\n        sprintf(part, n == a->head ? \"%d:%.1f\" : \" %d:%.1f\", n->index, n->value);\n        strcat(buf, part);\n    }\n}\n\nint alarm_add(AlarmList *a, int index, double value)\n{\n    Alarm *n = my_alloc(sizeof *n);\n    if (n == NULL) return 0;\n    n->index = index;\n    n->value = value;\n    n->next = NULL;\n    if (a->tail == NULL) a->head = n;       /* first alarm */\n    else a->tail->next = n;\n    a->tail = n;\n    a->count++;\n    return 1;\n}\n\nvoid alarms_free(AlarmList *a)\n{\n    Alarm *n = a->head;\n    while (n != NULL) {\n        Alarm *next = n->next;\n        my_free(n);\n        n = next;\n    }\n    a->head = a->tail = NULL;\n    a->count = 0;\n}\n\n"
+  },
+  {
+   "id": "e3",
+   "title": "Part 3: the sensor log tool",
+   "file": "sensorlog.c",
+   "prompt": "Write the whole program described in the lesson. Paste your functions from parts 1 and 2 over the stubs, then write main: read the limit, then every reading (keep them in Readings; every reading above the limit becomes an alarm numbered from 1); print the report exactly as in the lesson (or no readings); free everything; and finally print live allocations followed by live_allocs. Grow the readings with my_realloc.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    double *vals;   /* the readings, on the heap */\n    int len;\n    int cap;\n} Readings;\n\nvoid readings_init(Readings *r)\n{\n    r->vals = NULL;\n    r->len = 0;\n    r->cap = 0;\n}\n\ntypedef struct Alarm {\n    int index;            /* which reading, counting from 1 */\n    double value;\n    struct Alarm *next;\n} Alarm;\n\ntypedef struct {\n    Alarm *head;          /* oldest alarm */\n    Alarm *tail;          /* newest alarm, so adding at the end is instant */\n    int count;\n} AlarmList;\n\n/* Paste your finished functions from parts 1 and 2 over these stubs. */\nint readings_add(Readings *r, double v) { return 0; }\nint readings_stats(const Readings *r, double *lo, double *hi, double *avg) { return 0; }\nvoid readings_free(Readings *r) { }\nint alarm_add(AlarmList *a, int index, double value) { return 0; }\nvoid alarms_free(AlarmList *a) { }\n\nint main(void)\n{\n    double limit;\n    Readings r;\n    AlarmList alarms = {NULL, NULL, 0};\n    readings_init(&r);\n\n    /* 1. read the limit, then every reading: add it, and add an alarm if it's above the limit */\n    /* 2. print the report (or \"no readings\") */\n    /* 3. free everything, then print \"live allocations %d\" with live_allocs */\n    (void)limit;\n    return 0;\n}\n",
+   "tests": [
+    {
+     "stdin": "30\n18.5\n22.0\n31.0\n25.0\n26.5\n34.0\n",
+     "out": [
+      "readings 6",
+      "min 18.5",
+      "max 34.0",
+      "average 26.2",
+      "alarms 2",
+      "alarm at reading 3: 31.0",
+      "alarm at reading 6: 34.0",
+      "live allocations 0"
+     ],
+     "name": "the lesson's log"
+    },
+    {
+     "stdin": "25\n10\n12.5\n11\n",
+     "out": [
+      "readings 3",
+      "min 10.0",
+      "max 12.5",
+      "average 11.2",
+      "alarms 0",
+      "live allocations 0"
+     ],
+     "name": "a quiet night"
+    },
+    {
+     "stdin": "30\n30\n30.1\n",
+     "out": [
+      "alarms 1",
+      "alarm at reading 2: 30.1"
+     ],
+     "name": "exactly the limit isn't an alarm",
+     "hint_if_fail": "Alarms are readings ABOVE the limit: use >."
+    },
+    {
+     "stdin": "30\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n0.5\n1.5\n2.5\n3.5\n4.5\n5.5\n6.5\n7.5\n8.5\n9.5\n10.5\n11.5\n12.5\n13.5\n14.5\n15.5\n16.5\n17.5\n18.5\n19.5\n20.5\n21.5\n22.5\n23.5\n24.5\n25.5\n26.5\n27.5\n28.5\n29.5\n30.5\n31.5\n32.5\n33.5\n34.5\n35.5\n36.5\n37.5\n38.5\n39.5\n",
+     "out": [
+      "readings 2000",
+      "min 0.5",
+      "max 39.5",
+      "average 20.0",
+      "alarms 500",
+      "alarm at reading 2000: 39.5",
+      "live allocations 0"
+     ],
+     "hidden": true,
+     "name": "2000 readings",
+     "hint_if_fail": "The readings array must grow; and free both structures before printing the counter."
+    },
+    {
+     "stdin": "30\n",
+     "out": [
+      "no readings",
+      "live allocations 0"
+     ],
+     "hidden": true,
+     "name": "a limit but no readings"
+    },
+    {
+     "stdin": "",
+     "out": [
+      "no readings",
+      "live allocations 0"
+     ],
+     "hidden": true,
+     "name": "completely empty input"
+    },
+    {
+     "src_has": "my_realloc(",
+     "why": "Grow the readings array with my_realloc."
+    }
+   ],
+   "hints": [
+    "Start from the stubs: paste readings_add, readings_stats, readings_free, alarm_add and alarms_free from parts 1 and 2.",
+    "Loop: while (scanf(\"%lf\", &x) == 1) { readings_add(&r, x); if (x > limit) alarm_add(&alarms, r.len, x); }",
+    "Print with readings_stats; walk alarms.head for the alarm lines; then readings_free, alarms_free, and print live_allocs last."
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    double *vals;   /* the readings, on the heap */\n    int len;\n    int cap;\n} Readings;\n\nvoid readings_init(Readings *r)\n{\n    r->vals = NULL;\n    r->len = 0;\n    r->cap = 0;\n}\n\nint readings_add(Readings *r, double v)\n{\n    if (r->len == r->cap) {\n        int new_cap = r->cap ? r->cap * 2 : 8;\n        double *tmp = my_realloc(r->vals, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;          /* old readings are safe */\n        r->vals = tmp;\n        r->cap = new_cap;\n    }\n    r->vals[r->len++] = v;\n    return 1;\n}\n\nint readings_stats(const Readings *r, double *lo, double *hi, double *avg)\n{\n    if (r->len == 0) return 0;\n    double total = 0;\n    *lo = *hi = r->vals[0];\n    for (int i = 0; i < r->len; i++) {\n        double v = r->vals[i];\n        if (v < *lo) *lo = v;\n        if (v > *hi) *hi = v;\n        total += v;\n    }\n    *avg = total / r->len;\n    return 1;\n}\n\nvoid readings_free(Readings *r)\n{\n    my_free(r->vals);\n    r->vals = NULL;\n    r->len = 0;\n    r->cap = 0;\n}\n\ntypedef struct Alarm {\n    int index;            /* which reading, counting from 1 */\n    double value;\n    struct Alarm *next;\n} Alarm;\n\ntypedef struct {\n    Alarm *head;          /* oldest alarm */\n    Alarm *tail;          /* newest alarm, so adding at the end is instant */\n    int count;\n} AlarmList;\n\nint alarm_add(AlarmList *a, int index, double value)\n{\n    Alarm *n = my_alloc(sizeof *n);\n    if (n == NULL) return 0;\n    n->index = index;\n    n->value = value;\n    n->next = NULL;\n    if (a->tail == NULL) a->head = n;       /* first alarm */\n    else a->tail->next = n;\n    a->tail = n;\n    a->count++;\n    return 1;\n}\n\nvoid alarms_free(AlarmList *a)\n{\n    Alarm *n = a->head;\n    while (n != NULL) {\n        Alarm *next = n->next;\n        my_free(n);\n        n = next;\n    }\n    a->head = a->tail = NULL;\n    a->count = 0;\n}\n\nint main(void)\n{\n    double limit, x;\n    Readings r;\n    AlarmList alarms = {NULL, NULL, 0};\n    readings_init(&r);\n\n    if (scanf(\"%lf\", &limit) == 1) {\n        while (scanf(\"%lf\", &x) == 1) {\n            if (!readings_add(&r, x)) {\n                printf(\"out of memory\\n\");\n                break;\n            }\n            if (x > limit && !alarm_add(&alarms, r.len, x)) {\n                printf(\"out of memory\\n\");\n                break;\n            }\n        }\n    }\n\n    double lo, hi, avg;\n    if (readings_stats(&r, &lo, &hi, &avg)) {\n        printf(\"readings %d\\n\", r.len);\n        printf(\"min %.1f\\n\", lo);\n        printf(\"max %.1f\\n\", hi);\n        printf(\"average %.1f\\n\", avg);\n        printf(\"alarms %d\\n\", alarms.count);\n        for (const Alarm *a = alarms.head; a != NULL; a = a->next)\n            printf(\"alarm at reading %d: %.1f\\n\", a->index, a->value);\n    } else {\n        printf(\"no readings\\n\");\n    }\n\n    readings_free(&r);\n    alarms_free(&alarms);\n    printf(\"live allocations %d\\n\", live_allocs);\n    return 0;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why does the AlarmList keep a tail pointer?",
+   "choices": [
+    "To free it faster",
+    "So adding at the end is instant instead of walking the whole list",
+    "C requires it",
+    "To count the alarms"
+   ],
+   "answer": 1,
+   "why": "With tail, push_back doesn't need a walk."
+  },
+  {
+   "q": "Why print live_allocs only after freeing everything?",
+   "choices": [
+    "It's prettier",
+    "Then any number but 0 means something leaked",
+    "live_allocs resets itself",
+    "To slow the program down"
+   ],
+   "answer": 1,
+   "why": "The counter is a leak check."
+  },
+  {
+   "q": "Why build and test the pieces before writing main?",
+   "choices": [
+    "main must be written last in C",
+    "A bug is easier to find in a small tested piece than in the whole program",
+    "The compiler needs it",
+    "It uses less memory"
+   ],
+   "answer": 1,
+   "why": "Test small, then join."
+  },
+  {
+   "q": "The readings array has 8 slots, all full, and a 9th reading arrives. What happens?",
+   "choices": [
+    "It's dropped",
+    "realloc grows the array to 16 and the reading is stored",
+    "The program crashes",
+    "The oldest is overwritten"
+   ],
+   "answer": 1,
+   "why": "The dynamic array doubles when full."
+  },
+  {
+   "q": "Who frees the alarm nodes in this design?",
+   "choices": [
+    "Each alarm frees itself",
+    "alarms_free, called by main which owns the list",
+    "readings_free",
+    "Nobody needs to"
+   ],
+   "answer": 1,
+   "why": "Write down the ownership plan: main owns, the free functions clean up."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Grow a readings array safely?",
+   "a": "tmp = realloc(vals, new_cap * sizeof *tmp); check NULL; then vals = tmp."
+  },
+  {
+   "q": "Append to a list with head and tail?",
+   "a": "if tail is NULL, head = n; else tail->next = n; then tail = n."
+  },
+  {
+   "q": "Ownership plan for the tool?",
+   "a": "main owns Readings and AlarmList; readings_free and alarms_free release them."
+  },
+  {
+   "q": "How do you know nothing leaked?",
+   "a": "The allocation counter is back to 0 after freeing everything."
+  }
+ ],
+ "explain": "Explain how your sensor log tool uses memory from start to finish: what gets allocated, when it grows, and where each block is freed."
+}

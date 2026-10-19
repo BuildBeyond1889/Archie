@@ -1,0 +1,257 @@
+{
+ "id": "cs-2-08",
+ "level": 2,
+ "title": "Records, enums and exceptions",
+ "concepts": [
+  "records",
+  "enums",
+  "exceptions",
+  "custom-exceptions"
+ ],
+ "skills": [
+  "records",
+  "enums",
+  "errors"
+ ],
+ "lesson": "Three tools for modelling data honestly.\n\n**Enums: a fixed set of choices.** A direction is North, East, South or West. Storing it as a string invites `\"Nort\"` bugs; an `enum` makes the compiler check it:\n\n```\npublic enum Direction { North, East, South, West }\nDirection facing = Direction.North;\n```\n\nEnums pair beautifully with switch expressions: `facing switch { Direction.North => ..., ... }`. Under the hood each value is a number (North = 0, East = 1...), which is handy (`(Direction)(((int)d + 1) % 4)` turns right) but has a trap: `(Direction)9` compiles. Always end an enum switch with `_ => throw new ArgumentOutOfRangeException(...)`. When you parse text with `Enum.TryParse`, also check `Enum.IsDefined`, because `\"7\"` parses fine as a number.\n\n**Records: data with value equality.** Two grid positions (2, 5) are the same position, but two `class` objects with the same fields are *different* objects to `==`. A `record` compares by value:\n\n```\npublic record GridPos(int X, int Y);\n\nnew GridPos(2, 5) == new GridPos(2, 5)    // True\nvar moved = pos with { Y = pos.Y + 1 };   // a changed copy; pos is untouched\n```\n\nOne line gives you a constructor, read-only properties, `==`, and a readable `ToString()` (`GridPos { X = 2, Y = 5 }`). Use records for **values**: positions, money amounts, settings, messages, save data. Use classes for **things with identity that change over time**: a player, an enemy, a bank account.\n\n**Exceptions: when something can't be done.** You've thrown `ArgumentException` since Level 1. Now make your own when the problem means something in your program:\n\n```\npublic class InsufficientFundsException : Exception\n{\n    public decimal Shortfall { get; }\n    public InsufficientFundsException(decimal shortfall)\n        : base($\"Short by {shortfall}\") { Shortfall = shortfall; }\n}\n```\n\nThe caller can catch exactly that case and use the extra information:\n\n```\ntry { account.Withdraw(500); }\ncatch (InsufficientFundsException ex) { Console.WriteLine($\"You need {ex.Shortfall} more\"); }\nfinally { log.Add(\"withdraw tried\"); }\n```\n\n- Catch the **specific** exception first, general ones after.\n- `finally` runs whether things worked or not: closing files, saving logs.\n- **The common mistake:** `catch (Exception) { }` with nothing inside. It swallows every bug, including ones you'd want to see. Catch only what you can actually handle.\n- Exceptions are for exceptional cases. \"Player pressed the wrong key\" is normal; return a value. \"Save file is corrupt\" is exceptional; throw.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\npublic enum Direction { North, East, South, West }\n\npublic record GridPos(int X, int Y)\n{\n    public GridPos Step(Direction d) => d switch\n    {\n        Direction.North => this with { Y = Y + 1 },\n        Direction.South => this with { Y = Y - 1 },\n        Direction.East => this with { X = X + 1 },\n        Direction.West => this with { X = X - 1 },\n        _ => throw new ArgumentOutOfRangeException(nameof(d))\n    };\n}\n\npublic class OutOfMapException : Exception\n{\n    public OutOfMapException(GridPos p) : base($\"{p} is off the map\") { }\n}\n\nclass Program\n{\n    static void Main()\n    {\n        var start = new GridPos(0, 0);\n        var p = start.Step(Direction.North).Step(Direction.East);\n        Console.WriteLine(p);                              // GridPos { X = 1, Y = 1 }\n        Console.WriteLine(p == new GridPos(1, 1));         // True: same values\n        try\n        {\n            if (p.X > 0) throw new OutOfMapException(p);\n        }\n        catch (OutOfMapException ex) { Console.WriteLine(ex.Message); }\n        finally { Console.WriteLine(\"checked the map\"); }\n    }\n}\n",
+  "notes": [
+   "The enum gives four named choices the compiler can check.",
+   "The record gets a constructor, properties, == and ToString for free.",
+   "`with` makes a changed copy; start is still (0, 0).",
+   "The switch ends with a throw for any value that isn't one of the four.",
+   "The custom exception carries a clear message; finally runs either way."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Moving on a grid",
+   "file": "Grid.cs",
+   "prompt": "Direction and the record GridPos are started for you. Finish:\n- GridPos.Move(Direction d, int steps = 1): a NEW position moved that many steps (North is Y + steps, South is Y - steps, East is X + steps, West is X - steps). Use `with`. Any other Direction value throws ArgumentOutOfRangeException.\n- GridPos.DistanceTo(GridPos other): grid distance |dx| + |dy|.\n- Compass.TurnRight(Direction d): North -> East -> South -> West -> North.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic enum Direction { North, East, South, West }\n\npublic record GridPos(int X, int Y)\n{\n    public GridPos Move(Direction d, int steps = 1) => this;\n\n    public int DistanceTo(GridPos other) => 0;\n}\n\npublic static class Compass\n{\n    public static Direction TurnRight(Direction d) => d;\n}\n",
+   "tests": [
+    {
+     "call": "new GridPos(0, 0).Move(Direction.North, 3).Move(Direction.East)",
+     "expect": "GridPos { X = 1, Y = 3 }",
+     "name": "moves"
+    },
+    {
+     "call": "new GridPos(1, 1).DistanceTo(new GridPos(4, -3))",
+     "expect": "7",
+     "name": "distance"
+    },
+    {
+     "call": "Compass.TurnRight(Direction.West) + \" \" + Compass.TurnRight(Direction.North)",
+     "expect": "North East",
+     "name": "turning right"
+    },
+    {
+     "call": "(new GridPos(2, 5).Move(Direction.South, 0) == new GridPos(2, 5)).ToString()",
+     "expect": "True",
+     "name": "value equality"
+    },
+    {
+     "call": "((Func<string>)(() => { var a = new GridPos(3, 3); var b = a.Move(Direction.South, 2); return a + \" \" + b.Y; }))()",
+     "expect": "GridPos { X = 3, Y = 3 } 1",
+     "hidden": true,
+     "name": "the original doesn't change"
+    },
+    {
+     "call": "new GridPos(0, 0).Move((Direction)9)",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "a value that isn't a direction"
+    },
+    {
+     "src_has": "with {",
+     "why": "Make the moved copy with a `with` expression."
+    }
+   ],
+   "hints": [
+    "public GridPos Move(Direction d, int steps = 1) => d switch { Direction.North => this with { Y = Y + steps }, ... };",
+    "End the switch with _ => throw new ArgumentOutOfRangeException(nameof(d))",
+    "TurnRight: (Direction)(((int)d + 1) % 4)"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic enum Direction { North, East, South, West }\n\n// A record: compared by value, printed nicely, and changed only by making copies.\npublic record GridPos(int X, int Y)\n{\n    public GridPos Move(Direction d, int steps = 1) => d switch\n    {\n        Direction.North => this with { Y = Y + steps },\n        Direction.South => this with { Y = Y - steps },\n        Direction.East => this with { X = X + steps },\n        Direction.West => this with { X = X - steps },\n        _ => throw new ArgumentOutOfRangeException(nameof(d))   // (Direction)9 compiles, so guard it\n    };\n\n    public int DistanceTo(GridPos other) => Math.Abs(X - other.X) + Math.Abs(Y - other.Y);\n}\n\npublic static class Compass\n{\n    // The enum values are 0, 1, 2, 3 in order, so \"next\" is +1 wrapping round.\n    public static Direction TurnRight(Direction d) => (Direction)(((int)d + 1) % 4);\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Weather advice",
+   "file": "Weather.cs",
+   "prompt": "The enum Weather is given. In static class FarmAdvice:\n- string Advice(Weather w) with a switch expression: Sunny \"Good day to harvest\", Rainy \"Plant the beans\", Stormy \"Stay inside and check the drains\", Dry \"Water the seedlings early\". Any other value throws ArgumentOutOfRangeException.\n- Weather Parse(string text): turns text like \"  stormy \" or \"DRY\" into a Weather (ignore case and spaces). Anything that isn't one of the four names, including numbers like \"7\" and null, throws ArgumentException.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic enum Weather { Sunny, Rainy, Stormy, Dry }\n\npublic static class FarmAdvice\n{\n    public static string Advice(Weather w)\n    {\n        return \"\";\n    }\n\n    public static Weather Parse(string text)\n    {\n        return Weather.Sunny;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "FarmAdvice.Advice(Weather.Rainy)",
+     "expect": "Plant the beans",
+     "name": "advice"
+    },
+    {
+     "call": "FarmAdvice.Parse(\"  stormy \")",
+     "expect": "Stormy",
+     "name": "parse ignores case and spaces"
+    },
+    {
+     "call": "FarmAdvice.Advice(FarmAdvice.Parse(\"DRY\"))",
+     "expect": "Water the seedlings early",
+     "name": "parse then advise"
+    },
+    {
+     "call": "FarmAdvice.Parse(\"snow\")",
+     "expect": "!ERR ArgumentException",
+     "hidden": true,
+     "name": "unknown weather"
+    },
+    {
+     "call": "FarmAdvice.Parse(\"7\")",
+     "expect": "!ERR ArgumentException",
+     "hidden": true,
+     "name": "a number isn't a weather",
+     "hint_if_fail": "Enum.TryParse accepts \"7\": check Enum.IsDefined too."
+    },
+    {
+     "call": "FarmAdvice.Advice((Weather)42)",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "a value outside the enum"
+    }
+   ],
+   "hints": [
+    "Advice: return w switch { Weather.Sunny => \"...\", ..., _ => throw new ArgumentOutOfRangeException(nameof(w)) };",
+    "Parse: if (text != null && Enum.TryParse(text.Trim(), true, out Weather w) && Enum.IsDefined(w)) return w;",
+    "After that if, throw new ArgumentException($\"Unknown weather: {text}\");"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic enum Weather { Sunny, Rainy, Stormy, Dry }\n\npublic static class FarmAdvice\n{\n    public static string Advice(Weather w) => w switch\n    {\n        Weather.Sunny => \"Good day to harvest\",\n        Weather.Rainy => \"Plant the beans\",\n        Weather.Stormy => \"Stay inside and check the drains\",\n        Weather.Dry => \"Water the seedlings early\",\n        _ => throw new ArgumentOutOfRangeException(nameof(w))\n    };\n\n    public static Weather Parse(string text)\n    {\n        // TryParse with ignoreCase: true. IsDefined stops \"7\" sneaking in as a number.\n        if (text != null && Enum.TryParse(text.Trim(), true, out Weather w) && Enum.IsDefined(w)) return w;\n        throw new ArgumentException($\"Unknown weather: {text}\");\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "A savings group account",
+   "file": "Savings.cs",
+   "prompt": "1. Write InsufficientFundsException : Exception with a decimal Shortfall property, constructor InsufficientFundsException(decimal shortfall), and a message.\n2. Fix SavingsAccount: Deposit and Withdraw throw ArgumentOutOfRangeException for amounts of 0 or less; Withdraw of more than the Balance throws InsufficientFundsException(amount - Balance) and leaves the balance alone.\n3. Teller.TryWithdraw(account, amount): use try/catch/finally. Return \"OK, balance {Balance}\" on success, \"Short by {Shortfall}\" for not enough money, \"Bad amount\" for a bad amount. In finally, add 1 to Teller.Attempts (every call counts).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\n// InsufficientFundsException goes here\n\npublic class SavingsAccount\n{\n    public string Owner { get; }\n    public decimal Balance { get; private set; }\n\n    public SavingsAccount(string owner, decimal opening = 0)\n    {\n        Owner = owner;\n        Balance = opening;\n    }\n\n    public void Deposit(decimal amount)\n    {\n        Balance += amount;\n    }\n\n    public void Withdraw(decimal amount)\n    {\n        Balance -= amount;\n    }\n}\n\npublic static class Teller\n{\n    public static int Attempts { get; private set; }\n\n    public static string TryWithdraw(SavingsAccount account, decimal amount)\n    {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var a = new SavingsAccount(\"Wanjiru\", 500); a.Withdraw(200); a.Deposit(50); return a.Balance.ToString(); }))()",
+     "expect": "350",
+     "name": "normal use"
+    },
+    {
+     "call": "((Func<string>)(() => { var a = new SavingsAccount(\"Juma\", 100); a.Withdraw(250); return \"no error\"; }))()",
+     "expect": "!ERR InsufficientFundsException",
+     "name": "too much"
+    },
+    {
+     "call": "((Func<string>)(() => { var a = new SavingsAccount(\"Juma\", 100); try { a.Withdraw(250); } catch (InsufficientFundsException e) { return e.Shortfall + \" \" + a.Balance; } return \"no throw\"; }))()",
+     "expect": "150 100",
+     "name": "the shortfall, balance untouched"
+    },
+    {
+     "call": "Teller.TryWithdraw(new SavingsAccount(\"Amina\", 1000), 400)",
+     "expect": "OK, balance 600",
+     "name": "teller success"
+    },
+    {
+     "call": "((Func<string>)(() => { int before = Teller.Attempts; var a = new SavingsAccount(\"A\", 50); string r1 = Teller.TryWithdraw(a, 80); string r2 = Teller.TryWithdraw(a, -5); return r1 + \" | \" + r2 + \" | \" + (Teller.Attempts - before); }))()",
+     "expect": "Short by 30 | Bad amount | 2",
+     "hidden": true,
+     "name": "teller failures still count"
+    },
+    {
+     "call": "((Func<string>)(() => { new SavingsAccount(\"A\", 10).Deposit(0); return \"no error\"; }))()",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "zero deposit"
+    },
+    {
+     "src_has": "finally",
+     "why": "Count the attempt in a finally block."
+    }
+   ],
+   "hints": [
+    "public class InsufficientFundsException : Exception { public decimal Shortfall { get; } public InsufficientFundsException(decimal shortfall) : base(\"...\") { Shortfall = shortfall; } }",
+    "Withdraw: check amount <= 0 first, then if (amount > Balance) throw new InsufficientFundsException(amount - Balance);",
+    "TryWithdraw: try { ...; return ...; } catch (InsufficientFundsException ex) { ... } catch (ArgumentOutOfRangeException) { ... } finally { Attempts++; }"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class InsufficientFundsException : Exception\n{\n    public decimal Shortfall { get; }\n\n    public InsufficientFundsException(decimal shortfall)\n        : base($\"Not enough money: short by {shortfall}\")\n    {\n        Shortfall = shortfall;\n    }\n}\n\npublic class SavingsAccount\n{\n    public string Owner { get; }\n    public decimal Balance { get; private set; }\n\n    public SavingsAccount(string owner, decimal opening = 0)\n    {\n        Owner = owner;\n        Balance = opening;\n    }\n\n    public void Deposit(decimal amount)\n    {\n        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        Balance += amount;\n    }\n\n    public void Withdraw(decimal amount)\n    {\n        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        if (amount > Balance) throw new InsufficientFundsException(amount - Balance);\n        Balance -= amount;\n    }\n}\n\npublic static class Teller\n{\n    public static int Attempts { get; private set; }\n\n    public static string TryWithdraw(SavingsAccount account, decimal amount)\n    {\n        try\n        {\n            account.Withdraw(amount);\n            return $\"OK, balance {account.Balance}\";\n        }\n        catch (InsufficientFundsException ex)       // the specific problem first\n        {\n            return $\"Short by {ex.Shortfall}\";\n        }\n        catch (ArgumentOutOfRangeException)\n        {\n            return \"Bad amount\";\n        }\n        finally\n        {\n            Attempts++;                              // runs whether it worked or not\n        }\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "record GridPos(int X, int Y). new GridPos(1, 2) == new GridPos(1, 2) is…",
+   "choices": [
+    "False: different objects",
+    "True: records compare values",
+    "A compile error",
+    "Random"
+   ],
+   "answer": 1,
+   "why": "Value equality is the point of records."
+  },
+  {
+   "q": "What does pos with { Y = 9 } do?",
+   "choices": [
+    "Changes pos",
+    "Makes a copy with Y = 9; pos is unchanged",
+    "Deletes Y",
+    "Throws"
+   ],
+   "answer": 1,
+   "why": "Records are changed by copying."
+  },
+  {
+   "q": "Why end an enum switch with _ => throw ...?",
+   "choices": [
+    "Style only",
+    "Because (Direction)9 compiles, and you want a loud error, not silent nonsense",
+    "Enums need it to compile",
+    "To make it faster"
+   ],
+   "answer": 1,
+   "why": "Any int can be cast to an enum."
+  },
+  {
+   "q": "Which catch block is the problem? try { ... } catch (Exception) { }",
+   "choices": [
+    "None, it's fine",
+    "It silently swallows every error, including real bugs",
+    "It won't compile",
+    "It only catches ArgumentException"
+   ],
+   "answer": 1,
+   "why": "Catch only what you can handle."
+  },
+  {
+   "q": "Player or GridPos: which should be a record?",
+   "choices": [
+    "Player",
+    "GridPos",
+    "Both",
+    "Neither"
+   ],
+   "answer": 1,
+   "why": "Records for values; classes for things with identity that change."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Enum?",
+   "a": "public enum Direction { North, East, South, West }"
+  },
+  {
+   "q": "Record with a changed copy?",
+   "a": "public record GridPos(int X, int Y);  var b = a with { X = 5 };"
+  },
+  {
+   "q": "Custom exception?",
+   "a": "class InsufficientFundsException : Exception { ... : base(message) }"
+  },
+  {
+   "q": "What does finally do?",
+   "a": "Runs after try/catch whether or not anything was thrown"
+  }
+ ],
+ "explain": "Explain the difference between a record and a class, with one example of each from a program you'd like to write."
+}

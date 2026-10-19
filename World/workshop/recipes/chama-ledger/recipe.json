@@ -1,0 +1,51 @@
+{
+ "name": "Savings group ledger (chama)",
+ "lang": "Web (HTML, CSS, JavaScript)",
+ "summary": "Members, contributions and payouts for a savings group (chama, table banking, ROSCA): who paid what and when, each member's total, the group balance, and a printable statement for meetings. English and Swahili.",
+ "for": "chamas, savings groups, cooperatives, youth and women's groups",
+ "cheap": "The treasurer's phone, offline; back up after every meeting.",
+ "tags": [
+  "chama",
+  "savings",
+  "group",
+  "ledger",
+  "money",
+  "contributions",
+  "cooperative",
+  "kenya",
+  "rosca"
+ ],
+ "shell": "web-offline-app",
+ "blocks": [
+  "web-store",
+  "web-forms",
+  "web-table",
+  "web-csv",
+  "web-print",
+  "web-i18n",
+  "web-access"
+ ],
+ "files": {
+  "js/app.js": "js/app.js"
+ },
+ "version": "1.0.0",
+ "guide": {
+  "main": "js/app.js",
+  "overview": "The treasurer's book for a savings group: members, every contribution and payout with its M-Pesa or receipt number, each member's totals and the group's balance. 'Statement' prints it for the meeting. Back it up after every meeting.",
+  "files": [
+   {
+    "file": "js/app.js",
+    "why": "The app itself: everything specific to it. The other files are library blocks it uses.",
+    "points": [
+     {
+      "find": "function totals()",
+      "note": "Each member's money in and out, worked out from the list of transactions rather than stored separately, so the totals can never disagree with the records."
+     }
+    ]
+   }
+  ],
+  "order": [
+   "js/app.js"
+  ]
+ }
+}

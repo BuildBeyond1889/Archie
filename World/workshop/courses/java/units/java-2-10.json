@@ -1,0 +1,288 @@
+{
+ "id": "java-2-10",
+ "level": 2,
+ "title": "Level 2 project: game inventory",
+ "project": true,
+ "concepts": [
+  "interfaces",
+  "records",
+  "enums",
+  "generics",
+  "comparators",
+  "custom-exceptions",
+  "testing",
+  "design"
+ ],
+ "skills": [
+  "design",
+  "modelling",
+  "testing"
+ ],
+ "lesson": "Time to put the whole level together. You'll build the inventory system for a small adventure game: the kind of code that sits behind every backpack screen. The same design works for a clinic's medicine store or a farm co-op's warehouse; only the names change.\n\n**The plan.** Good programs start with the data, then the rules, then the tests.\n\n1. **Model the items** (exercise 1). Everything in the backpack is an `Item`: it has a name, a weight and a value. That's an **interface**, because a weapon, a potion and a gem share a contract but not much code. Each kind of item is a **record**, because items are values that don't change. Their compact constructors refuse a blank name or a negative weight. **Rarity** is an **enum** (COMMON, RARE, LEGENDARY) with a value multiplier, and the interface's **default method** `value()` uses it. A `describe` method uses **pattern matching** to say something different for each kind.\n\n2. **The inventory** (exercise 2). A class with private state (a list of items and a weight limit) and methods that protect the rules: adding an item that is too heavy throws a **checked custom exception**, `InventoryFullException`, because \"the bag is full\" is something the game must plan for (show a message, drop something). Totals, removal by name, **sorting with a comparator** (most valuable first, ties by name) and a **generic method** `ofType(Weapon.class)` that returns a `List<Weapon>` without casts.\n\n3. **Test it** (exercise 3). The loot screen sorts items. You'll write the check that decides whether a sorting function is correct, and we'll throw broken versions at it. If your check catches every broken version, your tests are doing their job.\n\nHow the pieces of Level 2 fit:\n- interfaces describe *what* things can do; records and classes are *how*;\n- enums replace magic strings; records replace boilerplate;\n- generics keep the compiler checking types for you;\n- comparators give the order without changing the items;\n- exceptions say clearly what went wrong;\n- tests prove it works, and keep proving it every time you change something.\n\nWork in small steps: get one test passing, then the next. Read the prompt carefully; names and messages matter because the tests depend on them, just like real code that other people call. When it's done, think about what you'd add next: equipping a weapon, stacking potions, saving the inventory to a file (that's Level 3).",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.*;\n\nenum Kind { TOOL, SEED }\n\ninterface Stockable {\n    String name();\n    int kg();\n    default boolean heavy() { return kg() > 20; }\n}\n\nrecord Tool(String name, int kg) implements Stockable { }\nrecord Seed(String name, int kg, Kind kind) implements Stockable { }\n\nclass StoreFullException extends Exception {\n    StoreFullException(String what) { super(\"No space for \" + what); }\n}\n\npublic class Example {\n    static final int LIMIT = 50;\n    static final List<Stockable> store = new ArrayList<>();\n\n    static void add(Stockable s) throws StoreFullException {\n        int used = 0;\n        for (Stockable x : store) used += x.kg();\n        if (used + s.kg() > LIMIT) throw new StoreFullException(s.name());\n        store.add(s);\n    }\n\n    public static void main(String[] args) {\n        try {\n            add(new Tool(\"Hoe\", 3));\n            add(new Seed(\"Maize\", 25, Kind.SEED));\n            add(new Seed(\"Beans\", 30, Kind.SEED));\n        } catch (StoreFullException e) {\n            System.out.println(e.getMessage());\n        }\n        store.sort(Comparator.comparingInt(Stockable::kg).reversed().thenComparing(Stockable::name));\n        for (Stockable s : store) System.out.println(s.name() + (s.heavy() ? \" (heavy)\" : \"\"));\n    }\n}\n",
+  "notes": [
+   "An interface for what every stored thing has, with a default method.",
+   "Records for the different kinds of thing.",
+   "A checked exception when the store is full; the caller must handle it.",
+   "A comparator orders the store: heaviest first, ties by name.",
+   "Same shape as the game inventory you're about to build."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "p1",
+   "title": "Items, rarity and descriptions",
+   "file": "Loot.java",
+   "prompt": "Rarity (COMMON ×1, RARE ×3, LEGENDARY ×10) is done. In interface Item make the default value() return baseValue() × the rarity's multiplier. Give the records Weapon(name, weight, rarity, baseValue, damage), Potion(name, weight, rarity, baseValue, heal) and Gem(name, weight, rarity, baseValue) compact constructors that call Loot.require(name, weight); write require to throw IllegalArgumentException for a null/blank name or negative weight. Write Loot.describe(Item item) with pattern matching: \"Spear (12 dmg, 60 gold)\", \"Tonic (+25 hp, 15 gold)\", and for any other item \"Opal (500 gold)\".",
+   "starter": "enum Rarity {\n    COMMON(1), RARE(3), LEGENDARY(10);\n    private final int multiplier;\n    Rarity(int multiplier) { this.multiplier = multiplier; }\n    int multiplier() { return multiplier; }\n}\n\ninterface Item {\n    String name();\n    int weight();\n    Rarity rarity();\n    int baseValue();\n    default int value() { return 0; }   // TODO\n}\n\nrecord Weapon(String name, int weight, Rarity rarity, int baseValue, int damage) implements Item { }\nrecord Potion(String name, int weight, Rarity rarity, int baseValue, int heal) implements Item { }\nrecord Gem(String name, int weight, Rarity rarity, int baseValue) implements Item { }\n\npublic class Loot {\n    static void require(String name, int weight) {\n    }\n\n    public static String describe(Item item) {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "new Weapon(\"Spear\", 4, Rarity.RARE, 20, 12).value()",
+     "expect": "60"
+    },
+    {
+     "call": "Loot.describe(new Weapon(\"Spear\", 4, Rarity.RARE, 20, 12))",
+     "expect": "Spear (12 dmg, 60 gold)"
+    },
+    {
+     "call": "Loot.describe(new Potion(\"Tonic\", 1, Rarity.COMMON, 15, 25))",
+     "expect": "Tonic (+25 hp, 15 gold)"
+    },
+    {
+     "call": "Loot.describe(new Gem(\"Opal\", 1, Rarity.LEGENDARY, 50))",
+     "expect": "Opal (500 gold)"
+    },
+    {
+     "call": "new Gem(\"Opal\", 1, Rarity.LEGENDARY, 50).equals(new Gem(\"Opal\", 1, Rarity.LEGENDARY, 50))",
+     "expect": "true",
+     "name": "records compare by value"
+    },
+    {
+     "call": "new Gem(\"  \", 1, Rarity.COMMON, 5)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "blank name"
+    },
+    {
+     "call": "new Weapon(\"Axe\", -2, Rarity.COMMON, 10, 5)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "negative weight"
+    },
+    {
+     "call": "new Potion(\"Feather\", 0, Rarity.COMMON, 1, 1).weight()",
+     "expect": "0",
+     "hidden": true,
+     "name": "weight 0 is fine"
+    },
+    {
+     "src_has": "instanceof",
+     "why": "describe should use pattern matching with instanceof (or a switch with type patterns)."
+    }
+   ],
+   "hints": [
+    "default int value() { return baseValue() * rarity().multiplier(); }",
+    "Compact constructor in each record: record Gem(...) implements Item { Gem { Loot.require(name, weight); } }",
+    "describe: if (item instanceof Weapon w) return w.name() + \" (\" + w.damage() + \" dmg, \" + w.value() + \" gold)\";"
+   ],
+   "solution": "enum Rarity {\n    COMMON(1), RARE(3), LEGENDARY(10);\n    private final int multiplier;\n    Rarity(int multiplier) { this.multiplier = multiplier; }\n    int multiplier() { return multiplier; }\n}\n\ninterface Item {\n    String name();\n    int weight();\n    Rarity rarity();\n    int baseValue();\n    default int value() { return baseValue() * rarity().multiplier(); }\n}\n\nrecord Weapon(String name, int weight, Rarity rarity, int baseValue, int damage) implements Item {\n    Weapon { Loot.require(name, weight); }\n}\n\nrecord Potion(String name, int weight, Rarity rarity, int baseValue, int heal) implements Item {\n    Potion { Loot.require(name, weight); }\n}\n\nrecord Gem(String name, int weight, Rarity rarity, int baseValue) implements Item {\n    Gem { Loot.require(name, weight); }\n}\n\npublic class Loot {\n    // Shared checks for every kind of item.\n    static void require(String name, int weight) {\n        if (name == null || name.isBlank()) throw new IllegalArgumentException(\"item needs a name\");\n        if (weight < 0) throw new IllegalArgumentException(\"weight can't be negative\");\n    }\n\n    public static String describe(Item item) {\n        if (item instanceof Weapon w) return w.name() + \" (\" + w.damage() + \" dmg, \" + w.value() + \" gold)\";\n        if (item instanceof Potion p) return p.name() + \" (+\" + p.heal() + \" hp, \" + p.value() + \" gold)\";\n        return item.name() + \" (\" + item.value() + \" gold)\";\n    }\n}\n"
+  },
+  {
+   "id": "p2",
+   "title": "The inventory",
+   "file": "Inventory.java",
+   "prompt": "Item, Weapon and Potion are given. Write the checked InventoryFullException(String item, int over) with message \"No room for Elixir: 2 kg over\". Inventory(int maxWeight) throws IllegalArgumentException if maxWeight <= 0. add(Item) throws InventoryFullException if the total weight would go over the limit (nothing is added). totalWeight(), totalValue(). remove(String name) removes and returns the first item with that name ignoring capitals, or null. Make the comparator BY_VALUE order most valuable first, ties by name A to Z; sortedBy(Comparator<Item> order) returns a sorted copy. Generic method <T extends Item> List<T> ofType(Class<T> type) returns the items of that type in order (type.isInstance / type.cast).",
+   "starter": "import java.util.*;\n\ninterface Item {\n    String name();\n    int weight();\n    int value();\n}\n\nrecord Weapon(String name, int weight, int value, int damage) implements Item { }\nrecord Potion(String name, int weight, int value, int heal) implements Item { }\n\nclass InventoryFullException extends Exception {\n    InventoryFullException(String item, int over) {\n        super(\"\");\n    }\n}\n\npublic class Inventory {\n    public static final Comparator<Item> BY_VALUE = (a, b) -> 0;\n\n    public Inventory(int maxWeight) {\n    }\n\n    public void add(Item item) throws InventoryFullException {\n    }\n\n    public int totalWeight() { return 0; }\n    public int totalValue() { return 0; }\n\n    public Item remove(String name) {\n        return null;\n    }\n\n    public List<Item> sortedBy(Comparator<Item> order) {\n        return new ArrayList<>();\n    }\n\n    public <T extends Item> List<T> ofType(Class<T> type) {\n        return new ArrayList<>();\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Inventory inv = new Inventory(10); try { inv.add(new Weapon(\"Spear\", 4, 60, 12)); inv.add(new Potion(\"Tonic\", 1, 15, 25)); inv.add(new Weapon(\"Axe\", 5, 40, 18)); } catch (InventoryFullException e) { return e.getMessage(); } return inv.totalWeight() + \" \" + inv.totalValue(); }).get()",
+     "expect": "10 115",
+     "name": "totals"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Inventory inv = new Inventory(10); try { inv.add(new Weapon(\"Axe\", 9, 40, 18)); inv.add(new Potion(\"Elixir\", 3, 90, 50)); return \"no error\"; } catch (InventoryFullException e) { return e.getMessage() + \" / \" + inv.totalWeight(); } }).get()",
+     "expect": "No room for Elixir: 2 kg over / 9",
+     "name": "full bag"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Inventory inv = new Inventory(50); try { inv.add(new Potion(\"Tonic\", 1, 15, 25)); inv.add(new Weapon(\"Spear\", 4, 60, 12)); inv.add(new Weapon(\"Axe\", 5, 60, 18)); } catch (InventoryFullException e) { return \"full\"; } java.util.List<String> names = new java.util.ArrayList<>(); for (Item i : inv.sortedBy(Inventory.BY_VALUE)) names.add(i.name()); return names.toString(); }).get()",
+     "expect": "[Axe, Spear, Tonic]",
+     "name": "sorted by value, ties by name"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Inventory inv = new Inventory(50); try { inv.add(new Weapon(\"Spear\", 4, 60, 12)); inv.add(new Potion(\"Tonic\", 1, 15, 25)); inv.add(new Weapon(\"Axe\", 5, 40, 18)); } catch (InventoryFullException e) { return \"full\"; } java.util.List<Weapon> ws = inv.ofType(Weapon.class); return ws.size() + \" \" + (ws.get(0).damage() + ws.get(1).damage()); }).get()",
+     "expect": "2 30",
+     "name": "ofType gives typed lists"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Inventory inv = new Inventory(50); try { inv.add(new Potion(\"Tonic\", 1, 15, 25)); inv.add(new Weapon(\"Spear\", 4, 60, 12)); } catch (InventoryFullException e) { return \"full\"; } Item gone = inv.remove(\"tonic\"); return gone.name() + \" \" + inv.totalWeight() + \" \" + inv.remove(\"rock\"); }).get()",
+     "expect": "Tonic 4 null",
+     "name": "remove"
+    },
+    {
+     "call": "Exception.class.isAssignableFrom(InventoryFullException.class) && !RuntimeException.class.isAssignableFrom(InventoryFullException.class)",
+     "expect": "true",
+     "name": "the exception is checked"
+    },
+    {
+     "call": "new Inventory(0)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "no capacity"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Inventory inv = new Inventory(5); try { inv.add(new Weapon(\"Club\", 5, 10, 4)); } catch (InventoryFullException e) { return \"full\"; } return inv.totalWeight() + \"\"; }).get()",
+     "expect": "5",
+     "hidden": true,
+     "name": "exactly full is allowed"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Inventory inv = new Inventory(5); return inv.sortedBy(Inventory.BY_VALUE).size() + \" \" + inv.ofType(Potion.class).size() + \" \" + inv.totalValue(); }).get()",
+     "expect": "0 0 0",
+     "hidden": true,
+     "name": "empty inventory"
+    }
+   ],
+   "hints": [
+    "Fields: private final int maxWeight; private final List<Item> items = new ArrayList<>();",
+    "add: int after = totalWeight() + item.weight(); if (after > maxWeight) throw new InventoryFullException(item.name(), after - maxWeight);",
+    "BY_VALUE = Comparator.comparingInt(Item::value).reversed().thenComparing(Item::name); ofType: for (Item i : items) if (type.isInstance(i)) out.add(type.cast(i));"
+   ],
+   "solution": "import java.util.*;\n\ninterface Item {\n    String name();\n    int weight();\n    int value();\n}\n\nrecord Weapon(String name, int weight, int value, int damage) implements Item { }\nrecord Potion(String name, int weight, int value, int heal) implements Item { }\n\n// Checked: the game must decide what to do when the bag is full.\nclass InventoryFullException extends Exception {\n    InventoryFullException(String item, int over) {\n        super(\"No room for \" + item + \": \" + over + \" kg over\");\n    }\n}\n\npublic class Inventory {\n    public static final Comparator<Item> BY_VALUE =\n        Comparator.comparingInt(Item::value).reversed().thenComparing(Item::name);\n\n    private final int maxWeight;\n    private final List<Item> items = new ArrayList<>();\n\n    public Inventory(int maxWeight) {\n        if (maxWeight <= 0) throw new IllegalArgumentException(\"maxWeight must be positive\");\n        this.maxWeight = maxWeight;\n    }\n\n    public void add(Item item) throws InventoryFullException {\n        int after = totalWeight() + item.weight();\n        if (after > maxWeight) throw new InventoryFullException(item.name(), after - maxWeight);\n        items.add(item);\n    }\n\n    public int totalWeight() {\n        int w = 0;\n        for (Item i : items) w += i.weight();\n        return w;\n    }\n\n    public int totalValue() {\n        int v = 0;\n        for (Item i : items) v += i.value();\n        return v;\n    }\n\n    public Item remove(String name) {\n        for (Iterator<Item> it = items.iterator(); it.hasNext(); ) {\n            Item i = it.next();\n            if (i.name().equalsIgnoreCase(name)) {\n                it.remove();\n                return i;\n            }\n        }\n        return null;\n    }\n\n    public List<Item> sortedBy(Comparator<Item> order) {\n        List<Item> copy = new ArrayList<>(items);\n        copy.sort(order);\n        return copy;\n    }\n\n    // Generic: ofType(Weapon.class) gives a List<Weapon>, no casts for the caller.\n    public <T extends Item> List<T> ofType(Class<T> type) {\n        List<T> out = new ArrayList<>();\n        for (Item i : items) if (type.isInstance(i)) out.add(type.cast(i));\n        return out;\n    }\n}\n"
+  },
+  {
+   "id": "p3",
+   "title": "Test the loot screen",
+   "file": "Ranking.java",
+   "prompt": "The loot screen ranks Loot(name, value) records: most valuable first, equal values by name A to Z; it returns a NEW list and leaves the input unchanged; an empty list gives an empty list. rank() is a correct version. Write static boolean checkRanking(Function<List<Loot>, List<Loot>> ranker): return true only if the ranker follows every part of that rule. We'll hand it rank and several broken rankers. Hint: pass it a mutable ArrayList with a value tie, and check the result AND that your input is unchanged. Treat a crash as a failure.",
+   "starter": "import java.util.*;\nimport java.util.function.Function;\n\nrecord Loot(String name, int value) { }\n\npublic class Ranking {\n    public static List<Loot> rank(List<Loot> items) {\n        List<Loot> copy = new ArrayList<>(items);\n        copy.sort(Comparator.comparingInt(Loot::value).reversed().thenComparing(Loot::name));\n        return copy;\n    }\n\n    public static boolean checkRanking(Function<List<Loot>, List<Loot>> ranker) {\n        return true;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Ranking.checkRanking(Ranking::rank)",
+     "expect": "true",
+     "name": "the correct ranker passes"
+    },
+    {
+     "call": "Ranking.checkRanking(l -> { java.util.List<Loot> c = new java.util.ArrayList<>(l); c.sort((a, b) -> a.value() != b.value() ? b.value() - a.value() : a.name().compareTo(b.name())); return c; })",
+     "expect": "true",
+     "name": "another correct ranker passes"
+    },
+    {
+     "call": "Ranking.checkRanking(l -> { java.util.List<Loot> c = new java.util.ArrayList<>(l); c.sort(java.util.Comparator.comparingInt(Loot::value)); return c; })",
+     "expect": "false",
+     "name": "bug: cheapest first"
+    },
+    {
+     "call": "Ranking.checkRanking(l -> { java.util.List<Loot> c = new java.util.ArrayList<>(l); c.sort(java.util.Comparator.comparingInt(Loot::value).reversed()); return c; })",
+     "expect": "false",
+     "name": "bug: no tie-breaker",
+     "hint_if_fail": "Put two items with the same value in Z-A order in your input."
+    },
+    {
+     "call": "Ranking.checkRanking(l -> { l.sort(java.util.Comparator.comparingInt(Loot::value).reversed().thenComparing(Loot::name)); return l; })",
+     "expect": "false",
+     "hidden": true,
+     "name": "bug: sorts the caller's list",
+     "hint_if_fail": "Keep a copy of your input and check it is the same after calling the ranker."
+    },
+    {
+     "call": "Ranking.checkRanking(l -> { if (l.isEmpty()) throw new IllegalStateException(\"empty\"); return Ranking.rank(l); })",
+     "expect": "false",
+     "hidden": true,
+     "name": "bug: crashes on empty",
+     "hint_if_fail": "Also try an empty list, and catch exceptions."
+    },
+    {
+     "call": "Ranking.checkRanking(l -> { java.util.List<Loot> c = Ranking.rank(l); if (c.size() > 1) c.remove(c.size() - 1); return c; })",
+     "expect": "false",
+     "hidden": true,
+     "name": "bug: loses an item"
+    }
+   ],
+   "hints": [
+    "Build input = new ArrayList<>(List.of(new Loot(\"Opal\", 50), new Loot(\"Axe\", 20), new Loot(\"Ruby\", 50), new Loot(\"Bow\", 20))); and a List<Loot> before = new ArrayList<>(input);",
+    "Expected: [Opal 50, Ruby 50, Axe 20, Bow 20]. Compare with expected.equals(result), and before.equals(input) afterwards.",
+    "Wrap it all in try { ... } catch (RuntimeException e) { return false; } and also check ranker.apply(new ArrayList<>()).isEmpty()."
+   ],
+   "solution": "import java.util.*;\nimport java.util.function.Function;\n\nrecord Loot(String name, int value) { }\n\npublic class Ranking {\n    public static List<Loot> rank(List<Loot> items) {\n        List<Loot> copy = new ArrayList<>(items);\n        copy.sort(Comparator.comparingInt(Loot::value).reversed().thenComparing(Loot::name));\n        return copy;\n    }\n\n    public static boolean checkRanking(Function<List<Loot>, List<Loot>> ranker) {\n        try {\n            // Ties on purpose, in the wrong name order, so a missing tie-breaker shows.\n            List<Loot> input = new ArrayList<>(List.of(\n                new Loot(\"Ruby\", 50), new Loot(\"Bow\", 20), new Loot(\"Opal\", 50), new Loot(\"Axe\", 20)));\n            List<Loot> before = new ArrayList<>(input);\n            List<Loot> expected = List.of(\n                new Loot(\"Opal\", 50), new Loot(\"Ruby\", 50), new Loot(\"Axe\", 20), new Loot(\"Bow\", 20));\n\n            List<Loot> result = ranker.apply(input);\n            if (!expected.equals(result)) return false;   // order, ties, nothing lost\n            if (!before.equals(input)) return false;      // the caller's list is untouched\n\n            List<Loot> empty = ranker.apply(new ArrayList<>());\n            return empty != null && empty.isEmpty();\n        } catch (RuntimeException e) {\n            return false;   // crashing is a bug too\n        }\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why is Item an interface and Weapon/Potion records?",
+   "choices": [
+    "Records can't have methods",
+    "Item is a shared contract; each kind is an unchanging value",
+    "Interfaces are faster",
+    "Records must implement interfaces"
+   ],
+   "answer": 1,
+   "why": "Contract in the interface, data in records."
+  },
+  {
+   "q": "Why is InventoryFullException checked?",
+   "choices": [
+    "It's a programming mistake",
+    "A full bag is a normal situation the game must plan for",
+    "Checked exceptions are faster",
+    "Records require it"
+   ],
+   "answer": 1,
+   "why": "Callers are forced to handle it (show a message, drop something)."
+  },
+  {
+   "q": "What does `ofType(Weapon.class)` returning List<Weapon> save the caller?",
+   "choices": [
+    "Memory",
+    "Casting each item and the risk of a ClassCastException",
+    "Sorting",
+    "Nothing"
+   ],
+   "answer": 1,
+   "why": "Generics give a typed list straight away."
+  },
+  {
+   "q": "Your ranking test input has no two items with the same value. Which bug can slip through?",
+   "choices": [
+    "Cheapest first",
+    "A missing tie-breaker",
+    "Losing an item",
+    "Crashing on empty"
+   ],
+   "answer": 1,
+   "why": "Ties must be in the test data to test tie-breaking."
+  },
+  {
+   "q": "Where should the 'no negative weight' rule live?",
+   "choices": [
+    "In every method that uses weight",
+    "In the record's compact constructor",
+    "In the test only",
+    "In main"
+   ],
+   "answer": 1,
+   "why": "Then a bad item can never exist."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Order of building a program?",
+   "a": "Model the data, then the rules, then the tests."
+  },
+  {
+   "q": "Record + validation?",
+   "a": "A compact constructor: record R(...) { R { checks } }"
+  },
+  {
+   "q": "Typed filter by class?",
+   "a": "if (type.isInstance(x)) out.add(type.cast(x));"
+  },
+  {
+   "q": "What makes a test suite good?",
+   "a": "It fails for every small bug you can plant: boundaries, ties, empty input, side effects."
+  }
+ ],
+ "explain": "Explain how the pieces of your inventory fit together: what is an interface, what is a record, what is an exception, and why each was the right tool."
+}

@@ -1,0 +1,298 @@
+{
+ "id": "cs-2-10",
+ "level": 2,
+ "title": "Level 2 project: a wave defence battle system",
+ "project": true,
+ "concepts": [
+  "interfaces",
+  "inheritance",
+  "generics",
+  "events",
+  "linq",
+  "testing",
+  "design"
+ ],
+ "skills": [
+  "design",
+  "events",
+  "generics",
+  "testing"
+ ],
+ "lesson": "Time to put Level 2 together into one system you could drop into a Unity tower-defence or strategy game: units that fight, squads that hold them, a wave spawner that reacts to deaths, and your own checks that prove the rules hold.\n\n**Part 1: units and squads** (`Battle.cs`)\n- `interface IDamageable` (given): `Health`, `IsDead`, `TakeDamage(int)`.\n- `abstract class Unit : IDamageable`: `Name`, `MaxHealth`, `Health` (private set), `IsDead` (Health is 0), abstract `Attack`, virtual `Armor` (0), and two events: `EventHandler<int> Damaged` (the health really lost) and `EventHandler Died`. `TakeDamage` subtracts `amount - Armor` (never below 0, never more than the health left) and raises the events. Bad names and health throw.\n- `Soldier` (50 HP, attack 8, armor 2), `Archer` (30, 12, 0) and a `sealed Knight` (80, 10, 5).\n- `class Squad<T> where T : Unit`: `Add`, `Count`, `Alive`, `TotalAttack`, `Strongest`, `Report()`, built with LINQ.\n\n**Part 2: the wave spawner** (`Spawner.cs`). It plans each wave with a pure method `PlanWave(n)` (n + 1 enemies, and every third wave the last is a Captain), spawns the squad, **subscribes to each enemy's Died event**, and raises `WaveCleared` when the last one falls. This is the event pattern from unit 6 doing real work: the enemies don't know the spawner exists.\n\n**Part 3: prove it** (`SpawnerChecks.cs`). Write checks for `PlanWave` that pass on the real one and catch broken versions, like you did for armor.\n\nHow to work, the professional way:\n1. Read each part's prompt fully and list the rules as a checklist.\n2. Build in small steps: the base class first, then one unit type, test it, then the next. Archie's visible tests are your guide; the hidden ones check the edges.\n3. Keep each class to one job. `Unit` knows nothing about waves; `WaveSpawner` knows nothing about how damage is worked out.\n4. When a test fails, read the message, then write the smallest code that fixes it.\n\nWhy this design matters in Unity: `Unit` becomes a MonoBehaviour on an enemy prefab, `Squad<T>` becomes the list a manager keeps, the events wire to the health bar and the score text, and `PlanWave` stays a plain C# method you can test without even opening the editor. Logic that's separate from the engine is logic you can test, reuse and trust.\n\nAfter this: Level 3 (files, JSON save games, async, and bigger architecture), or straight into Unity with these classes in hand.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\n// The shape of Part 1, cut down to show how the pieces connect.\npublic abstract class Unit\n{\n    public string Name { get; }\n    public int Health { get; private set; }\n    public event EventHandler Died;\n    protected Unit(string name, int hp) { Name = name; Health = hp; }\n    public abstract int Attack { get; }\n    public void TakeDamage(int amount)\n    {\n        if (Health == 0) return;\n        Health = Math.Max(0, Health - amount);\n        if (Health == 0) Died?.Invoke(this, EventArgs.Empty);\n    }\n}\n\npublic class Grunt : Unit\n{\n    public Grunt(string name) : base(name, 20) { }\n    public override int Attack => 4;\n}\n\nclass Program\n{\n    static void Main()\n    {\n        var wave = new List<Unit> { new Grunt(\"Grunt 1\"), new Grunt(\"Grunt 2\") };\n        int alive = wave.Count;\n        foreach (var u in wave)\n            u.Died += (s, e) => { alive--; Console.WriteLine($\"{((Unit)s).Name} down, {alive} left\"); if (alive == 0) Console.WriteLine(\"Wave cleared!\"); };\n\n        foreach (var u in wave) u.TakeDamage(25);\n        Console.WriteLine($\"attack left: {wave.Where(u => u.Health > 0).Sum(u => u.Attack)}\");\n    }\n}\n",
+  "notes": [
+   "Unit is abstract with an abstract Attack: every kind of unit must say how hard it hits.",
+   "Died is raised once, at the moment health reaches 0.",
+   "Main subscribes to every unit's Died event; the units never know who is listening.",
+   "The sender tells the handler which unit died.",
+   "LINQ sums the attack of the units still standing."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Units and squads",
+   "file": "Battle.cs",
+   "prompt": "Build Part 1 (the interface IDamageable is given):\n- abstract class Unit : IDamageable. Protected constructor Unit(string name, int maxHealth): blank name throws ArgumentException, maxHealth <= 0 throws ArgumentOutOfRangeException. Properties Name, MaxHealth, Health (starts full, private set), IsDead (Health == 0), abstract int Attack, virtual int Armor (0).\n  Events: `public event EventHandler<int> Damaged;` and `public event EventHandler Died;`.\n  TakeDamage(amount): negative throws ArgumentOutOfRangeException; a dead unit ignores it. Health lost = amount - Armor, at least 0 and at most the Health left. If it is more than 0, lower Health, raise Damaged with the health lost, and if now dead raise Died (once).\n  ToString(): \"Amina 50/50\".\n- Soldier(name): 50 HP, Attack 8, Armor 2. Archer(name): 30 HP, Attack 12, Armor 0. sealed Knight(name): 80 HP, Attack 10, Armor 5.\n- class Squad<T> where T : Unit: Add(T unit) (null throws ArgumentNullException), Count (all members), List<T> Alive, int TotalAttack (alive only), T Strongest (alive with the most Health, ties by name A to Z, null if none), string Report() (alive units A to Z by name, joined with \", \", or \"(all down)\").",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic interface IDamageable\n{\n    int Health { get; }\n    bool IsDead { get; }\n    void TakeDamage(int amount);\n}\n\n// 1. public abstract class Unit : IDamageable\n// 2. Soldier, Archer and the sealed Knight\n// 3. public class Squad<T> where T : Unit\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var s = new Soldier(\"Amina\"); var a = new Archer(\"Juma\"); var k = new Knight(\"Otieno\"); return s + \" \" + s.Attack + \" | \" + a + \" \" + a.Armor + \" | \" + k + \" \" + k.Armor; }))()",
+     "expect": "Amina 50/50 8 | Juma 30/30 0 | Otieno 80/80 5",
+     "name": "three kinds of unit"
+    },
+    {
+     "call": "((Func<string>)(() => { var k = new Knight(\"K\"); var log = new List<int>(); k.Damaged += (s, d) => log.Add(d); k.TakeDamage(12); k.TakeDamage(3); return k.Health + \" [\" + string.Join(\",\", log) + \"]\"; }))()",
+     "expect": "73 [7]",
+     "name": "armor and the Damaged event"
+    },
+    {
+     "call": "((Func<string>)(() => { var a = new Archer(\"A\"); int deaths = 0; a.Died += (s, e) => deaths++; a.TakeDamage(25); a.TakeDamage(25); a.TakeDamage(25); return a.Health + \" \" + a.IsDead + \" \" + deaths; }))()",
+     "expect": "0 True 1",
+     "name": "dies once"
+    },
+    {
+     "call": "((Func<string>)(() => { var sq = new Squad<Unit>(); sq.Add(new Soldier(\"Zed\")); sq.Add(new Archer(\"Ali\")); sq.Add(new Knight(\"Kim\")); return sq.TotalAttack + \" \" + sq.Strongest.Name + \" | \" + sq.Report(); }))()",
+     "expect": "30 Kim | Ali 30/30, Kim 80/80, Zed 50/50",
+     "name": "a mixed squad"
+    },
+    {
+     "call": "((Func<string>)(() => { var sq = new Squad<Archer>(); var a = new Archer(\"A\"); sq.Add(a); a.TakeDamage(100); return sq.Report() + \" \" + sq.TotalAttack + \" \" + (sq.Strongest == null) + \" \" + sq.Count; }))()",
+     "expect": "(all down) 0 True 1",
+     "hidden": true,
+     "name": "everyone down"
+    },
+    {
+     "call": "((Func<string>)(() => { var a = new Archer(\"A\"); var log = new List<int>(); a.Damaged += (s, d) => log.Add(d); a.TakeDamage(20); a.TakeDamage(20); return string.Join(\",\", log); }))()",
+     "expect": "20,10",
+     "hidden": true,
+     "name": "can't lose more health than is left"
+    },
+    {
+     "call": "typeof(Knight).IsSealed + \" \" + typeof(IDamageable).IsAssignableFrom(typeof(Unit)) + \" \" + typeof(Unit).IsAbstract",
+     "expect": "True True True",
+     "hidden": true,
+     "name": "the design"
+    },
+    {
+     "call": "((Func<string>)(() => { new Soldier(\"S\").TakeDamage(-1); return \"no error\"; }))()",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "negative damage"
+    },
+    {
+     "call": "new Archer(\" \")",
+     "expect": "!ERR ArgumentException",
+     "hidden": true,
+     "name": "blank name"
+    }
+   ],
+   "hints": [
+    "Start with Unit and Soldier only, and get the first test passing. Then Archer and Knight are three lines each.",
+    "TakeDamage: int taken = Math.Min(Health, Math.Max(0, amount - Armor)); if (taken == 0) return; Health -= taken; Damaged?.Invoke(this, taken); if (IsDead) Died?.Invoke(this, EventArgs.Empty);",
+    "Squad: keep a private List<T>; Alive => members.Where(u => !u.IsDead).ToList(); Strongest => Alive.OrderByDescending(u => u.Health).ThenBy(u => u.Name).FirstOrDefault();"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic interface IDamageable\n{\n    int Health { get; }\n    bool IsDead { get; }\n    void TakeDamage(int amount);\n}\n\npublic abstract class Unit : IDamageable\n{\n    public string Name { get; }\n    public int MaxHealth { get; }\n    public int Health { get; private set; }\n    public bool IsDead => Health == 0;\n\n    public event EventHandler<int> Damaged;   // how much health was really lost\n    public event EventHandler Died;\n\n    protected Unit(string name, int maxHealth)\n    {\n        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException(\"A unit needs a name.\");\n        if (maxHealth <= 0) throw new ArgumentOutOfRangeException(nameof(maxHealth));\n        Name = name;\n        MaxHealth = Health = maxHealth;\n    }\n\n    public abstract int Attack { get; }\n    public virtual int Armor => 0;\n\n    public void TakeDamage(int amount)\n    {\n        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        if (IsDead) return;\n        int taken = Math.Min(Health, Math.Max(0, amount - Armor));\n        if (taken == 0) return;\n        Health -= taken;\n        Damaged?.Invoke(this, taken);\n        if (IsDead) Died?.Invoke(this, EventArgs.Empty);\n    }\n\n    public override string ToString() => $\"{Name} {Health}/{MaxHealth}\";\n}\n\npublic class Soldier : Unit\n{\n    public Soldier(string name) : base(name, 50) { }\n    public override int Attack => 8;\n    public override int Armor => 2;\n}\n\npublic class Archer : Unit\n{\n    public Archer(string name) : base(name, 30) { }\n    public override int Attack => 12;\n}\n\npublic sealed class Knight : Unit\n{\n    public Knight(string name) : base(name, 80) { }\n    public override int Attack => 10;\n    public override int Armor => 5;\n}\n\npublic class Squad<T> where T : Unit\n{\n    private readonly List<T> members = new();\n\n    public int Count => members.Count;\n\n    public void Add(T unit)\n    {\n        if (unit == null) throw new ArgumentNullException(nameof(unit));\n        members.Add(unit);\n    }\n\n    public List<T> Alive => members.Where(u => !u.IsDead).ToList();\n\n    public int TotalAttack => Alive.Sum(u => u.Attack);\n\n    public T Strongest => Alive.OrderByDescending(u => u.Health).ThenBy(u => u.Name).FirstOrDefault();\n\n    public string Report()\n    {\n        var alive = Alive.OrderBy(u => u.Name).ToList();\n        return alive.Count == 0 ? \"(all down)\" : string.Join(\", \", alive);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "The wave spawner",
+   "file": "Spawner.cs",
+   "prompt": "Part 1 is included, finished. Write class WaveSpawner:\n- static List<string> PlanWave(int wave): wave < 1 throws ArgumentOutOfRangeException. Otherwise wave + 1 names \"Grunt 1\", \"Grunt 2\"...; on waves 3, 6, 9... the LAST name is \"Captain\" instead.\n- Squad<Unit> SpawnNext(): if the current wave still has living enemies, throw InvalidOperationException. Otherwise add 1 to Wave, make a Soldier for each Grunt name and a Knight for \"Captain\", subscribe to each one's Died event, store the squad in Enemies, raise WaveStarted(this, Wave) and return the squad.\n- When an enemy dies, add 1 to Kills; when the last one of the wave dies, raise WaveCleared(this, Wave).\n- string Summary(): \"No wave yet\" before the first wave, else \"Wave 2: 1/3 alive, 34 HP left\" (alive count / squad size, total Health of the living).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic interface IDamageable\n{\n    int Health { get; }\n    bool IsDead { get; }\n    void TakeDamage(int amount);\n}\n\npublic abstract class Unit : IDamageable\n{\n    public string Name { get; }\n    public int MaxHealth { get; }\n    public int Health { get; private set; }\n    public bool IsDead => Health == 0;\n\n    public event EventHandler<int> Damaged;   // how much health was really lost\n    public event EventHandler Died;\n\n    protected Unit(string name, int maxHealth)\n    {\n        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException(\"A unit needs a name.\");\n        if (maxHealth <= 0) throw new ArgumentOutOfRangeException(nameof(maxHealth));\n        Name = name;\n        MaxHealth = Health = maxHealth;\n    }\n\n    public abstract int Attack { get; }\n    public virtual int Armor => 0;\n\n    public void TakeDamage(int amount)\n    {\n        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        if (IsDead) return;\n        int taken = Math.Min(Health, Math.Max(0, amount - Armor));\n        if (taken == 0) return;\n        Health -= taken;\n        Damaged?.Invoke(this, taken);\n        if (IsDead) Died?.Invoke(this, EventArgs.Empty);\n    }\n\n    public override string ToString() => $\"{Name} {Health}/{MaxHealth}\";\n}\n\npublic class Soldier : Unit\n{\n    public Soldier(string name) : base(name, 50) { }\n    public override int Attack => 8;\n    public override int Armor => 2;\n}\n\npublic class Archer : Unit\n{\n    public Archer(string name) : base(name, 30) { }\n    public override int Attack => 12;\n}\n\npublic sealed class Knight : Unit\n{\n    public Knight(string name) : base(name, 80) { }\n    public override int Attack => 10;\n    public override int Armor => 5;\n}\n\npublic class Squad<T> where T : Unit\n{\n    private readonly List<T> members = new();\n\n    public int Count => members.Count;\n\n    public void Add(T unit)\n    {\n        if (unit == null) throw new ArgumentNullException(nameof(unit));\n        members.Add(unit);\n    }\n\n    public List<T> Alive => members.Where(u => !u.IsDead).ToList();\n\n    public int TotalAttack => Alive.Sum(u => u.Attack);\n\n    public T Strongest => Alive.OrderByDescending(u => u.Health).ThenBy(u => u.Name).FirstOrDefault();\n\n    public string Report()\n    {\n        var alive = Alive.OrderBy(u => u.Name).ToList();\n        return alive.Count == 0 ? \"(all down)\" : string.Join(\", \", alive);\n    }\n}\n\npublic class WaveSpawner\n{\n    public int Wave { get; private set; }\n    public int Kills { get; private set; }\n    public Squad<Unit> Enemies { get; private set; }\n\n    public event EventHandler<int> WaveStarted;\n    public event EventHandler<int> WaveCleared;\n\n    public static List<string> PlanWave(int wave) => new List<string>();\n\n    public Squad<Unit> SpawnNext() => new Squad<Unit>();\n\n    public string Summary() => \"\";\n}\n",
+   "tests": [
+    {
+     "call": "WaveSpawner.PlanWave(1)",
+     "expect": "[Grunt 1, Grunt 2]",
+     "name": "plan wave 1"
+    },
+    {
+     "call": "WaveSpawner.PlanWave(3)",
+     "expect": "[Grunt 1, Grunt 2, Grunt 3, Captain]",
+     "name": "plan wave 3"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new WaveSpawner(); var log = new List<string>(); w.WaveStarted += (s, n) => log.Add(\"start \" + n); w.WaveCleared += (s, n) => log.Add(\"clear \" + n); var sq = w.SpawnNext(); foreach (var u in sq.Alive) u.TakeDamage(999); w.SpawnNext(); return string.Join(\", \", log) + \" | kills \" + w.Kills; }))()",
+     "expect": "start 1, clear 1, start 2 | kills 2",
+     "name": "events in order"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new WaveSpawner(); string before = w.Summary(); var sq = w.SpawnNext(); sq.Alive[0].TakeDamage(12); return before + \" | \" + w.Summary(); }))()",
+     "expect": "No wave yet | Wave 1: 2/2 alive, 90 HP left",
+     "name": "summary"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new WaveSpawner(); for (int i = 0; i < 2; i++) foreach (var u in w.SpawnNext().Alive) u.TakeDamage(999); var sq = w.SpawnNext(); return w.Wave + \" \" + sq.Count + \" \" + sq.Strongest; }))()",
+     "expect": "3 4 Captain 80/80",
+     "hidden": true,
+     "name": "wave 3 brings a captain"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new WaveSpawner(); w.SpawnNext(); w.SpawnNext(); return \"no error\"; }))()",
+     "expect": "!ERR InvalidOperationException",
+     "hidden": true,
+     "name": "can't skip a wave"
+    },
+    {
+     "call": "WaveSpawner.PlanWave(0)",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "wave 0"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new WaveSpawner(); var sq = w.SpawnNext(); sq.Alive[0].TakeDamage(999); return w.Summary() + \" | kills \" + w.Kills; }))()",
+     "expect": "Wave 1: 1/2 alive, 50 HP left | kills 1",
+     "hidden": true,
+     "name": "half the wave down"
+    }
+   ],
+   "hints": [
+    "PlanWave: a for loop from 1 to wave + 1 adding $\"Grunt {i}\"; then if (wave % 3 == 0) names[names.Count - 1] = \"Captain\";",
+    "In SpawnNext: Unit u = name == \"Captain\" ? new Knight(name) : new Soldier(name); u.Died += OnEnemyDied; squad.Add(u);",
+    "private void OnEnemyDied(object sender, EventArgs e) { Kills++; if (Enemies.Alive.Count == 0) WaveCleared?.Invoke(this, Wave); }"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic interface IDamageable\n{\n    int Health { get; }\n    bool IsDead { get; }\n    void TakeDamage(int amount);\n}\n\npublic abstract class Unit : IDamageable\n{\n    public string Name { get; }\n    public int MaxHealth { get; }\n    public int Health { get; private set; }\n    public bool IsDead => Health == 0;\n\n    public event EventHandler<int> Damaged;   // how much health was really lost\n    public event EventHandler Died;\n\n    protected Unit(string name, int maxHealth)\n    {\n        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException(\"A unit needs a name.\");\n        if (maxHealth <= 0) throw new ArgumentOutOfRangeException(nameof(maxHealth));\n        Name = name;\n        MaxHealth = Health = maxHealth;\n    }\n\n    public abstract int Attack { get; }\n    public virtual int Armor => 0;\n\n    public void TakeDamage(int amount)\n    {\n        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        if (IsDead) return;\n        int taken = Math.Min(Health, Math.Max(0, amount - Armor));\n        if (taken == 0) return;\n        Health -= taken;\n        Damaged?.Invoke(this, taken);\n        if (IsDead) Died?.Invoke(this, EventArgs.Empty);\n    }\n\n    public override string ToString() => $\"{Name} {Health}/{MaxHealth}\";\n}\n\npublic class Soldier : Unit\n{\n    public Soldier(string name) : base(name, 50) { }\n    public override int Attack => 8;\n    public override int Armor => 2;\n}\n\npublic class Archer : Unit\n{\n    public Archer(string name) : base(name, 30) { }\n    public override int Attack => 12;\n}\n\npublic sealed class Knight : Unit\n{\n    public Knight(string name) : base(name, 80) { }\n    public override int Attack => 10;\n    public override int Armor => 5;\n}\n\npublic class Squad<T> where T : Unit\n{\n    private readonly List<T> members = new();\n\n    public int Count => members.Count;\n\n    public void Add(T unit)\n    {\n        if (unit == null) throw new ArgumentNullException(nameof(unit));\n        members.Add(unit);\n    }\n\n    public List<T> Alive => members.Where(u => !u.IsDead).ToList();\n\n    public int TotalAttack => Alive.Sum(u => u.Attack);\n\n    public T Strongest => Alive.OrderByDescending(u => u.Health).ThenBy(u => u.Name).FirstOrDefault();\n\n    public string Report()\n    {\n        var alive = Alive.OrderBy(u => u.Name).ToList();\n        return alive.Count == 0 ? \"(all down)\" : string.Join(\", \", alive);\n    }\n}\n\npublic class WaveSpawner\n{\n    public int Wave { get; private set; }\n    public int Kills { get; private set; }\n    public Squad<Unit> Enemies { get; private set; }\n\n    public event EventHandler<int> WaveStarted;\n    public event EventHandler<int> WaveCleared;\n\n    // The plan is a pure function: easy to test on its own.\n    public static List<string> PlanWave(int wave)\n    {\n        if (wave < 1) throw new ArgumentOutOfRangeException(nameof(wave));\n        var names = new List<string>();\n        for (int i = 1; i <= wave + 1; i++) names.Add($\"Grunt {i}\");\n        if (wave % 3 == 0) names[names.Count - 1] = \"Captain\";\n        return names;\n    }\n\n    public Squad<Unit> SpawnNext()\n    {\n        if (Enemies != null && Enemies.Alive.Count > 0) throw new InvalidOperationException(\"Clear the current wave first.\");\n        Wave++;\n        var squad = new Squad<Unit>();\n        foreach (string name in PlanWave(Wave))\n        {\n            Unit u = name == \"Captain\" ? new Knight(name) : new Soldier(name);\n            u.Died += OnEnemyDied;          // the spawner listens; the units don't know about it\n            squad.Add(u);\n        }\n        Enemies = squad;\n        WaveStarted?.Invoke(this, Wave);\n        return squad;\n    }\n\n    private void OnEnemyDied(object sender, EventArgs e)\n    {\n        Kills++;\n        if (Enemies.Alive.Count == 0) WaveCleared?.Invoke(this, Wave);\n    }\n\n    public string Summary()\n    {\n        if (Enemies == null) return \"No wave yet\";\n        var alive = Enemies.Alive;\n        return $\"Wave {Wave}: {alive.Count}/{Enemies.Count} alive, {alive.Sum(u => u.Health)} HP left\";\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Prove the spawner plan",
+   "file": "SpawnerChecks.cs",
+   "prompt": "Spawner.PlanWave (the correct rules from Part 2) is given. Write SpawnerChecks.AllPass(Func<int, List<string>> planWave): use your own checks to decide whether the function you are given follows ALL the rules:\n  wave n gives n + 1 names; they are \"Grunt 1\", \"Grunt 2\"... in order; on every third wave (3, 6, 9...) the last name is \"Captain\" and on other waves there is no Captain; wave 0 or below throws ArgumentOutOfRangeException.\nReturn true only if every check passes. Never throw: if the function crashes where it should give an answer, that's a false. Archie runs it on the real PlanWave (must be true) and on broken versions (must be false).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\n// The code under test (it is correct): don't change it.\npublic static class Spawner\n{\n    public static List<string> PlanWave(int wave)\n    {\n        if (wave < 1) throw new ArgumentOutOfRangeException(nameof(wave));\n        var names = new List<string>();\n        for (int i = 1; i <= wave + 1; i++) names.Add($\"Grunt {i}\");\n        if (wave % 3 == 0) names[names.Count - 1] = \"Captain\";\n        return names;\n    }\n}\n\npublic static class SpawnerChecks\n{\n    public static bool AllPass(Func<int, List<string>> planWave)\n    {\n        return true;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "SpawnerChecks.AllPass(Spawner.PlanWave).ToString()",
+     "expect": "True",
+     "name": "the real plan passes"
+    },
+    {
+     "call": "SpawnerChecks.AllPass(n => { if (n < 1) throw new ArgumentOutOfRangeException(); var l = new List<string>(); for (int i = 1; i <= n; i++) l.Add(\"Grunt \" + i); if (n % 3 == 0) l[l.Count - 1] = \"Captain\"; return l; }).ToString()",
+     "expect": "False",
+     "name": "catches: one enemy too few"
+    },
+    {
+     "call": "SpawnerChecks.AllPass(n => { if (n < 1) throw new ArgumentOutOfRangeException(); var l = new List<string>(); for (int i = 1; i <= n + 1; i++) l.Add(\"Grunt \" + i); if (true) l[l.Count - 1] = \"Captain\"; return l; }).ToString()",
+     "expect": "False",
+     "name": "catches: a captain every wave"
+    },
+    {
+     "call": "SpawnerChecks.AllPass(n => { if (n < 1) throw new ArgumentOutOfRangeException(); var l = new List<string>(); for (int i = 1; i <= n + 1; i++) l.Add(\"Grunt \" + i); if (false) l[l.Count - 1] = \"Captain\"; return l; }).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "catches: no captain ever"
+    },
+    {
+     "call": "SpawnerChecks.AllPass(n => { if (n < 1) return new List<string>(); var l = new List<string>(); for (int i = 1; i <= n + 1; i++) l.Add(\"Grunt \" + i); if (n % 3 == 0) l[l.Count - 1] = \"Captain\"; return l; }).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "catches: wave 0 doesn't throw",
+     "hint_if_fail": "Check that planWave(0) throws ArgumentOutOfRangeException, inside a try/catch."
+    },
+    {
+     "call": "SpawnerChecks.AllPass(n => { if (n < 1) throw new ArgumentOutOfRangeException(); var l = new List<string>(); for (int i = 0; i <= n; i++) l.Add(\"Grunt \" + i); if (n % 3 == 0) l[l.Count - 1] = \"Captain\"; return l; }).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "catches: numbering starts at 0",
+     "hint_if_fail": "Check the actual names, not just the count."
+    },
+    {
+     "call": "SpawnerChecks.AllPass(n => { if (n < 1) throw new ArgumentOutOfRangeException(); var l = new List<string>(); for (int i = 1; i <= n + 1; i++) l.Add(\"Grunt \" + i); if (n == 3) l[l.Count - 1] = \"Captain\"; return l; }).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "catches: captain only on wave 3",
+     "hint_if_fail": "Check wave 6 too, not just wave 3."
+    },
+    {
+     "call": "SpawnerChecks.AllPass(n => throw new InvalidOperationException()).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "a crashing plan is a fail, not a crash"
+    }
+   ],
+   "hints": [
+    "Compare whole lists: planWave(3).SequenceEqual(new[] { \"Grunt 1\", \"Grunt 2\", \"Grunt 3\", \"Captain\" })",
+    "Write a small helper: static bool Throws(Action a) { try { a(); return false; } catch (ArgumentOutOfRangeException) { return true; } catch (Exception) { return false; } }",
+    "Wrap the whole body of AllPass in try { ... } catch (Exception) { return false; } so a crashing version counts as a fail."
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\n// The code under test (it is correct): don't change it.\npublic static class Spawner\n{\n    public static List<string> PlanWave(int wave)\n    {\n        if (wave < 1) throw new ArgumentOutOfRangeException(nameof(wave));\n        var names = new List<string>();\n        for (int i = 1; i <= wave + 1; i++) names.Add($\"Grunt {i}\");\n        if (wave % 3 == 0) names[names.Count - 1] = \"Captain\";\n        return names;\n    }\n}\n\npublic static class SpawnerChecks\n{\n    public static bool AllPass(Func<int, List<string>> planWave)\n    {\n        try\n        {\n            // normal waves: exact names, in order\n            if (!Same(planWave(1), \"Grunt 1\", \"Grunt 2\")) return false;\n            if (!Same(planWave(2), \"Grunt 1\", \"Grunt 2\", \"Grunt 3\")) return false;\n            // every third wave ends with the Captain\n            if (!Same(planWave(3), \"Grunt 1\", \"Grunt 2\", \"Grunt 3\", \"Captain\")) return false;\n            var six = planWave(6);\n            if (six.Count != 7 || six[6] != \"Captain\" || six[0] != \"Grunt 1\") return false;\n            // and other waves have none\n            if (planWave(4).Contains(\"Captain\") || planWave(5).Contains(\"Captain\")) return false;\n            // bad input is refused\n            if (!Throws(() => planWave(0))) return false;\n            if (!Throws(() => planWave(-2))) return false;\n            return true;\n        }\n        catch (Exception)\n        {\n            return false;   // it crashed where it should have answered\n        }\n    }\n\n    private static bool Same(List<string> got, params string[] want) => got != null && got.SequenceEqual(want);\n\n    private static bool Throws(Action action)\n    {\n        try { action(); return false; }\n        catch (ArgumentOutOfRangeException) { return true; }\n        catch (Exception) { return false; }\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why does WaveSpawner subscribe to each unit's Died event instead of units calling the spawner?",
+   "choices": [
+    "Events are faster",
+    "Units stay independent: they work the same with or without a spawner",
+    "C# requires it",
+    "To save memory"
+   ],
+   "answer": 1,
+   "why": "Announce, don't reach out."
+  },
+  {
+   "q": "Why is PlanWave a static method returning a list, separate from SpawnNext?",
+   "choices": [
+    "Static is faster",
+    "It's a pure function: easy to test without making units or events",
+    "It has to be",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Pure logic is the easiest code to test."
+  },
+  {
+   "q": "Squad<T> where T : Unit lets you write…",
+   "choices": [
+    "Squad<int>",
+    "Squad<Archer> and Squad<Unit>, and use u.Health inside",
+    "Only Squad<Unit>",
+    "Squad<string>"
+   ],
+   "answer": 1,
+   "why": "The constraint allows any Unit and its members."
+  },
+  {
+   "q": "Your SpawnerChecks only check planWave(1). Which broken version slips through?",
+   "choices": [
+    "One that never makes a Captain",
+    "One with 0 enemies on wave 1",
+    "One that returns null for wave 1",
+    "None"
+   ],
+   "answer": 0,
+   "why": "Wave 1 has no Captain anyway: test wave 3 and 6 too."
+  },
+  {
+   "q": "Knight is sealed. What does that stop?",
+   "choices": [
+    "Creating knights",
+    "Another class inheriting from Knight",
+    "Overriding Armor inside Knight",
+    "Knights taking damage"
+   ],
+   "answer": 1,
+   "why": "sealed = no children."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Where do the rules of damage live?",
+   "a": "In Unit.TakeDamage: one place, used by every kind of unit"
+  },
+  {
+   "q": "How does the spawner know a wave is cleared?",
+   "a": "It subscribes to each enemy's Died event and checks how many are alive"
+  },
+  {
+   "q": "Why keep logic out of the engine?",
+   "a": "Plain C# classes can be tested, reused and trusted"
+  },
+  {
+   "q": "Good checks for a rule?",
+   "a": "Normal cases, every edge, bad input, and they must fail on broken versions"
+  }
+ ],
+ "explain": "Explain how the pieces of your battle system talk to each other (interface, base class, generic squad, events), as if to a friend who is about to add a new enemy type."
+}

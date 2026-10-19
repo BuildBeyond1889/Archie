@@ -1,0 +1,125 @@
+{
+ "id": "cs-1-02",
+ "level": 1,
+ "title": "Variables and types",
+ "concepts": [
+  "variables",
+  "types"
+ ],
+ "skills": [
+  "variables",
+  "types"
+ ],
+ "bridge": "C# declares types like Java: `int kg = 40; double price = 55.5; string crop = \"maize\"; bool sold = false;`. `var` lets the compiler work the type out (`var kg = 40;` is still an int, forever). Convert with `int.Parse(\"42\")`, `double.Parse(...)`, `.ToString()`, or a cast `(int)3.9`.",
+ "lesson": "```\nint harvestKg = 40;\ndouble pricePerKg = 55.5;\nstring crop = \"maize\";        // lowercase string in C#\nbool sold = false;\nchar grade = 'A';\nvar count = 3;                // the compiler works out it's an int\nconst double Rate = 130.0;    // never changes\n```\n\nTypes are fixed once declared: `harvestKg = \"forty\";` doesn't compile. `var` doesn't change that; it just saves typing when the type is obvious.\n\nConverting:\n- text to number: `int.Parse(\"42\")`, `double.Parse(\"2.5\")`. They throw an error on bad text; `int.TryParse(text, out int n)` returns true/false instead (you'll use it for input).\n- number to text: `42.ToString()` or interpolation `$\"{42}\"`.\n- `(int)3.9` chops to 3; `Math.Round(3.9)` rounds to 4.\n\nNames: local variables in camelCase (`pricePerKg`), methods and classes in PascalCase (`TotalPrice`), constants PascalCase too.\n\nC# `decimal` is exact for money (`decimal price = 55.50m;`), which matters in real shop and bank software; `double` is fine for measurements.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        string crop = \"maize\";\n        int kg = 40;\n        double price = 55.5;\n        var sold = false;\n        Console.WriteLine($\"{crop} {kg} {price} {sold}\");\n        kg += 10;\n        Console.WriteLine(int.Parse(\"42\") + 1);\n        Console.WriteLine((int)3.9 + \" \" + Math.Round(3.9));\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Converting",
+   "file": "Convert.cs",
+   "prompt": "Write a static method Total(string a, string b) in class Convert2 that parses both texts as ints and returns the sum.",
+   "starter": "using System;\n\npublic static class Convert2\n{\n    public static int Total(string a, string b)\n    {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Convert2.Total(\"12\", \"30\")",
+     "expect": "42"
+    },
+    {
+     "call": "Convert2.Total(\"-5\", \"5\")",
+     "expect": "0"
+    },
+    {
+     "call": "Convert2.Total(\"100\", \"1\")",
+     "expect": "101",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "int.Parse(a) turns \"12\" into 12.",
+    "return int.Parse(a) + int.Parse(b);"
+   ],
+   "solution": "using System;\n\npublic static class Convert2\n{\n    public static int Total(string a, string b)\n    {\n        return int.Parse(a) + int.Parse(b);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Whole bags",
+   "file": "Bags.cs",
+   "prompt": "Write WholeBags(double kg, int bagSize) in class Bags: how many FULL bags (chop off any part bag).",
+   "starter": "using System;\n\npublic static class Bags\n{\n    public static int WholeBags(double kg, int bagSize)\n    {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Bags.WholeBags(250.0, 90)",
+     "expect": "2"
+    },
+    {
+     "call": "Bags.WholeBags(89.9, 90)",
+     "expect": "0"
+    },
+    {
+     "call": "Bags.WholeBags(180.0, 90)",
+     "expect": "2",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "kg / bagSize is a double; cast it.",
+    "return (int)(kg / bagSize);"
+   ],
+   "solution": "using System;\n\npublic static class Bags\n{\n    public static int WholeBags(double kg, int bagSize)\n    {\n        return (int)(kg / bagSize);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "var kg = 40; kg = 4.5; …",
+   "choices": [
+    "works",
+    "doesn't compile: kg is an int",
+    "makes kg a double",
+    "rounds to 4"
+   ],
+   "answer": 1,
+   "why": "var still fixes the type."
+  },
+  {
+   "q": "Safe parsing that doesn't crash on bad text?",
+   "choices": [
+    "int.Parse",
+    "int.TryParse",
+    "(int)",
+    "Convert"
+   ],
+   "answer": 1,
+   "why": "TryParse returns false instead of throwing."
+  },
+  {
+   "q": "Best type for money?",
+   "choices": [
+    "double",
+    "float",
+    "decimal",
+    "int only"
+   ],
+   "answer": 2,
+   "why": "decimal is exact for base-10 amounts."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Text to int in C#?",
+   "a": "int.Parse(\"42\") or int.TryParse(text, out int n)"
+  },
+  {
+   "q": "What does var do?",
+   "a": "The compiler infers the type; it's still fixed."
+  },
+  {
+   "q": "C# naming?",
+   "a": "camelCase locals, PascalCase methods/classes"
+  }
+ ],
+ "explain": "Explain variables and types to someone who has never programmed, in your own words, with an example you make up."
+}

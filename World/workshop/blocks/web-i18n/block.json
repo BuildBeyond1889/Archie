@@ -1,0 +1,8 @@
+{"name": "Two languages (web, English + Swahili)", "kind": "feature", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "Every word in one table per language; switch with one tap and the phone remembers. Mark HTML with data-t and it fills itself in. Common words come in English and Swahili.",
+ "tags": ["language", "translation", "swahili", "english", "i18n", "kenya"],
+ "files": {"js/i18n.js": "i18n.js"},
+ "imports": {"js": ["<script src=\"js/i18n.js\"></script>"]},
+ "use": "T.add({en:{harvest:'Harvest'}, sw:{harvest:'Mavuno'}}); T.setLang('sw'); T('harvest')",
+ "test": {"run": ["node", "test_i18n.js"], "files": ["test_i18n.js"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

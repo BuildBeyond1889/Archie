@@ -1,0 +1,7 @@
+{"name": "Arduino sketch", "kind": "shell", "lang": "Arduino", "version": "1.0.0",
+ "summary": "The starting sketch for an Arduino Uno, Nano or ESP32: setup(), a loop() that never blocks, and a status LED that blinks so you know it's alive.",
+ "tags": ["arduino", "microcontroller", "sketch", "uno", "nano", "esp32", "hardware", "cheap"],
+ "files": {"sketch/sketch.ino": "sketch/sketch.ino"},
+ "use": "Add sensor blocks; they appear as #include lines. Do your work in loop() using Every timers instead of delay().",
+ "test": {"run": ["g++", "-std=c++17", "-fsyntax-only", "-x", "c++", "-include", "Arduino.h", "sketch/sketch.ino"], "stub": true},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

@@ -1,0 +1,287 @@
+{
+ "id": "web-2-03",
+ "level": 2,
+ "title": "Forms and validation",
+ "concepts": [
+  "forms",
+  "validation",
+  "dom"
+ ],
+ "skills": [
+  "forms",
+  "validation",
+  "feedback"
+ ],
+ "lesson": "A form is how people hand your app data, and people make mistakes: a blank box, \"forty\" instead of 40, a stray space, 4000 kg typed as 40000. **Validation** means checking input before you trust it, and telling the person clearly how to fix it. Good validation is kind: it says what's wrong *next to the box that's wrong*, in plain words.\n\n**Two layers.** HTML can check the basics for free:\n\n```\n<label for=\"kg\">Kilograms</label>\n<input id=\"kg\" type=\"number\" required min=\"1\" max=\"5000\" aria-describedby=\"kg-error\">\n<span id=\"kg-error\" class=\"error\"></span>\n```\n\n`required` refuses an empty box, `type=\"number\"` gives a number keypad on phones, and `min`/`max` set the range. But HTML checks aren't enough on their own: their messages can't be customised much, they don't know your rules (\"this farmer isn't in the group\"), and anyone can switch them off. So **always check again in JavaScript** (and a real server checks a third time).\n\n**Reading inputs, the careful way.** `.value` is *always text*, even in a number box.\n\n```\nconst name = nameBox.value.trim();   // \"  Amina \" becomes \"Amina\"\nconst text = kgBox.value.trim();\nconst kg = Number(text);\n```\n\nThe trap: `Number(\"\")` is `0`, not an error. Check for an empty box *before* converting, or a blank field quietly becomes zero kilograms. `Number(\"abc\")` is `NaN`; test it with `Number.isNaN(kg)` (or `Number.isFinite(kg)`, which also rejects Infinity).\n\n**Return errors, don't just print them.** Write validation as a plain function that returns an object of messages, one per bad field:\n\n```\nfunction validate(name, kgText) {\n  const errors = {};\n  if (name.trim() === \"\") errors.name = \"Enter the farmer's name\";\n  if (kgText.trim() === \"\") errors.kg = \"Enter the kg\";\n  return errors;        // {} means all good\n}\n```\n\nAn empty object means valid: `Object.keys(errors).length === 0`. Because it's a plain function, you can test every rule without a page.\n\n**Showing errors.** Put each message in its own element beside its input, and clear old messages each time (a fixed field shouldn't keep shouting). A class like `invalid` on the input lets CSS give it a red border. `aria-describedby` links the input to its message so screen readers read the error with the field.\n\nCommon mistakes: validating only in HTML; forgetting `trim()`; treating `\"\"` as 0; showing one message at the top that doesn't say which box; and never clearing messages once fixed.",
+ "example": {
+  "file": "example.js",
+  "code": "function validateSignup(name, age) {\n  const errors = {};\n  if (name.trim() === \"\") errors.name = \"Enter your name\";\n  const text = age.trim();\n  if (text === \"\") errors.age = \"Enter your age\";              // check empty BEFORE Number()\n  else if (Number.isNaN(Number(text))) errors.age = \"Age must be a number\";\n  else if (Number(text) < 5 || Number(text) > 120) errors.age = \"Age must be between 5 and 120\";\n  return errors;\n}\n\nfunction showErrors(errors) {\n  for (const field of [\"name\", \"age\"]) {\n    const message = errors[field] || \"\";                       // \"\" clears an old message\n    document.getElementById(field + \"-error\").textContent = message;\n    document.getElementById(field).classList.toggle(\"invalid\", message !== \"\");\n  }\n}\n\ndocument.getElementById(\"signup\").addEventListener(\"submit\", (event) => {\n  event.preventDefault();\n  const errors = validateSignup(document.getElementById(\"name\").value, document.getElementById(\"age\").value);\n  showErrors(errors);\n  if (Object.keys(errors).length === 0) document.getElementById(\"done\").textContent = \"Welcome!\";\n});\n",
+  "notes": [
+   "Validation is a plain function returning an errors object; {} means valid.",
+   "Empty is checked before Number(), because Number(\"\") is 0.",
+   "showErrors writes every field, so fixed fields lose their old message and red border.",
+   "The submit handler only glues them together."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "The form page",
+   "file": "ex1_harvest.html",
+   "prompt": "Build the harvest form. Inside <form id=\"harvest-form\">: a text input id=\"farmer\" (required); a <select id=\"crop\"> with at least 3 crops; a number input id=\"kg\" with required, min=\"1\" and max=\"5000\"; an empty <span id=\"farmer-error\"> after the farmer box and <span id=\"kg-error\"> after the kg box; and a <button type=\"submit\">. Every input and the select gets a <label for=...>. Link each input to its error message with aria-describedby (farmer-error, kg-error).",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Harvest log</title>\n</head>\n<body>\n<h1>Harvest log</h1>\n<form id=\"harvest-form\">\n</form>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "form#harvest-form input#farmer"
+      },
+      {
+       "has": "form#harvest-form select#crop"
+      },
+      {
+       "has": "form#harvest-form input#kg"
+      }
+     ],
+     "name": "the fields are in the form"
+    },
+    {
+     "html": [
+      {
+       "has": "input#farmer[required]"
+      },
+      {
+       "has": "input#kg[type=number][required][min=1][max=5000]"
+      }
+     ],
+     "name": "HTML checks: required, number, min, max"
+    },
+    {
+     "html": [
+      {
+       "has": "select#crop option",
+       "min": 3
+      }
+     ],
+     "name": "three crops"
+    },
+    {
+     "html": [
+      {
+       "has": "label",
+       "min": 3
+      },
+      {
+       "attr": "label",
+       "needs": "for"
+      }
+     ],
+     "name": "labels"
+    },
+    {
+     "html": [
+      {
+       "has": "#farmer-error"
+      },
+      {
+       "has": "#kg-error"
+      },
+      {
+       "has": "button[type=submit]"
+      }
+     ],
+     "name": "error spots and a submit button"
+    },
+    {
+     "html": [
+      {
+       "has": "input#farmer[aria-describedby=farmer-error]"
+      },
+      {
+       "has": "input#kg[aria-describedby=kg-error]"
+      }
+     ],
+     "name": "errors linked for screen readers",
+     "hidden": true
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "<label for=\"kg\">Kilograms</label>\n<input id=\"kg\" type=\"number\" required min=\"1\" max=\"5000\" aria-describedby=\"kg-error\">\n<span id=\"kg-error\"></span>",
+    "The select: <select id=\"crop\"><option>maize</option>...</select> with its own label."
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Harvest log</title>\n<style>\nmain { max-width: 420px; margin: 0 auto; font-family: system-ui, sans-serif; }\nlabel, input, select { display: block; width: 100%; margin-top: 8px; }\n.error { color: #b00020; }\n</style>\n</head>\n<body>\n<main>\n<h1>Harvest log</h1>\n<form id=\"harvest-form\">\n  <label for=\"farmer\">Farmer</label>\n  <input id=\"farmer\" type=\"text\" required aria-describedby=\"farmer-error\">\n  <span id=\"farmer-error\" class=\"error\"></span>\n\n  <label for=\"crop\">Crop</label>\n  <select id=\"crop\">\n    <option value=\"maize\">Maize</option>\n    <option value=\"beans\">Beans</option>\n    <option value=\"potatoes\">Potatoes</option>\n  </select>\n\n  <label for=\"kg\">Kilograms</label>\n  <input id=\"kg\" type=\"number\" required min=\"1\" max=\"5000\" aria-describedby=\"kg-error\">\n  <span id=\"kg-error\" class=\"error\"></span>\n\n  <button type=\"submit\">Save</button>\n</form>\n</main>\n</body>\n</html>\n"
+  },
+  {
+   "id": "e2",
+   "title": "Validate a harvest",
+   "file": "ex2_validate.js",
+   "prompt": "Write validateHarvest(farmer, kg). Both arguments are text straight from the boxes. Return an object of error messages, {} when everything is fine. farmer: if blank after trimming, errors.farmer = \"Enter the farmer's name\". kg (trim it first): blank gives errors.kg = \"Enter the kg\"; not a number gives \"kg must be a number\"; below 1 or above 5000 gives \"kg must be between 1 and 5000\".",
+   "starter": "function validateHarvest(farmer, kg) {\n  const errors = {};\n  return errors;\n}\n",
+   "tests": [
+    {
+     "call": "validateHarvest(\"Amina\", \"40\")",
+     "expect": {},
+     "name": "a good harvest"
+    },
+    {
+     "call": "validateHarvest(\"\", \"40\").farmer",
+     "expect": "Enter the farmer's name",
+     "name": "no name"
+    },
+    {
+     "call": "[validateHarvest(\"   \", \"abc\").farmer, validateHarvest(\"   \", \"abc\").kg]",
+     "expect": [
+      "Enter the farmer's name",
+      "kg must be a number"
+     ],
+     "name": "spaces are not a name; abc is not a number",
+     "hint_if_fail": "Trim the name before checking it."
+    },
+    {
+     "call": "validateHarvest(\"Juma\", \"\").kg",
+     "expect": "Enter the kg",
+     "name": "an empty kg box is not zero",
+     "hidden": true,
+     "hint_if_fail": "Number(\"\") is 0. Check for \"\" before converting."
+    },
+    {
+     "call": "[validateHarvest(\"Juma\", \"0\").kg, validateHarvest(\"Juma\", \"5001\").kg]",
+     "expect": [
+      "kg must be between 1 and 5000",
+      "kg must be between 1 and 5000"
+     ],
+     "name": "out of range",
+     "hidden": true
+    },
+    {
+     "call": "[validateHarvest(\"Juma\", \"5000\"), validateHarvest(\" Wanjiru \", \" 12 \")]",
+     "expect": [
+      {},
+      {}
+     ],
+     "name": "edges and spaces are fine",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "if (farmer.trim() === \"\") errors.farmer = \"Enter the farmer's name\";",
+    "const text = kg.trim(); check text === \"\" first, then Number.isNaN(Number(text)), then the range, with else if.",
+    "A value of exactly 1 or 5000 is allowed."
+   ],
+   "solution": "function validateHarvest(farmer, kg) {\n  const errors = {};\n  if (String(farmer).trim() === \"\") errors.farmer = \"Enter the farmer's name\";\n\n  const text = String(kg).trim();\n  const n = Number(text);\n  if (text === \"\") errors.kg = \"Enter the kg\";              // before Number(): \"\" would become 0\n  else if (Number.isNaN(n)) errors.kg = \"kg must be a number\";\n  else if (n < 1 || n > 5000) errors.kg = \"kg must be between 1 and 5000\";\n  return errors;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Show the errors",
+   "file": "ex3_form.js",
+   "prompt": "The page from e1 also has <p id=\"saved\">. validateHarvest is already written for you. Write showErrors(errors): for each field \"farmer\" and \"kg\", put errors[field] (or \"\" if there's none) into #FIELD-error, and toggle the class \"invalid\" on the input #FIELD (on when there's a message). Then listen for \"submit\" on #harvest-form: preventDefault; validate the two boxes; showErrors; if there are no errors, set #saved to \"Saved KG kg for FARMER\" (the name trimmed, the kg as a number) and empty both boxes.",
+   "starter": "function validateHarvest(farmer, kg) {\n  const errors = {};\n  if (String(farmer).trim() === \"\") errors.farmer = \"Enter the farmer's name\";\n  const text = String(kg).trim();\n  const n = Number(text);\n  if (text === \"\") errors.kg = \"Enter the kg\";\n  else if (Number.isNaN(n)) errors.kg = \"kg must be a number\";\n  else if (n < 1 || n > 5000) errors.kg = \"kg must be between 1 and 5000\";\n  return errors;\n}\n\nfunction showErrors(errors) {\n  // for \"farmer\" and \"kg\": the message (or \"\") into #FIELD-error, and the class \"invalid\" on #FIELD\n}\n\n// submit: stop the reload, validate, show the errors; if none, show the saved message and empty the boxes\n",
+   "tests": [
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nshowErrors({ kg: \"kg must be a number\" });\n__eq(document.getElementById(\"kg-error\").textContent, \"kg must be a number\", \"#kg-error\");\n__eq(document.getElementById(\"farmer-error\").textContent, \"\", \"#farmer-error\");\nif (!document.getElementById(\"kg\").classList.contains(\"invalid\")) throw new Error(\"#kg should get the class invalid\");\nif (document.getElementById(\"farmer\").classList.contains(\"invalid\")) throw new Error(\"#farmer has no error, so no class invalid\");\n})();",
+     "name": "showErrors()"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst f = document.getElementById(\"farmer\"), k = document.getElementById(\"kg\");\nf.value = \"\"; k.value = \"abc\";\nconst ev = __fire(document.getElementById(\"harvest-form\"), \"submit\");\nif (!ev.defaultPrevented) throw new Error(\"call event.preventDefault()\");\n__eq(document.getElementById(\"farmer-error\").textContent, \"Enter the farmer's name\", \"#farmer-error\");\n__eq(document.getElementById(\"kg-error\").textContent, \"kg must be a number\", \"#kg-error\");\n__eq(document.getElementById(\"saved\").textContent, \"\", \"#saved (nothing should be saved)\");\n})();",
+     "name": "a bad submit shows errors and saves nothing"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst f = document.getElementById(\"farmer\"), k = document.getElementById(\"kg\");\nf.value = \"Amina\"; k.value = \"40\";\n__fire(document.getElementById(\"harvest-form\"), \"submit\");\n__eq(document.getElementById(\"saved\").textContent, \"Saved 40 kg for Amina\", \"#saved\");\n__eq([document.getElementById(\"farmer-error\").textContent, document.getElementById(\"kg-error\").textContent], [\"\", \"\"], \"old errors should be cleared\");\nif (k.classList.contains(\"invalid\")) throw new Error(\"#kg is fixed, so remove the class invalid\");\n__eq([f.value, k.value], [\"\", \"\"], \"the boxes should be emptied\");\n})();",
+     "name": "a good submit saves and clears"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst f = document.getElementById(\"farmer\"), k = document.getElementById(\"kg\");\nf.value = \"  Wanjiru \"; k.value = \" 7 \";\n__fire(document.getElementById(\"harvest-form\"), \"submit\");\n__eq(document.getElementById(\"saved\").textContent, \"Saved 7 kg for Wanjiru\", \"#saved\");\n})();",
+     "name": "trimmed in the message",
+     "hidden": true,
+     "hint_if_fail": "Use farmer.value.trim() and Number(kg.value)."
+    }
+   ],
+   "hints": [
+    "showErrors: for (const field of [\"farmer\", \"kg\"]) { const message = errors[field] || \"\"; ... }",
+    "document.getElementById(field).classList.toggle(\"invalid\", message !== \"\");",
+    "In the submit handler: if (Object.keys(errors).length > 0) return; before saving."
+   ],
+   "solution": "function validateHarvest(farmer, kg) {\n  const errors = {};\n  if (String(farmer).trim() === \"\") errors.farmer = \"Enter the farmer's name\";\n  const text = String(kg).trim();\n  const n = Number(text);\n  if (text === \"\") errors.kg = \"Enter the kg\";\n  else if (Number.isNaN(n)) errors.kg = \"kg must be a number\";\n  else if (n < 1 || n > 5000) errors.kg = \"kg must be between 1 and 5000\";\n  return errors;\n}\n\nfunction showErrors(errors) {\n  for (const field of [\"farmer\", \"kg\"]) {\n    const message = errors[field] || \"\";   // \"\" clears an old message\n    document.getElementById(field + \"-error\").textContent = message;\n    document.getElementById(field).classList.toggle(\"invalid\", message !== \"\");\n  }\n}\n\nconst form = document.getElementById(\"harvest-form\");\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault();\n  const farmerBox = document.getElementById(\"farmer\");\n  const kgBox = document.getElementById(\"kg\");\n  const errors = validateHarvest(farmerBox.value, kgBox.value);\n  showErrors(errors);\n  if (Object.keys(errors).length > 0) return;\n\n  document.getElementById(\"saved\").textContent = `Saved ${Number(kgBox.value)} kg for ${farmerBox.value.trim()}`;\n  farmerBox.value = \"\";\n  kgBox.value = \"\";\n});\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is Number(\"\") in JavaScript?",
+   "choices": [
+    "NaN",
+    "0",
+    "undefined",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "An empty string converts to 0, so check for empty boxes before converting."
+  },
+  {
+   "q": "The input has required, min and max. Why check again in JavaScript?",
+   "choices": [
+    "You don't need to",
+    "HTML checks can be switched off, can't know your own rules, and give limited messages",
+    "JavaScript is faster",
+    "Browsers ignore min and max"
+   ],
+   "answer": 1,
+   "why": "HTML checks are a helpful first layer, not a guarantee."
+  },
+  {
+   "q": "Why return an errors object from validate() instead of setting the page's text inside it?",
+   "choices": [
+    "Objects are faster",
+    "The rules can be tested without a page, and the display can change freely",
+    "It's required",
+    "So errors can't be shown"
+   ],
+   "answer": 1,
+   "why": "Logic separate from display."
+  },
+  {
+   "q": "A person fixes the kg box but the old red message stays. What was missed?",
+   "choices": [
+    "preventDefault",
+    "Clearing messages for fields that are now valid",
+    "trim()",
+    "required"
+   ],
+   "answer": 1,
+   "why": "Write every field each time, using \"\" for the valid ones."
+  },
+  {
+   "q": "What does aria-describedby=\"kg-error\" on an input do?",
+   "choices": [
+    "Styles it red",
+    "Links the input to its error message so screen readers read them together",
+    "Validates it",
+    "Nothing"
+   ],
+   "answer": 1,
+   "why": "Accessible forms tie each message to its field."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Remove spaces from both ends?",
+   "a": "text.trim()"
+  },
+  {
+   "q": "Is a converted value a real number?",
+   "a": "Number.isFinite(n) (or !Number.isNaN(n))"
+  },
+  {
+   "q": "Is an errors object empty?",
+   "a": "Object.keys(errors).length === 0"
+  },
+  {
+   "q": "HTML number range?",
+   "a": "<input type=\"number\" min=\"1\" max=\"5000\" required>"
+  }
+ ],
+ "explain": "Explain why a form needs validation in both HTML and JavaScript, using a form you make up."
+}

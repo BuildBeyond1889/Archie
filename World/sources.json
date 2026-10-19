@@ -1,0 +1,257 @@
+{
+  "rss": [
+    {
+      "name": "BBC World",
+      "url": "http://feeds.bbci.co.uk/news/world/rss.xml",
+      "lean": "center"
+    },
+    {
+      "name": "Al Jazeera",
+      "url": "https://www.aljazeera.com/xml/rss/all.xml"
+    },
+    {
+      "name": "DW",
+      "url": "https://rss.dw.com/rdf/rss-en-all"
+    },
+    {
+      "name": "France 24",
+      "url": "https://www.france24.com/en/rss"
+    },
+    {
+      "name": "The Guardian",
+      "url": "https://www.theguardian.com/world/rss",
+      "lean": "left"
+    },
+    {
+      "name": "NPR",
+      "url": "https://feeds.npr.org/1004/rss.xml",
+      "lean": "left"
+    },
+    {
+      "name": "Politico",
+      "url": "https://rss.politico.com/politics-news.xml",
+      "lean": "left"
+    },
+    {
+      "name": "The Hill",
+      "url": "https://thehill.com/news/feed/",
+      "lean": "center"
+    },
+    {
+      "name": "Fox News",
+      "url": "https://moxie.foxnews.com/google-publisher/world.xml",
+      "lean": "right"
+    },
+    {
+      "name": "New York Post",
+      "url": "https://nypost.com/feed/",
+      "lean": "right"
+    },
+    {
+      "name": "CNBC",
+      "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+      "lean": "center"
+    },
+    {
+      "name": "Ukrainska Pravda",
+      "url": "https://www.pravda.com.ua/eng/rss/",
+      "side": "Ukrainian"
+    },
+    {
+      "name": "Meduza",
+      "url": "https://meduza.io/rss/en/all",
+      "side": "Russian independent"
+    },
+    {
+      "name": "TASS",
+      "url": "https://tass.com/rss/v2.xml",
+      "side": "Russian state"
+    },
+    {
+      "name": "Times of Israel",
+      "url": "https://www.timesofisrael.com/feed/",
+      "side": "Israeli"
+    },
+    {
+      "name": "Tehran Times",
+      "url": "https://www.tehrantimes.com/rss",
+      "side": "Iranian state"
+    },
+    {
+      "name": "Tagesschau",
+      "url": "https://www.tagesschau.de/xml/rss2/",
+      "lang": "de"
+    },
+    {
+      "name": "Der Spiegel (English)",
+      "url": "https://www.spiegel.de/international/index.rss"
+    },
+    {
+      "name": "ReliefWeb (UN OCHA)",
+      "url": "https://reliefweb.int/updates/rss.xml",
+      "side": "UN humanitarian"
+    }
+  ],
+  "gnews": [
+    {
+      "name": "Ukraine (Ukrainian press)",
+      "q": "Україна фронт",
+      "hl": "uk",
+      "gl": "UA",
+      "region": "ukraine"
+    },
+    {
+      "name": "Sudan (Arabic press)",
+      "q": "السودان الفاشر OR الخرطوم",
+      "hl": "ar",
+      "gl": "SD",
+      "region": "sudan"
+    },
+    {
+      "name": "Iran (Persian press)",
+      "q": "ایران",
+      "hl": "fa",
+      "gl": "IR",
+      "region": "iran"
+    },
+    {
+      "name": "Lebanon & Syria (Arabic press)",
+      "q": "لبنان OR سوريا",
+      "hl": "ar",
+      "gl": "LB",
+      "region": "mideast"
+    },
+    {
+      "name": "Germany (German press)",
+      "q": "Bundesregierung OR Bundestag",
+      "hl": "de",
+      "gl": "DE",
+      "region": "germany"
+    },
+    {
+      "name": "Washington",
+      "q": "White House OR Congress OR Senate",
+      "hl": "en-US",
+      "gl": "US",
+      "region": "usa"
+    },
+    {
+      "name": "Sudan (English)",
+      "q": "Sudan RSF army",
+      "hl": "en-US",
+      "gl": "US",
+      "region": "sudan"
+    },
+    {
+      "name": "Red Sea shipping",
+      "q": "Red Sea shipping Houthi",
+      "hl": "en-US",
+      "gl": "US"
+    },
+    {
+      "name": "Kyiv Independent",
+      "q": "site:kyivindependent.com",
+      "hl": "en-US",
+      "gl": "US",
+      "side": "Ukrainian"
+    },
+    {
+      "name": "Sudan Tribune",
+      "q": "site:sudantribune.com",
+      "hl": "en-US",
+      "gl": "US",
+      "side": ""
+    }
+  ],
+  "telegram": [
+    {
+      "name": "DeepStateUA",
+      "side": "Ukrainian",
+      "lang": "uk",
+      "cc": "UA"
+    },
+    {
+      "name": "kyivindependent_official",
+      "side": "Ukrainian",
+      "lang": "en",
+      "cc": "UA"
+    },
+    {
+      "name": "rybar",
+      "side": "Russian (milblogger)",
+      "lang": "ru",
+      "cc": "UA"
+    }
+  ],
+  "polymarket_keywords": [
+    "Fed",
+    "rate cut",
+    "recession",
+    "ceasefire",
+    "oil",
+    "Bitcoin",
+    "election",
+    "tariff"
+  ],
+  "firms_map_key": "",
+  "tiles": true,
+  "local": [
+    {
+      "name": "Close to home",
+      "q": "\"Your County\" OR \"Your Town\""
+    }
+  ],
+  "tile_url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  "tile_dark": true,
+  "conflict_baseline": {
+    "Ukraine": "war",
+    "Sudan": "war",
+    "Myanmar": "war",
+    "Palestine": "armed",
+    "Dem. Rep. Congo": "armed",
+    "Mali": "armed",
+    "Burkina Faso": "armed",
+    "Niger": "armed",
+    "Nigeria": "armed",
+    "Somalia": "armed",
+    "Yemen": "armed",
+    "Syria": "armed",
+    "Haiti": "armed",
+    "Ethiopia": "armed",
+    "S. Sudan": "armed",
+    "Mozambique": "armed",
+    "Pakistan": "armed",
+    "Cameroon": "armed",
+    "Central African Rep.": "armed",
+    "Colombia": "unrest",
+    "Mexico": "unrest",
+    "Lebanon": "unrest",
+    "Iraq": "unrest",
+    "Libya": "unrest",
+    "Chad": "unrest"
+  },
+  "gdelt": [
+    {
+      "region": "ukraine",
+      "q": "(drone OR shelling OR missile OR offensive) (Ukraine OR Russia)"
+    },
+    {
+      "region": "sudan",
+      "q": "Sudan (RSF OR army OR fighting OR attack)"
+    },
+    {
+      "region": "mideast",
+      "q": "(Gaza OR Lebanon OR Syria OR Israel) (strike OR attack OR raid OR clashes)"
+    },
+    {
+      "region": "iran",
+      "q": "Iran (protest OR strike OR attack OR arrested)"
+    },
+    {
+      "region": null,
+      "q": "(airstrike OR clashes OR militants OR \"armed group\" OR insurgents)"
+    }
+  ],
+  "acled_email": "",
+  "acled_password": ""
+}

@@ -1,0 +1,8 @@
+{"name": "Backup and restore", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Zip the app's data to a USB stick or another folder with the date in the name, and restore it later. Checks the backup isn't damaged and saves the current data first.",
+ "tags": ["backup", "restore", "usb", "zip", "safety", "data"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/backup.py": "backup.py"},
+ "imports": {"py": ["from lib.backup import make_backup, restore, list_backups"]},
+ "use": "make_backup('data', 'E:/backups'); restore(path, 'data')",
+ "test": {"run": ["python", "test_backup.py"], "files": ["test_backup.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

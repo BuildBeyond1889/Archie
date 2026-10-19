@@ -1,0 +1,182 @@
+{
+ "id": "py-1-03",
+ "level": 1,
+ "title": "Maths and operators",
+ "skills": [
+  "operators",
+  "numbers"
+ ],
+ "lesson": "Python's maths: `+ - * /`, plus `//` (whole division), `%` (remainder) and `**` (power: `2 ** 10` is 1024). The usual order applies (powers, then × and ÷, then + and −), and brackets go first: `(2 + 3) * 4` is 20, `2 + 3 * 4` is 14. When in doubt, add brackets; they cost nothing.\n\nUseful built-ins: `round(3.456, 2)` → 3.46, `abs(-7)` → 7, `max(4, 9, 2)` → 9, `min(...)`. For more, `import math` gives `math.sqrt`, `math.pi`, `math.ceil` (round up) and `math.floor` (round down).\n\nShortcuts for updating: `total += 5` is `total = total + 5`, and there's `-=`, `*=`, `/=`.\n\nA real use of `//` and `%`: splitting a number into parts. 135 minutes is `135 // 60` = 2 hours and `135 % 60` = 15 minutes. The same trick turns money into notes and coins, or seconds into a clock.",
+ "example": {
+  "code": "import math\nprint(2 + 3 * 4, (2 + 3) * 4)\nprint(2 ** 10)\nminutes = 135\nprint(minutes // 60, \"h\", minutes % 60, \"min\")\nprint(math.ceil(7 / 3), math.floor(7 / 3), round(7 / 3, 2))\n",
+  "notes": [
+   "Order of operations, then brackets first.",
+   "Power.",
+   "Hours and minutes with // and %.",
+   "Round up, round down, round to 2 places."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Hours and minutes",
+   "file": "ex1_time.py",
+   "prompt": "Ask for a number of minutes and print it as hours and minutes, like: 135 minutes is 2 h 15 min",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "135\n",
+     "out": [
+      "135 minutes is 2 h 15 min"
+     ],
+     "name": "135"
+    },
+    {
+     "stdin": "59\n",
+     "out": [
+      "59 minutes is 0 h 59 min"
+     ],
+     "name": "59"
+    },
+    {
+     "stdin": "600\n",
+     "out": [
+      "600 minutes is 10 h 0 min"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Hours are minutes // 60.",
+    "Minutes left over are minutes % 60."
+   ],
+   "solution": "m = int(input(\"Minutes? \"))\nprint(f\"{m} minutes is {m // 60} h {m % 60} min\")\n"
+  },
+  {
+   "id": "e2",
+   "title": "Bags needed",
+   "file": "ex2_bags.py",
+   "prompt": "A bag holds 90 kg of maize. Ask how many kg were harvested and print how many bags are needed (a part-full bag still needs a bag), like: 250 kg needs 3 bags",
+   "starter": "import math\n",
+   "tests": [
+    {
+     "stdin": "250\n",
+     "out": [
+      "250 kg needs 3 bags"
+     ],
+     "name": "250"
+    },
+    {
+     "stdin": "180\n",
+     "out": [
+      "180 kg needs 2 bags"
+     ],
+     "name": "exactly 2 bags"
+    },
+    {
+     "stdin": "1\n",
+     "out": [
+      "1 kg needs 1 bags"
+     ],
+     "hidden": true,
+     "hint_if_fail": "Even 1 kg needs a whole bag: round UP."
+    }
+   ],
+   "hints": [
+    "250 / 90 is 2.77...: you need to round up.",
+    "math.ceil(kg / 90) rounds up."
+   ],
+   "solution": "import math\nkg = int(input(\"Kg? \"))\nprint(f\"{kg} kg needs {math.ceil(kg / 90)} bags\")\n"
+  },
+  {
+   "id": "e3",
+   "title": "Change in notes",
+   "file": "ex3_change.py",
+   "prompt": "Ask for an amount in shillings and break it into 1000, 500, 100 and 50 notes, with whatever is left as coins. Print one line per note, like for 1780:\n1000: 1\n500: 1\n100: 2\n50: 1\ncoins: 30",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "1780\n",
+     "out": [
+      "1000: 1",
+      "500: 1",
+      "100: 2",
+      "50: 1",
+      "coins: 30"
+     ],
+     "name": "1780"
+    },
+    {
+     "stdin": "40\n",
+     "out": [
+      "1000: 0",
+      "500: 0",
+      "100: 0",
+      "50: 0",
+      "coins: 40"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Start with the biggest note: amount // 1000 notes, and amount % 1000 is what's left.",
+    "Keep updating the amount with the remainder after each note size."
+   ],
+   "solution": "a = int(input(\"Amount? \"))\nfor note in (1000, 500, 100, 50):\n    print(f\"{note}: {a // note}\")\n    a = a % note\nprint(f\"coins: {a}\")\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is 2 + 3 * 4 ** 2?",
+   "choices": [
+    "400",
+    "50",
+    "80",
+    "29"
+   ],
+   "answer": 1,
+   "why": "4**2=16, 3*16=48, 2+48=50."
+  },
+  {
+   "q": "What does math.ceil(4.1) give?",
+   "choices": [
+    "4",
+    "5",
+    "4.1",
+    "4.0"
+   ],
+   "answer": 1,
+   "why": "ceil rounds up."
+  },
+  {
+   "q": "total += 3 means…",
+   "choices": [
+    "total = 3",
+    "total = total + 3",
+    "total == 3",
+    "add 3 to every number"
+   ],
+   "answer": 1,
+   "why": "Shorthand for updating."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What does ** do?",
+   "a": "Power: 2 ** 3 is 8."
+  },
+  {
+   "q": "Split 135 minutes into hours and minutes?",
+   "a": "135 // 60 hours, 135 % 60 minutes."
+  },
+  {
+   "q": "Round up to a whole number?",
+   "a": "math.ceil(x)"
+  }
+ ],
+ "concepts": [
+  "operators"
+ ],
+ "bridge": "`/` always gives a decimal (7 / 2 is 3.5); whole division is `//` and remainder `%`. Power is `**`.",
+ "explain": "Explain maths and operators to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

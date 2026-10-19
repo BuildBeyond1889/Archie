@@ -1,0 +1,8 @@
+{"name": "Two languages (English + Swahili)", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Keep every word the app shows in one table per language and switch languages at any time. Comes with common words in English and Swahili; anything missing falls back to English.",
+ "tags": ["language", "translation", "swahili", "english", "i18n", "kenya"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/i18n.py": "i18n.py"},
+ "imports": {"py": ["from lib.i18n import Strings"]},
+ "use": "T = Strings(); T.lang = 'sw'; T('save')  # Hifadhi",
+ "test": {"run": ["python", "test_i18n.py"], "files": ["test_i18n.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

@@ -1,0 +1,87 @@
+{
+  "name": "archie-coach",
+  "displayName": "Archie Coach",
+  "description": "Archie, your offline coding teacher, watches along: explain this, check my step, hints right on the line. Talks only to Archie on this PC.",
+  "version": "1.1.0",
+  "publisher": "archie",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Education"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "archieCoach.explain",
+        "title": "Archie: explain this"
+      },
+      {
+        "command": "archieCoach.check",
+        "title": "Archie: check my step"
+      },
+      {
+        "command": "archieCoach.hint",
+        "title": "Archie: give me a hint"
+      },
+      {
+        "command": "archieCoach.toggle",
+        "title": "Archie: turn watching on or off"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "archieCoach.explain",
+          "group": "archie@1"
+        },
+        {
+          "command": "archieCoach.check",
+          "group": "archie@2"
+        },
+        {
+          "command": "archieCoach.hint",
+          "group": "archie@3"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "archieCoach.explain",
+        "key": "ctrl+alt+e",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "archieCoach.check",
+        "key": "ctrl+alt+k",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Archie Coach",
+      "properties": {
+        "archieCoach.archieFolder": {
+          "type": "string",
+          "default": "D:\\Archie",
+          "description": "The folder Archie is installed in (where Start Archie.bat is)."
+        },
+        "archieCoach.port": {
+          "type": "number",
+          "default": 8765,
+          "description": "Archie's local port."
+        }
+      }
+    }
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": false
+  }
+}

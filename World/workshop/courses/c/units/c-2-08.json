@@ -1,0 +1,254 @@
+{
+ "id": "c-2-08",
+ "level": 2,
+ "title": "Stacks and queues",
+ "concepts": [
+  "stacks",
+  "queues",
+  "dynamic-arrays"
+ ],
+ "skills": [
+  "stacks",
+  "queues",
+  "ring buffers"
+ ],
+ "lesson": "Stacks and queues aren't new kinds of memory. They're **rules** about which item comes out next, built on the arrays and lists you already have.\n\n**A stack: last in, first out.** Like a pile of plates: you add to the top and take from the top. Uses:\n- **Undo** in a game or editor: push every move; undo pops the latest one.\n- **Matching brackets** in code or a config file: push each opening bracket, pop when a closing one arrives.\n- **Backtracking** in a maze or a robot path: push each step, pop to go back.\n- Your program's own function calls run on \"the call stack\".\n\nA dynamic array makes a perfect stack: **push** adds at `data[len]` (growing when full), **pop** takes `data[len - 1]`. Both ends of the work happen at the end of the array, so nothing ever shifts.\n\n```\nint stack_pop(Stack *s, int *out)\n{\n    if (s->len == 0) return 0;     /* empty: nothing to pop */\n    *out = s->data[--s->len];\n    return 1;\n}\n```\n\nNotice the pattern from unit 1: the return value says *whether* it worked, and the out-parameter carries the value. Popping an empty stack is a normal situation, not a crash.\n\n**A queue: first in, first out.** Like the line at a clinic desk: first to arrive is first served. Uses: game events, print jobs, patients, and bytes arriving over a serial cable.\n\n**The ring buffer.** On a microcontroller, bytes arrive from the serial port (an interrupt puts them in), and the main loop takes them out when it's ready. Using malloc there is a bad idea, so the queue is a **fixed array used in a circle**:\n\n```\ntypedef struct {\n    unsigned char buf[8];\n    int head;    /* next byte to read */\n    int tail;    /* next place to write */\n    int count;   /* bytes waiting */\n} Ring;\n```\n\n- **put**: if `count == 8` it's full, refuse. Otherwise `buf[tail] = b; tail = (tail + 1) % 8; count++;`\n- **get**: if `count == 0` it's empty. Otherwise `*out = buf[head]; head = (head + 1) % 8; count--;`\n\nThe `% 8` is the trick: after slot 7 comes slot 0 again, so the buffer never \"runs out\" as long as the reader keeps up. Keeping a `count` makes \"full\" and \"empty\" easy to tell apart, because `head == tail` happens in both cases.\n\n**What if it's full?** Real firmware decides: drop the new byte (what we do here), or overwrite the oldest. Either way, never write past the array.\n\nArduino's `Serial` uses exactly this kind of ring buffer (64 bytes on an Uno). Audio, keyboards and network cards use them too.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\n#define SIZE 4\n\ntypedef struct { int buf[SIZE]; int head, tail, count; } Queue;\n\nint put(Queue *q, int v)\n{\n    if (q->count == SIZE) return 0;      /* full */\n    q->buf[q->tail] = v;\n    q->tail = (q->tail + 1) % SIZE;\n    q->count++;\n    return 1;\n}\n\nint get(Queue *q, int *out)\n{\n    if (q->count == 0) return 0;         /* empty */\n    *out = q->buf[q->head];\n    q->head = (q->head + 1) % SIZE;\n    q->count--;\n    return 1;\n}\n\nint main(void)\n{\n    Queue q = {0};\n    for (int patient = 1; patient <= 5; patient++)\n        if (!put(&q, patient)) printf(\"patient %d: queue full, come back later\\n\", patient);\n    int p;\n    get(&q, &p); printf(\"serving %d\\n\", p);\n    put(&q, 6);                          /* wraps around to slot 0 */\n    while (get(&q, &p)) printf(\"serving %d\\n\", p);\n    return 0;\n}\n",
+  "notes": [
+   "Queue q = {0}; starts empty: head, tail and count all 0.",
+   "put refuses when count == SIZE, so patient 5 is turned away.",
+   "tail = (tail + 1) % SIZE wraps from the last slot back to slot 0.",
+   "After serving patient 1, there's room again, and patient 6 goes into slot 0.",
+   "get returns 0 when empty, which is what ends the while loop: 2, 3, 4, 6."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Undo stack",
+   "file": "undo.c",
+   "prompt": "Game moves are stored on a Stack (stack_init and stack_free given). Write int stack_push(Stack *s, int move): grow with my_realloc when full (4 when empty, then double; safe pattern), add move on top, return 1 (0 if memory runs out). Write int stack_pop(Stack *s, int *out): if empty return 0 and leave *out alone; otherwise store the top move in *out, remove it, return 1.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    int *data;\n    int len;    /* the top of the stack is data[len - 1] */\n    int cap;\n} Stack;\n\nvoid stack_init(Stack *s)\n{\n    s->data = NULL;\n    s->len = 0;\n    s->cap = 0;\n}\n\nvoid stack_free(Stack *s)\n{\n    my_free(s->data);\n    s->data = NULL;\n    s->len = 0;\n    s->cap = 0;\n}\n\nint stack_push(Stack *s, int move)\n{\n    return 0;\n}\n\nint stack_pop(Stack *s, int *out)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "({ Stack s; stack_init(&s); stack_push(&s, 1); stack_push(&s, 2); stack_push(&s, 3); int a = 0, b = 0; stack_pop(&s, &a); stack_pop(&s, &b); stack_free(&s); a * 10 + b; })",
+     "expect": "32",
+     "name": "last in, first out"
+    },
+    {
+     "call": "({ Stack s; stack_init(&s); int total = 0, v; for (int i = 0; i < 100; i++) stack_push(&s, i); while (stack_pop(&s, &v)) total += v; int r = total * 10 + s.len; stack_free(&s); r; })",
+     "expect": "49500",
+     "name": "100 moves in and out",
+     "hint_if_fail": "Grow the array when len == cap."
+    },
+    {
+     "call": "({ Stack s; stack_init(&s); int v = -1; int ok = stack_pop(&s, &v); stack_free(&s); ok * 100 + v; })",
+     "expect": "-1",
+     "name": "pop when empty"
+    },
+    {
+     "call": "({ Stack s; stack_init(&s); stack_push(&s, 1); stack_push(&s, 2); int a = 0, b = 0, c = 0; stack_pop(&s, &a); stack_push(&s, 5); stack_pop(&s, &b); stack_pop(&s, &c); stack_free(&s); a * 100 + b * 10 + c; })",
+     "expect": "251",
+     "hidden": true,
+     "name": "pop, push, pop"
+    },
+    {
+     "call": "({ int before = live_allocs; Stack s; stack_init(&s); for (int i = 0; i < 40; i++) stack_push(&s, i); int r = (live_allocs - before) * 100 + s.cap; stack_free(&s); r; })",
+     "expect": "164",
+     "hidden": true,
+     "name": "one block, capacity 64"
+    }
+   ],
+   "hints": [
+    "stack_push is list_push from unit 4 with new names.",
+    "stack_pop: if (s->len == 0) return 0;",
+    "*out = s->data[s->len - 1]; s->len--; return 1;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    int *data;\n    int len;    /* the top of the stack is data[len - 1] */\n    int cap;\n} Stack;\n\nvoid stack_init(Stack *s)\n{\n    s->data = NULL;\n    s->len = 0;\n    s->cap = 0;\n}\n\nvoid stack_free(Stack *s)\n{\n    my_free(s->data);\n    s->data = NULL;\n    s->len = 0;\n    s->cap = 0;\n}\n\nint stack_push(Stack *s, int move)\n{\n    if (s->len == s->cap) {\n        int new_cap = s->cap ? s->cap * 2 : 4;\n        int *tmp = my_realloc(s->data, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;\n        s->data = tmp;\n        s->cap = new_cap;\n    }\n    s->data[s->len++] = move;\n    return 1;\n}\n\nint stack_pop(Stack *s, int *out)\n{\n    if (s->len == 0) return 0;      /* nothing to undo */\n    *out = s->data[--s->len];\n    return 1;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Bracket checker",
+   "file": "brackets.c",
+   "prompt": "A robot reads settings like {\"arm\": [1, (2)]}. Write int brackets_ok(const char *s): return 1 if every (, [ and { is closed by the matching ), ] or } in the right order, else 0. Other characters are ignored; an empty string is fine. Use a stack (a heap char array from my_alloc is enough: there can't be more open brackets than characters) and free it before returning.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\nint brackets_ok(const char *s)\n{\n    return 1;\n}\n",
+   "tests": [
+    {
+     "call": "brackets_ok(\"(a[1] + b{2})\")",
+     "expect": "1",
+     "name": "nested and matched"
+    },
+    {
+     "call": "brackets_ok(\"(]\")",
+     "expect": "0",
+     "name": "wrong closer",
+     "hint_if_fail": "A closer must match the most recent opener: that's the top of the stack."
+    },
+    {
+     "call": "brackets_ok(\"{\\\"arm\\\": [1, (2)]}\")",
+     "expect": "1",
+     "name": "a settings line"
+    },
+    {
+     "call": "brackets_ok(\"((\")",
+     "expect": "0",
+     "hidden": true,
+     "name": "never closed",
+     "hint_if_fail": "At the end, the stack must be empty."
+    },
+    {
+     "call": "brackets_ok(\"())\")",
+     "expect": "0",
+     "hidden": true,
+     "name": "closer with nothing open"
+    },
+    {
+     "call": "brackets_ok(\"\")",
+     "expect": "1",
+     "hidden": true,
+     "name": "empty is fine"
+    },
+    {
+     "call": "({ int before = live_allocs; brackets_ok(\"([{}])\"); brackets_ok(\"((\"); live_allocs - before; })",
+     "expect": "0",
+     "hidden": true,
+     "name": "frees its stack"
+    }
+   ],
+   "hints": [
+    "If strlen(s) is 0, return 1. Otherwise char *stack = my_alloc(strlen(s)); and an int top = 0.",
+    "An opener: stack[top++] = c. A closer: if top == 0 or stack[top - 1] isn't its partner, it's bad; otherwise top--.",
+    "At the end the answer is ok && top == 0. my_free(stack) before every return."
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\nint brackets_ok(const char *s)\n{\n    size_t n = strlen(s);\n    if (n == 0) return 1;\n    char *stack = my_alloc(n);          /* never more openers than characters */\n    if (stack == NULL) return 0;\n    size_t top = 0;\n    int ok = 1;\n    for (size_t i = 0; i < n && ok; i++) {\n        char c = s[i];\n        if (c == '(' || c == '[' || c == '{') {\n            stack[top++] = c;\n        } else if (c == ')' || c == ']' || c == '}') {\n            char want = c == ')' ? '(' : c == ']' ? '[' : '{';\n            if (top == 0 || stack[top - 1] != want) ok = 0;\n            else top--;\n        }\n    }\n    if (top != 0) ok = 0;               /* something was never closed */\n    my_free(stack);\n    return ok;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Serial ring buffer",
+   "file": "ring.c",
+   "prompt": "Bytes arrive from a serial port faster than the main loop reads them. With the Ring type given (RING_SIZE 8, start with Ring r = {0};), write int ring_put(Ring *r, unsigned char b): if full return 0 and change nothing; otherwise store b at tail, move tail on (wrapping to 0 after the last slot), add 1 to count, return 1. Write int ring_get(Ring *r, unsigned char *out): if empty return 0; otherwise give back the byte at head, move head on (wrapping), subtract 1 from count, return 1.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n#define RING_SIZE 8\n\ntypedef struct {\n    unsigned char buf[RING_SIZE];\n    int head;    /* where the next byte is read from */\n    int tail;    /* where the next byte is written to */\n    int count;   /* how many bytes are waiting */\n} Ring;\n\nint ring_put(Ring *r, unsigned char b)\n{\n    return 0;\n}\n\nint ring_get(Ring *r, unsigned char *out)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "({ Ring r = {0}; ring_put(&r, 'A'); ring_put(&r, 'B'); unsigned char x = 0, y = 0; ring_get(&r, &x); ring_get(&r, &y); x * 1000 + y; })",
+     "expect": "65066",
+     "name": "first in, first out"
+    },
+    {
+     "call": "({ Ring r = {0}; int ok = 0; for (int i = 0; i < 8; i++) ok += ring_put(&r, i); ok * 10 + ring_put(&r, 99); })",
+     "expect": "80",
+     "name": "holds 8, refuses the 9th",
+     "hint_if_fail": "Full is count == RING_SIZE."
+    },
+    {
+     "call": "({ Ring r = {0}; unsigned char v = 7; int ok = ring_get(&r, &v); ok * 100 + v; })",
+     "expect": "7",
+     "name": "empty gives nothing"
+    },
+    {
+     "call": "({ Ring r = {0}; unsigned char v; for (int i = 0; i < 6; i++) ring_put(&r, i); for (int i = 0; i < 6; i++) ring_get(&r, &v); for (int i = 10; i < 15; i++) ring_put(&r, i); int s = 0; while (ring_get(&r, &v)) s = s * 100 + v; s; })",
+     "expect": "1011121314",
+     "hidden": true,
+     "name": "wraps around the end",
+     "hint_if_fail": "tail = (tail + 1) % RING_SIZE; and the same for head."
+    },
+    {
+     "call": "({ Ring r = {0}; unsigned char v; for (int i = 0; i < 20; i++) { ring_put(&r, i); ring_put(&r, i); ring_get(&r, &v); ring_get(&r, &v); } r.count * 100 + (r.head == r.tail) * 10 + (r.head < RING_SIZE); })",
+     "expect": "11",
+     "hidden": true,
+     "name": "stays in bounds after many laps"
+    },
+    {
+     "call": "({ Ring r = {0}; unsigned char v; for (int i = 0; i < 9; i++) ring_put(&r, i); ring_get(&r, &v); int a = v; ring_put(&r, 50); for (int i = 0; i < 7; i++) ring_get(&r, &v); ring_get(&r, &v); a * 100 + v; })",
+     "expect": "50",
+     "hidden": true,
+     "name": "full ring drops the new byte"
+    }
+   ],
+   "hints": [
+    "ring_put: if (r->count == RING_SIZE) return 0;",
+    "r->buf[r->tail] = b; r->tail = (r->tail + 1) % RING_SIZE; r->count++;",
+    "ring_get mirrors it with head: *out = r->buf[r->head]; ..."
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n#define RING_SIZE 8\n\ntypedef struct {\n    unsigned char buf[RING_SIZE];\n    int head;    /* where the next byte is read from */\n    int tail;    /* where the next byte is written to */\n    int count;   /* how many bytes are waiting */\n} Ring;\n\nint ring_put(Ring *r, unsigned char b)\n{\n    if (r->count == RING_SIZE) return 0;    /* full: drop the new byte */\n    r->buf[r->tail] = b;\n    r->tail = (r->tail + 1) % RING_SIZE;     /* wrap after the last slot */\n    r->count++;\n    return 1;\n}\n\nint ring_get(Ring *r, unsigned char *out)\n{\n    if (r->count == 0) return 0;            /* nothing waiting */\n    *out = r->buf[r->head];\n    r->head = (r->head + 1) % RING_SIZE;\n    r->count--;\n    return 1;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "You push 1, 2, 3 onto a stack and pop once. What comes out?",
+   "choices": [
+    "1",
+    "2",
+    "3",
+    "Nothing"
+   ],
+   "answer": 2,
+   "why": "Last in, first out."
+  },
+  {
+   "q": "Patients 1, 2, 3 join a queue. Who is served first?",
+   "choices": [
+    "1",
+    "2",
+    "3",
+    "Random"
+   ],
+   "answer": 0,
+   "why": "First in, first out."
+  },
+  {
+   "q": "Why keep a count in a ring buffer?",
+   "choices": [
+    "To make it faster",
+    "head == tail happens both when empty and when full; count tells them apart",
+    "The % needs it",
+    "It isn't needed"
+   ],
+   "answer": 1,
+   "why": "count says which case you're in."
+  },
+  {
+   "q": "Why is a ring buffer popular on microcontrollers?",
+   "choices": [
+    "It uses malloc cleverly",
+    "Fixed memory, no malloc, and it never shifts items",
+    "It sorts the data",
+    "Arduino requires it"
+   ],
+   "answer": 1,
+   "why": "A fixed array used in a circle."
+  },
+  {
+   "q": "Which job fits a stack best?",
+   "choices": [
+    "Serving patients in order",
+    "Undoing the last move in a game",
+    "Buffering serial bytes",
+    "Printing jobs in order"
+   ],
+   "answer": 1,
+   "why": "Undo takes back the most recent thing first."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Stack rule?",
+   "a": "Last in, first out (push and pop at the top)."
+  },
+  {
+   "q": "Queue rule?",
+   "a": "First in, first out."
+  },
+  {
+   "q": "Move an index round a ring of size N?",
+   "a": "i = (i + 1) % N"
+  },
+  {
+   "q": "Ring buffer full when?",
+   "a": "count == size; empty when count == 0."
+  }
+ ],
+ "explain": "Explain how a ring buffer reuses its slots, walking through a small example with 4 slots and some bytes you choose."
+}

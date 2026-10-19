@@ -1,0 +1,230 @@
+{
+ "id": "c-2-04",
+ "level": 2,
+ "title": "Growing arrays with realloc",
+ "concepts": [
+  "dynamic-arrays",
+  "malloc",
+  "memory"
+ ],
+ "skills": [
+  "realloc",
+  "dynamic arrays",
+  "capacity"
+ ],
+ "lesson": "malloc gives you a block of a fixed size. But often you don't know how many items are coming: readings arrive until the sensor stops, enemies spawn until the wave ends. You need an array that **grows**. Python's list, C++'s `std::vector` and Java's `ArrayList` are all this one idea, and in C you build it yourself.\n\nA dynamic array is three things kept together:\n\n```\ntypedef struct {\n    int *data;   /* the items, on the heap */\n    int len;     /* how many are in use */\n    int cap;     /* how many fit right now */\n} IntList;\n```\n\nTo add an item: if there's room (`len < cap`), put it at `data[len]` and add 1 to `len`. If it's full, make the block bigger first with **realloc**, which gives you a bigger block with the old items already copied in.\n\n**Double the capacity, don't add 1.** Growing by one each time means copying the whole array on every push: slow for big logs. Doubling (4, 8, 16, 32...) means a million pushes need only about 20 reallocs. That's why every real dynamic array does it.\n\n**The safe realloc pattern.** If realloc fails it returns NULL, but your old block is *still there and still yours*. So never write `l->data = realloc(l->data, ...)`: on failure that overwrites your only pointer with NULL, and the old block leaks. Use a temporary:\n\n```\nint list_push(IntList *l, int value)\n{\n    if (l->len == l->cap) {\n        int new_cap = l->cap ? l->cap * 2 : 4;\n        int *tmp = realloc(l->data, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;      /* old data still safe */\n        l->data = tmp;\n        l->cap = new_cap;\n    }\n    l->data[l->len++] = value;\n    return 1;\n}\n```\n\nHandy fact: `realloc(NULL, size)` acts like `malloc(size)`, so an empty list can start with `data = NULL` and no special case.\n\n**A trap: realloc can move the block.** After a push, any pointer you kept into the old `data` may point at freed memory. Keep **indexes**, not pointers, into a growing array. (Game engines hit this constantly with lists of entities.)\n\n**Freeing.** One `free(l->data)` frees the whole array, then reset `data = NULL, len = 0, cap = 0` so the list is safely empty again.\n\nIn this unit's files, `my_realloc` stands in for realloc so the tests can count blocks.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct { int *data; int len; int cap; } IntList;\n\nint list_push(IntList *l, int value)\n{\n    if (l->len == l->cap) {\n        int new_cap = l->cap ? l->cap * 2 : 4;\n        int *tmp = realloc(l->data, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;\n        l->data = tmp;\n        l->cap = new_cap;\n        printf(\"  grew to %d\\n\", new_cap);\n    }\n    l->data[l->len++] = value;\n    return 1;\n}\n\nint main(void)\n{\n    IntList scores = {NULL, 0, 0};\n    for (int i = 1; i <= 10; i++) list_push(&scores, i * 100);\n    printf(\"%d scores, room for %d, last is %d\\n\", scores.len, scores.cap, scores.data[scores.len - 1]);\n    free(scores.data);\n    scores.data = NULL;\n    scores.len = scores.cap = 0;\n    return 0;\n}\n",
+  "notes": [
+   "IntList keeps the heap pointer, the length and the capacity together.",
+   "The list starts empty: data NULL, len 0, cap 0. realloc(NULL, ...) acts like malloc.",
+   "When len reaches cap, the capacity doubles: it prints 'grew to 4', 8, then 16 for ten pushes.",
+   "realloc's result goes into tmp first, so a failure can't lose the old data.",
+   "One free releases the whole array; then the fields are reset to empty."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Push with doubling",
+   "file": "push.c",
+   "prompt": "With IntList and list_init given, write int list_push(IntList *l, int value). If the list is full (len == cap), grow it with my_realloc: the new capacity is 4 when it was 0, otherwise double. Use the safe pattern (a temporary pointer). Then store value at the end and return 1. If growing fails, leave the list unchanged and return 0.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    int *data;   /* the items, on the heap */\n    int len;     /* how many are in use */\n    int cap;     /* how many fit before we must grow */\n} IntList;\n\nvoid list_init(IntList *l)\n{\n    l->data = NULL;\n    l->len = 0;\n    l->cap = 0;\n}\n\nint list_push(IntList *l, int value)\n{\n    /* grow if full, then store value at data[len] */\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "({ IntList l; list_init(&l); for (int i = 1; i <= 10; i++) list_push(&l, i * i); int r = l.len * 1000 + l.data[9]; my_free(l.data); r; })",
+     "expect": "10100",
+     "name": "ten pushes"
+    },
+    {
+     "call": "({ IntList l; list_init(&l); list_push(&l, 1); int a = l.cap; for (int i = 0; i < 4; i++) list_push(&l, i); int r = a * 10 + l.cap; my_free(l.data); r; })",
+     "expect": "48",
+     "name": "capacity 4, then 8",
+     "hint_if_fail": "Start at 4, then double: 4, 8, 16..."
+    },
+    {
+     "call": "({ IntList l; list_init(&l); int ok = list_push(&l, 5) + list_push(&l, 6) + list_push(&l, 7); my_free(l.data); ok; })",
+     "expect": "3",
+     "name": "returns 1 on success"
+    },
+    {
+     "call": "({ int before = live_allocs; IntList l; list_init(&l); for (int i = 0; i < 1000; i++) list_push(&l, i); int r = l.cap * 10 + (live_allocs - before) + (l.data[999] == 999) * 100000; my_free(l.data); r; })",
+     "expect": "110241",
+     "hidden": true,
+     "name": "1000 pushes: capacity 1024, one block",
+     "hint_if_fail": "Use my_realloc on the same block; don't allocate a new one each time."
+    }
+   ],
+   "hints": [
+    "if (l->len == l->cap) { ...grow... }",
+    "int new_cap = l->cap ? l->cap * 2 : 4; int *tmp = my_realloc(l->data, new_cap * sizeof *tmp);",
+    "if (tmp == NULL) return 0; l->data = tmp; l->cap = new_cap; then l->data[l->len++] = value;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    int *data;   /* the items, on the heap */\n    int len;     /* how many are in use */\n    int cap;     /* how many fit before we must grow */\n} IntList;\n\nvoid list_init(IntList *l)\n{\n    l->data = NULL;\n    l->len = 0;\n    l->cap = 0;\n}\n\nint list_push(IntList *l, int value)\n{\n    if (l->len == l->cap) {\n        int new_cap = l->cap ? l->cap * 2 : 4;\n        int *tmp = my_realloc(l->data, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;        /* l->data is still valid */\n        l->data = tmp;\n        l->cap = new_cap;\n    }\n    l->data[l->len++] = value;\n    return 1;\n}\n\n"
+  },
+  {
+   "id": "e2",
+   "title": "Get safely, free completely",
+   "file": "getfree.c",
+   "prompt": "list_push is done for you. Write int list_get(const IntList *l, int i, int *out): if i is a valid index (0 to len - 1) store the item in *out and return 1; otherwise leave *out alone and return 0. Then write void list_free(IntList *l): free the data with my_free and reset data to NULL, len and cap to 0, so calling it twice is safe.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    int *data;   /* the items, on the heap */\n    int len;     /* how many are in use */\n    int cap;     /* how many fit before we must grow */\n} IntList;\n\nvoid list_init(IntList *l)\n{\n    l->data = NULL;\n    l->len = 0;\n    l->cap = 0;\n}\n\nint list_push(IntList *l, int value)\n{\n    if (l->len == l->cap) {\n        int new_cap = l->cap ? l->cap * 2 : 4;\n        int *tmp = my_realloc(l->data, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;        /* l->data is still valid */\n        l->data = tmp;\n        l->cap = new_cap;\n    }\n    l->data[l->len++] = value;\n    return 1;\n}\n\nint list_get(const IntList *l, int i, int *out)\n{\n    return 0;\n}\n\nvoid list_free(IntList *l)\n{\n}\n",
+   "tests": [
+    {
+     "call": "({ IntList l; list_init(&l); list_push(&l, 7); list_push(&l, 9); int v = -1; int ok = list_get(&l, 1, &v); my_free(l.data); ok * 100 + v; })",
+     "expect": "109",
+     "name": "gets an item"
+    },
+    {
+     "call": "({ IntList l; list_init(&l); list_push(&l, 7); list_push(&l, 9); int v = -1; int ok = list_get(&l, 2, &v); my_free(l.data); ok * 100 + v; })",
+     "expect": "-1",
+     "name": "past the end",
+     "hint_if_fail": "Valid indexes are 0 to len - 1, not cap - 1."
+    },
+    {
+     "call": "({ int before = live_allocs; IntList l; list_init(&l); for (int i = 0; i < 20; i++) list_push(&l, i); list_free(&l); (live_allocs - before) + l.len + l.cap + (l.data != NULL); })",
+     "expect": "0",
+     "name": "frees and resets"
+    },
+    {
+     "call": "({ IntList l; list_init(&l); list_push(&l, 3); int v = -1; int ok = list_get(&l, -1, &v); my_free(l.data); ok * 100 + v; })",
+     "expect": "-1",
+     "hidden": true,
+     "name": "negative index"
+    },
+    {
+     "call": "({ int before = live_allocs; IntList l; list_init(&l); list_push(&l, 1); list_free(&l); list_free(&l); list_push(&l, 2); int r = l.len * 10 + l.data[0]; list_free(&l); r * 10 + (live_allocs - before); })",
+     "expect": "120",
+     "hidden": true,
+     "name": "free twice, then reuse"
+    }
+   ],
+   "hints": [
+    "Check i < 0 || i >= l->len first.",
+    "*out = l->data[i]; return 1;",
+    "list_free: my_free(l->data); l->data = NULL; l->len = 0; l->cap = 0;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    int *data;   /* the items, on the heap */\n    int len;     /* how many are in use */\n    int cap;     /* how many fit before we must grow */\n} IntList;\n\nvoid list_init(IntList *l)\n{\n    l->data = NULL;\n    l->len = 0;\n    l->cap = 0;\n}\n\nint list_push(IntList *l, int value)\n{\n    if (l->len == l->cap) {\n        int new_cap = l->cap ? l->cap * 2 : 4;\n        int *tmp = my_realloc(l->data, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;        /* l->data is still valid */\n        l->data = tmp;\n        l->cap = new_cap;\n    }\n    l->data[l->len++] = value;\n    return 1;\n}\n\nint list_get(const IntList *l, int i, int *out)\n{\n    if (i < 0 || i >= l->len) return 0;   /* cap is room, not items */\n    *out = l->data[i];\n    return 1;\n}\n\nvoid list_free(IntList *l)\n{\n    my_free(l->data);\n    l->data = NULL;            /* empty again, safe to free twice */\n    l->len = 0;\n    l->cap = 0;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Drop the glitches",
+   "file": "filter.c",
+   "prompt": "A soil sensor sometimes sends nonsense. list_push is done for you. Write int list_filter(IntList *l, int lo, int hi): keep only the values from lo to hi (inclusive), in their original order, moving them down inside the same array (no new allocation). Update len and return how many were removed. An empty list (data NULL) removes 0.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    int *data;   /* the items, on the heap */\n    int len;     /* how many are in use */\n    int cap;     /* how many fit before we must grow */\n} IntList;\n\nvoid list_init(IntList *l)\n{\n    l->data = NULL;\n    l->len = 0;\n    l->cap = 0;\n}\n\nint list_push(IntList *l, int value)\n{\n    if (l->len == l->cap) {\n        int new_cap = l->cap ? l->cap * 2 : 4;\n        int *tmp = my_realloc(l->data, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;        /* l->data is still valid */\n        l->data = tmp;\n        l->cap = new_cap;\n    }\n    l->data[l->len++] = value;\n    return 1;\n}\n\nint list_filter(IntList *l, int lo, int hi)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "({ IntList l; list_init(&l); int v[] = {12, 99, 15, -40, 14}; for (int i = 0; i < 5; i++) list_push(&l, v[i]); int removed = list_filter(&l, 0, 50); int r = removed * 1000 + l.len * 100 + l.data[2]; my_free(l.data); r; })",
+     "expect": "2314",
+     "name": "removes two glitches"
+    },
+    {
+     "call": "({ IntList l; list_init(&l); int v[] = {12, 99, 15, -40, 14}; for (int i = 0; i < 5; i++) list_push(&l, v[i]); list_filter(&l, 0, 50); int r = l.data[0] * 100 + l.data[1]; my_free(l.data); r; })",
+     "expect": "1215",
+     "name": "keeps the order",
+     "hint_if_fail": "Keep a write index: copy each good value to data[w++]."
+    },
+    {
+     "call": "({ IntList l; list_init(&l); for (int i = 0; i < 5; i++) list_push(&l, 500); int removed = list_filter(&l, 0, 50); my_free(l.data); removed * 10 + l.len; })",
+     "expect": "50",
+     "hidden": true,
+     "name": "everything removed"
+    },
+    {
+     "call": "({ IntList l; list_init(&l); list_filter(&l, 0, 50) * 10 + l.len; })",
+     "expect": "0",
+     "hidden": true,
+     "name": "empty list"
+    },
+    {
+     "call": "({ int before = live_allocs; IntList l; list_init(&l); list_push(&l, 0); list_push(&l, 50); list_push(&l, 51); int removed = list_filter(&l, 0, 50); int r = removed * 100 + l.len * 10 + (live_allocs - before); my_free(l.data); r; })",
+     "expect": "121",
+     "hidden": true,
+     "name": "limits inclusive, no new block"
+    }
+   ],
+   "hints": [
+    "Use two indexes: r reads every item, w is where the next kept item goes.",
+    "if (l->data[r] >= lo && l->data[r] <= hi) l->data[w++] = l->data[r];",
+    "removed = l->len - w; l->len = w;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    int *data;   /* the items, on the heap */\n    int len;     /* how many are in use */\n    int cap;     /* how many fit before we must grow */\n} IntList;\n\nvoid list_init(IntList *l)\n{\n    l->data = NULL;\n    l->len = 0;\n    l->cap = 0;\n}\n\nint list_push(IntList *l, int value)\n{\n    if (l->len == l->cap) {\n        int new_cap = l->cap ? l->cap * 2 : 4;\n        int *tmp = my_realloc(l->data, new_cap * sizeof *tmp);\n        if (tmp == NULL) return 0;        /* l->data is still valid */\n        l->data = tmp;\n        l->cap = new_cap;\n    }\n    l->data[l->len++] = value;\n    return 1;\n}\n\nint list_filter(IntList *l, int lo, int hi)\n{\n    int w = 0;                                  /* where the next kept value goes */\n    for (int r = 0; r < l->len; r++)\n        if (l->data[r] >= lo && l->data[r] <= hi)\n            l->data[w++] = l->data[r];\n    int removed = l->len - w;\n    l->len = w;\n    return removed;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What's the difference between len and cap?",
+   "choices": [
+    "They're the same",
+    "len is how many items are in use; cap is how many fit before growing",
+    "cap is in bytes, len in items",
+    "len can be bigger than cap"
+   ],
+   "answer": 1,
+   "why": "len <= cap always."
+  },
+  {
+   "q": "Why double the capacity instead of adding 1?",
+   "choices": [
+    "It uses less memory",
+    "Far fewer reallocs (and copies) as the array grows",
+    "realloc only accepts doubles",
+    "So cap is even"
+   ],
+   "answer": 1,
+   "why": "Doubling makes pushes cheap on average."
+  },
+  {
+   "q": "What's wrong with l->data = realloc(l->data, n);?",
+   "choices": [
+    "Nothing",
+    "If realloc fails, data becomes NULL and the old block leaks",
+    "realloc can't take l->data",
+    "It frees the data"
+   ],
+   "answer": 1,
+   "why": "Use a temporary and only assign on success."
+  },
+  {
+   "q": "You keep int *first = &l.data[0]; then push 100 more items. What about first?",
+   "choices": [
+    "Still fine",
+    "It may point at freed memory, because realloc can move the block",
+    "It moves along with the data",
+    "It becomes NULL"
+   ],
+   "answer": 1,
+   "why": "Keep indexes into a growing array, not pointers."
+  },
+  {
+   "q": "realloc(NULL, 40) does...",
+   "choices": [
+    "Crashes",
+    "The same as malloc(40)",
+    "Returns NULL always",
+    "Frees 40 bytes"
+   ],
+   "answer": 1,
+   "why": "That lets an empty list start with data = NULL."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Three fields of a dynamic array?",
+   "a": "data (heap pointer), len (in use), cap (room)."
+  },
+  {
+   "q": "Safe realloc pattern?",
+   "a": "tmp = realloc(p, n); if (tmp == NULL) handle it; else p = tmp;"
+  },
+  {
+   "q": "Growth rule?",
+   "a": "When len == cap, double cap (start at something like 4)."
+  },
+  {
+   "q": "Freeing a dynamic array?",
+   "a": "free(data); then data = NULL, len = cap = 0."
+  }
+ ],
+ "explain": "Explain in your own words why the safe realloc pattern needs a temporary pointer, with a made-up example of what goes wrong without it."
+}

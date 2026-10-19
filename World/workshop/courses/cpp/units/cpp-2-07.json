@@ -1,0 +1,245 @@
+{
+ "id": "cpp-2-07",
+ "level": 2,
+ "title": "Copying: the rule of three, five and zero",
+ "concepts": [
+  "copying",
+  "raii",
+  "destructors",
+  "design"
+ ],
+ "skills": [
+  "deep copy",
+  "move",
+  "rule of zero"
+ ],
+ "lesson": "When you write `Path b = a;` or `b = a;`, C++ copies the object. By default it copies **each member**. For an `int` or a `std::string` that is exactly right. For a raw pointer member it copies the **address**, so both objects now point at the same array. That is a **shallow copy**:\n\n```\nPath a(3);          // a.points -> [0 0 0]\nPath b = a;         // b.points -> the SAME array\nb.set(0, 9);        // a sees 9 too\n// end of scope: ~Path runs twice on one array -> double delete, crash\n```\n\nA **deep copy** gives the new object its own array with the same values. You write that yourself with two special functions:\n\n```\nPath(const Path& other)                 // copy constructor: Path b = a;\n    : points(new int[other.count]), count(other.count)\n{\n    for (int i = 0; i < count; i++) points[i] = other.points[i];\n}\nPath& operator=(const Path& other);     // copy assignment: b = a;\n```\n\nCopy assignment must also release the old array, and must survive `a = a` (self-assignment): make the new array **before** deleting the old one, or check `if (this == &other)`.\n\n**The rule of three.** If a class needs a custom **destructor**, it almost certainly needs a custom **copy constructor** and **copy assignment** too. They come as a set because all three are about the same owned resource.\n\n**The rule of five** adds the two **move** operations (`T(T&&)` and `T& operator=(T&&)`). Moving steals the resource and leaves the old object empty, which is far cheaper than copying an array. Mark them `noexcept` so `std::vector` uses them when it grows.\n\n**Not copyable at all.** Some things should have one owner: an open audio channel, a network socket, a motor. Say so with `= delete`, and the compiler refuses every copy:\n\n```\nChannel(const Channel&) = delete;\nChannel& operator=(const Channel&) = delete;\n```\n\n**The rule of zero: what professionals actually do.** Don't own raw resources in ordinary classes at all. Use members that already manage themselves: `std::vector`, `std::string`, `std::unique_ptr`, `std::shared_ptr`. Then you write **none** of the five, and copying, moving and destruction are all correct automatically. (A class with a `unique_ptr` member is automatically move-only, which is usually what you want.) Keep the rule-of-five code for the few small classes whose whole job is to wrap one resource.\n\nIn Unreal, `TArray` and `FString` are deep-copied like `std::vector`, which is why `const TArray<...>&` parameters matter: forgetting the `&` copies the whole array every call.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <string>\n#include <vector>\n\n// rule of zero: no destructor, no copy functions, and copies are deep\nstruct Loadout\n{\n    std::string owner;\n    std::vector<std::string> weapons;\n};\n\nint main()\n{\n    Loadout a{\"Otieno\", {\"bow\", \"dagger\"}};\n    Loadout b = a;                 // a full, independent copy\n    b.owner = \"Wanjiru\";\n    b.weapons.push_back(\"staff\");\n\n    std::cout << a.owner << \": \" << a.weapons.size() << \" weapons\\n\";\n    std::cout << b.owner << \": \" << b.weapons.size() << \" weapons\\n\";\n\n    Loadout c = std::move(b);      // move: c takes b's vector, no copying\n    std::cout << c.owner << \" now has \" << c.weapons.size() << \", b has \" << b.weapons.size() << \"\\n\";\n    return 0;\n}\n",
+  "notes": [
+   "Loadout owns no raw pointers, so the compiler's copy is already a deep copy.",
+   "Changing b doesn't touch a: each has its own string and vector.",
+   "std::move(b) lets c take b's insides; b is left valid but empty (its size is 0 here).",
+   "No destructor, copy or move code was written: that's the rule of zero."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Deep copy a waypoint path",
+   "file": "path.cpp",
+   "prompt": "Path owns a heap array of waypoints. Finish its copy constructor and copy assignment so that copies are deep: a copy has the same size and values, but its own array, so changing one never changes the other. Copy assignment must work between paths of different sizes and must be safe for self-assignment (p = p).",
+   "starter": "class Path\n{\npublic:\n    explicit Path(int count) : points(new int[count]()), count(count) {}\n    ~Path() { delete[] points; }\n\n    Path(const Path& other) : points(new int[other.count]()), count(other.count)\n    {\n        // TODO: copy the values across\n    }\n\n    Path& operator=(const Path& other)\n    {\n        // TODO: make this a deep copy too (and make p = p safe)\n        return *this;\n    }\n\n    void set(int i, int v) { if (i >= 0 && i < count) points[i] = v; }\n    int get(int i) const { return (i >= 0 && i < count) ? points[i] : -1; }\n    int size() const { return count; }\nprivate:\n    int* points;\n    int count;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ Path a(3); a.set(0, 7); a.set(2, 9); Path b(a); return b.get(0) * 10 + b.get(2); }()",
+     "expect": "79",
+     "hint_if_fail": "The copy constructor must copy each value from other.points."
+    },
+    {
+     "call": "[]{ Path a(2); a.set(0, 1); Path b(a); b.set(0, 5); return a.get(0) * 10 + b.get(0); }()",
+     "expect": "15"
+    },
+    {
+     "call": "[]{ Path a(3); a.set(2, 4); Path b(1); b = a; a.set(2, 8); return b.size() * 10 + b.get(2); }()",
+     "expect": "34",
+     "hint_if_fail": "Assignment needs a new array of other's size, then the values, then delete[] the old array."
+    },
+    {
+     "call": "[]{ Path a(2); a.set(1, 6); Path& r = a; a = r; return a.get(1); }()",
+     "expect": "6",
+     "hidden": true,
+     "hint_if_fail": "p = p: don't delete the array you're about to copy from."
+    },
+    {
+     "call": "[]{ Path a(2); a.set(0, 3); Path b(5); b = a; Path c(1); c = b; c.set(0, 0); return std::to_string(b.size()) + std::to_string(b.get(0)) + std::to_string(c.size()); }()",
+     "expect": "232",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Copy constructor: for (int i = 0; i < count; i++) points[i] = other.points[i];",
+    "Assignment: if (this == &other) return *this; then build a fresh array, copy into it, delete[] points, and set points and count.",
+    "Building the new array before deleting the old one also makes it safe if new throws."
+   ],
+   "solution": "class Path\n{\npublic:\n    explicit Path(int count) : points(new int[count]()), count(count) {}\n    ~Path() { delete[] points; }\n\n    // deep copy: our own array with the same values\n    Path(const Path& other) : points(new int[other.count]()), count(other.count)\n    {\n        for (int i = 0; i < count; i++) points[i] = other.points[i];\n    }\n\n    Path& operator=(const Path& other)\n    {\n        if (this == &other) return *this;        // p = p: nothing to do\n        int* fresh = new int[other.count]();     // make the new array first\n        for (int i = 0; i < other.count; i++) fresh[i] = other.points[i];\n        delete[] points;                         // then let go of the old one\n        points = fresh;\n        count = other.count;\n        return *this;\n    }\n\n    void set(int i, int v) { if (i >= 0 && i < count) points[i] = v; }\n    int get(int i) const { return (i >= 0 && i < count) ? points[i] : -1; }\n    int size() const { return count; }\nprivate:\n    int* points;\n    int count;\n};\n"
+  },
+  {
+   "id": "e2",
+   "title": "A move-only audio channel",
+   "file": "channel.cpp",
+   "prompt": "An audio Channel must have exactly one owner. Add to class Channel:\n- a deleted copy constructor and copy assignment;\n- a move constructor Channel(Channel&& other) noexcept that takes other's id and sets other's id to -1;\n- a move assignment operator that first closes the channel this object had (open-- if it owned one), then takes other's id and sets other's id to -1. Moving into itself must change nothing.\nThe open counter must stay correct: it counts channels that are really open.",
+   "starter": "#include <utility>\n#include <type_traits>\n\nclass Channel\n{\npublic:\n    inline static int open = 0;   // how many audio channels are open right now\n\n    explicit Channel(int id) : id(id) { open++; }\n    ~Channel() { if (id >= 0) open--; }   // a moved-from channel (id -1) owns nothing\n\n    // TODO: no copying; moving hands the channel over\n\n    int getId() const { return id; }\n    bool owns() const { return id >= 0; }\nprivate:\n    int id;\n};\n",
+   "tests": [
+    {
+     "call": "std::is_copy_constructible<Channel>::value",
+     "expect": "false",
+     "hint_if_fail": "Channel(const Channel&) = delete;"
+    },
+    {
+     "call": "std::is_copy_assignable<Channel>::value",
+     "expect": "false"
+    },
+    {
+     "call": "[]{ int before = Channel::open; { Channel a(3); Channel b(std::move(a)); if (a.owns() || b.getId() != 3) return -99; if (Channel::open - before != 1) return -50; } return Channel::open - before; }()",
+     "expect": "0",
+     "hint_if_fail": "After the move, a must own nothing (id -1) so only b closes the channel."
+    },
+    {
+     "call": "[]{ int before = Channel::open; { Channel a(1); Channel b(2); b = std::move(a); if (b.getId() != 1 || a.owns()) return -99; if (Channel::open - before != 1) return -50; } return Channel::open - before; }()",
+     "expect": "0",
+     "hidden": true,
+     "hint_if_fail": "b already owned channel 2: close it (open--) before taking channel 1."
+    },
+    {
+     "call": "[]{ int before = Channel::open; { std::vector<Channel> v; v.emplace_back(1); v.emplace_back(2); v.emplace_back(3); if (Channel::open - before != 3) return -1; } return Channel::open - before; }()",
+     "expect": "0",
+     "hidden": true,
+     "hint_if_fail": "When the vector grows it moves channels; the move constructor must leave the old one empty."
+    },
+    {
+     "src_has": "noexcept",
+     "why": "Mark the move operations noexcept so std::vector will use them."
+    }
+   ],
+   "hints": [
+    "Channel(const Channel&) = delete; Channel& operator=(const Channel&) = delete;",
+    "Channel(Channel&& other) noexcept : id(other.id) { other.id = -1; }",
+    "Move assignment: if (this != &other) { if (id >= 0) open--; id = other.id; other.id = -1; } return *this;"
+   ],
+   "solution": "#include <utility>\n#include <type_traits>\n\nclass Channel\n{\npublic:\n    inline static int open = 0;   // how many audio channels are open right now\n\n    explicit Channel(int id) : id(id) { open++; }\n    ~Channel() { if (id >= 0) open--; }   // a moved-from channel (id -1) owns nothing\n\n    // one channel, one owner: no copies\n    Channel(const Channel&) = delete;\n    Channel& operator=(const Channel&) = delete;\n\n    // moving takes the channel and leaves the old object empty\n    Channel(Channel&& other) noexcept : id(other.id) { other.id = -1; }\n    Channel& operator=(Channel&& other) noexcept\n    {\n        if (this != &other) {\n            if (id >= 0) open--;      // close the channel we had\n            id = other.id;\n            other.id = -1;\n        }\n        return *this;\n    }\n\n    int getId() const { return id; }\n    bool owns() const { return id >= 0; }\nprivate:\n    int id;\n};\n"
+  },
+  {
+   "id": "e3",
+   "title": "Rule of zero scoreboard",
+   "file": "scoreboard.cpp",
+   "prompt": "This Scoreboard owns a raw array and crashes when copied. Rewrite it with the rule of zero: keep the same public functions (explicit Scoreboard(std::string title), void add(int score), int count() const, int best() const (0 when empty), std::string getTitle() const), but store the scores in a std::vector<int>, and write no destructor, no copy functions and no new or delete. Copies must be independent.",
+   "starter": "#include <string>\n\n// Copying this crashes: two Scoreboards end up deleting the same array.\nclass Scoreboard\n{\npublic:\n    explicit Scoreboard(std::string title) : title(title), scores(new int[4]), n(0), cap(4) {}\n    ~Scoreboard() { delete[] scores; }\n\n    void add(int score)\n    {\n        if (n == cap) {\n            int* bigger = new int[cap * 2];\n            for (int i = 0; i < n; i++) bigger[i] = scores[i];\n            delete[] scores;\n            scores = bigger;\n            cap *= 2;\n        }\n        scores[n++] = score;\n    }\n    int count() const { return n; }\n    int best() const\n    {\n        int b = 0;\n        for (int i = 0; i < n; i++) if (i == 0 || scores[i] > b) b = scores[i];\n        return b;\n    }\n    std::string getTitle() const { return title; }\nprivate:\n    std::string title;\n    int* scores;\n    int n;\n    int cap;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ Scoreboard s(\"Wave 1\"); s.add(40); s.add(90); s.add(65); return s.best() * 10 + s.count(); }()",
+     "expect": "903"
+    },
+    {
+     "call": "[]{ Scoreboard a(\"Wave 1\"); a.add(10); Scoreboard b = a; b.add(99); return a.best() * 1000 + b.best(); }()",
+     "expect": "10099",
+     "hint_if_fail": "With a std::vector member, the compiler's copy is already deep."
+    },
+    {
+     "call": "[]{ Scoreboard a(\"A\"); a.add(5); Scoreboard b(\"B\"); b = a; return b.getTitle() + std::to_string(b.count()); }()",
+     "expect": "A1"
+    },
+    {
+     "call": "[]{ Scoreboard s(\"Big\"); for (int i = 0; i < 100; i++) s.add(i); return s.best() * 1000 + s.count(); }()",
+     "expect": "99100",
+     "hidden": true
+    },
+    {
+     "call": "Scoreboard(\"Empty\").best()",
+     "expect": "0",
+     "hidden": true
+    },
+    {
+     "call": "[]{ Scoreboard s(\"Neg\"); s.add(-5); s.add(-2); return s.best(); }()",
+     "expect": "-2",
+     "hidden": true
+    },
+    {
+     "src_not": "delete",
+     "why": "Rule of zero: no delete (and no = delete either) is needed."
+    },
+    {
+     "src_not": "new ",
+     "why": "Use a std::vector<int> instead of new."
+    },
+    {
+     "src_not": "~Scoreboard",
+     "why": "Rule of zero: no destructor."
+    }
+   ],
+   "hints": [
+    "Replace int* scores, n and cap with std::vector<int> scores; (add #include <vector>).",
+    "add becomes scores.push_back(score); count is scores.size().",
+    "Delete the destructor entirely: the vector frees itself."
+   ],
+   "solution": "#include <string>\n#include <vector>\n\n// Rule of zero: the members manage themselves, so copying just works.\nclass Scoreboard\n{\npublic:\n    explicit Scoreboard(std::string title) : title(title) {}\n\n    void add(int score) { scores.push_back(score); }\n    int count() const { return scores.size(); }\n    int best() const\n    {\n        int b = 0;\n        for (size_t i = 0; i < scores.size(); i++)\n            if (i == 0 || scores[i] > b) b = scores[i];\n        return b;\n    }\n    std::string getTitle() const { return title; }\nprivate:\n    std::string title;\n    std::vector<int> scores;\n};\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "A class has a raw pointer member and the default copy. Path b = a; What does b get?",
+   "choices": [
+    "Its own copy of the array",
+    "The same address: a shallow copy",
+    "nullptr",
+    "A compile error"
+   ],
+   "answer": 1,
+   "why": "Members are copied one by one; a pointer copies as an address."
+  },
+  {
+   "q": "The rule of three says that if you write a destructor, you probably also need...",
+   "choices": [
+    "a default constructor",
+    "a copy constructor and copy assignment",
+    "a move constructor only",
+    "a virtual function"
+   ],
+   "answer": 1,
+   "why": "All three manage the same owned resource."
+  },
+  {
+   "q": "Why check this == &other in copy assignment?",
+   "choices": [
+    "Speed",
+    "So a = a doesn't delete the data before copying it",
+    "The compiler needs it",
+    "To stop moves"
+   ],
+   "answer": 1,
+   "why": "Self-assignment would free the array you're about to copy from."
+  },
+  {
+   "q": "What does Channel(const Channel&) = delete; do?",
+   "choices": [
+    "Deletes a channel",
+    "Makes any attempt to copy a Channel a compile error",
+    "Frees memory",
+    "Makes moving impossible"
+   ],
+   "answer": 1,
+   "why": "= delete removes that function; the compiler refuses copies."
+  },
+  {
+   "q": "A class whose members are std::string, std::vector and std::unique_ptr needs which special functions?",
+   "choices": [
+    "All five",
+    "Just a destructor",
+    "None: the rule of zero",
+    "Only a copy constructor"
+   ],
+   "answer": 2,
+   "why": "The members manage themselves; the class is automatically correct (and move-only because of unique_ptr)."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Shallow vs deep copy?",
+   "a": "Shallow copies the pointer; deep copies what it points at."
+  },
+  {
+   "q": "Rule of three?",
+   "a": "Destructor, copy constructor, copy assignment: need one, need all three."
+  },
+  {
+   "q": "Rule of five adds?",
+   "a": "Move constructor and move assignment (mark them noexcept)."
+  },
+  {
+   "q": "Rule of zero?",
+   "a": "Use members that manage themselves (vector, string, smart pointers) and write none of them."
+  }
+ ],
+ "explain": "Explain the difference between a shallow and a deep copy, and why the rule of zero avoids the problem altogether."
+}

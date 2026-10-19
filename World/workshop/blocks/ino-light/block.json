@@ -1,0 +1,9 @@
+{"name": "Light sensor", "kind": "hardware", "lang": "Arduino", "version": "1.0.0",
+ "summary": "How bright it is (0-100 %) from a cheap photoresistor, with a dark/light switch that doesn't flicker at dusk. For automatic lights and greenhouse logs.",
+ "tags": ["light", "ldr", "photoresistor", "dusk", "lamp", "sensor"],
+ "parts": ["photoresistor (LDR)", "10k resistor", "3 jumper wires"],
+ "files": {"sketch/light.h": "light.h"},
+ "imports": {"ino": ["#include \"light.h\""]},
+ "use": "LightSensor light(A1); if (light.isDark(20)) lamp.on(); else lamp.off();",
+ "test": {"run": ["g++", "-std=c++17", "-Wall", "-x", "c++", "test_light.cpp", "-o", "t.exe"], "files": ["test_light.cpp"], "stub": true, "then": "t.exe"},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

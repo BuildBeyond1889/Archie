@@ -1,0 +1,128 @@
+{
+ "id": "cs-1-08",
+ "level": 1,
+ "title": "Methods",
+ "concepts": [
+  "functions"
+ ],
+ "skills": [
+  "functions",
+  "methods"
+ ],
+ "bridge": "Methods declare return and parameter types: `static double Area(double w, double h) => w * h;` (the `=>` form is for one-liners). Optional parameters: `double Total(int qty, double price, double discount = 0)`. Overloading works as in Java.",
+ "lesson": "```\nstatic double Area(double length, double width)\n{\n    return length * width;\n}\nstatic double Acres(double m2) => m2 / 4046.86;      // expression-bodied: one line\nstatic double Total(int qty, double price, double discountPercent = 0)\n{\n    return Math.Round(qty * price * (100 - discountPercent) / 100, 2);\n}\n```\n\n- `void` means no return value.\n- Optional parameters have defaults: `Total(3, 50)` and `Total(4, 25.5, 10)` both work. You can also name arguments: `Total(qty: 3, price: 50)`.\n- `out` parameters return extra values: `int.TryParse(text, out int n)`.\n- Methods named in PascalCase. One job each; return instead of printing.\n\nIn Unity, your scripts are classes and their methods (`Start`, `Update`, `OnTriggerEnter`) are called by the engine at the right moments: the same idea, someone else calls your methods.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(Area(40, 30));\n        Console.WriteLine(Total(4, 25.5, 10));\n        Console.WriteLine(Total(3, 50));\n    }\n\n    static double Area(double w, double h) => w * h;\n\n    static double Total(int qty, double price, double discount = 0)\n    {\n        return Math.Round(qty * price * (100 - discount) / 100, 2);\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Temperatures",
+   "file": "Temps.cs",
+   "prompt": "Write CToF(double c) and FToC(double f) in class Temps, rounded to 1 decimal.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Temps\n{\n    // CToF and FToC here\n}\n",
+   "tests": [
+    {
+     "call": "Temps.CToF(100)",
+     "expect": "212"
+    },
+    {
+     "call": "Temps.CToF(-40)",
+     "expect": "-40"
+    },
+    {
+     "call": "Temps.FToC(98.6)",
+     "expect": "37"
+    },
+    {
+     "call": "Temps.FToC(Temps.CToF(23.4))",
+     "expect": "23.4",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "public static double CToF(double c) => Math.Round(c * 9 / 5 + 32, 1);"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Temps\n{\n    public static double CToF(double c) => Math.Round(c * 9 / 5 + 32, 1);\n\n    public static double FToC(double f) => Math.Round((f - 32) * 5 / 9, 1);\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Optional discount",
+   "file": "Price.cs",
+   "prompt": "Write Total(int qty, double unitPrice, double discountPercent = 0) in class Price: rounded to 2 decimals; throw ArgumentException if the discount isn't 0-100.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Price\n{\n}\n",
+   "tests": [
+    {
+     "call": "Price.Total(3, 50)",
+     "expect": "150"
+    },
+    {
+     "call": "Price.Total(4, 25.5, 10)",
+     "expect": "91.8"
+    },
+    {
+     "call": "Price.Total(1, 10, 150)",
+     "expect": "!ERR ArgumentException",
+     "hidden": true,
+     "hint_if_fail": "throw new ArgumentException(\"bad discount\");"
+    }
+   ],
+   "hints": [
+    "The default value goes in the parameter list: double discountPercent = 0",
+    "if (discountPercent < 0 || discountPercent > 100) throw new ArgumentException(\"bad discount\");"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Price\n{\n    public static double Total(int qty, double unitPrice, double discountPercent = 0)\n    {\n        if (discountPercent < 0 || discountPercent > 100) throw new ArgumentException(\"bad discount\");\n        return Math.Round(qty * unitPrice * (100 - discountPercent) / 100, 2);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "double Total(int q, double p, double d = 0) can be called as…",
+   "choices": [
+    "only Total(1, 2, 3)",
+    "Total(1, 2) or Total(1, 2, 3)",
+    "Total()",
+    "Total(1)"
+   ],
+   "answer": 1,
+   "why": "d is optional."
+  },
+  {
+   "q": "What does => do in static int Twice(int x) => x * 2;?",
+   "choices": [
+    "compares",
+    "a one-line method body",
+    "a pointer",
+    "a lambda only"
+   ],
+   "answer": 1,
+   "why": "Expression-bodied member."
+  },
+  {
+   "q": "Unity's Update() is called by…",
+   "choices": [
+    "you",
+    "the engine, every frame",
+    "Main",
+    "nobody"
+   ],
+   "answer": 1,
+   "why": "The engine calls your methods."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Optional parameter?",
+   "a": "double d = 0 in the parameter list"
+  },
+  {
+   "q": "One-line method?",
+   "a": "static int Twice(int x) => x * 2;"
+  },
+  {
+   "q": "Return extra values?",
+   "a": "out parameters, e.g. TryParse(text, out int n)"
+  }
+ ],
+ "explain": "Explain methods to someone who has never programmed, in your own words, with an example you make up."
+}

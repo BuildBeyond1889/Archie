@@ -1,0 +1,8 @@
+{"name": "Search", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Find records by typing a few letters of a name or place. Ignores capitals and accents, every word must match, best matches first.",
+ "tags": ["search", "find", "filter", "records"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/search.py": "search.py"},
+ "imports": {"py": ["from lib.search import search"]},
+ "use": "search(rows, 'amina kis', fields=['name', 'village'])",
+ "test": {"run": ["python", "test_search.py"], "files": ["test_search.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

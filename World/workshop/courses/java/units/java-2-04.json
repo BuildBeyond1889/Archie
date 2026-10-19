@@ -1,0 +1,249 @@
+{
+ "id": "java-2-04",
+ "level": 2,
+ "title": "Inheritance and abstract classes",
+ "concepts": [
+  "inheritance",
+  "abstract-classes",
+  "design"
+ ],
+ "skills": [
+  "extends",
+  "super",
+  "override",
+  "abstract"
+ ],
+ "lesson": "Interfaces share a *contract*. **Inheritance** shares *code*. When several classes have the same fields and most of the same behaviour, write it once in a parent class and let the others `extend` it.\n\n```\nabstract class Enemy {\n    protected final String name;\n    protected int health;\n\n    protected Enemy(String name, int health) {\n        this.name = name;\n        this.health = health;\n    }\n\n    public void takeDamage(int amount) { health = Math.max(0, health - amount); }\n    public boolean isAlive() { return health > 0; }\n    public abstract int attackPower();      // each kind decides\n}\n\nclass Slime extends Enemy {\n    Slime() { super(\"Slime\", 20); }\n    @Override public int attackPower() { return 3; }\n}\n```\n\nThe pieces:\n- `extends Enemy`: Slime gets every field and method of Enemy. A class can extend only **one** class.\n- `super(...)` calls the parent's constructor. It must be the first line. If you forget it and the parent has no empty constructor, it won't compile.\n- `abstract` class: you can't do `new Enemy(...)`; it only exists to be extended. An `abstract` method has no body, and every (non-abstract) child **must** write it.\n- `@Override` marks a method that replaces the parent's version. Always write it: if you misspell the name, the compiler tells you instead of silently making a new method.\n- `super.method()` calls the parent's version from inside an override, so you can **add to** it rather than copy it: `return super.describe() + \" [ranged]\";`.\n- `protected`: visible to child classes (and the same package), but not to the whole world.\n\n**Template method**: the parent writes the steps once (`fire()` checks ammo, uses ammo, returns damage) and calls abstract methods (`damage()`, `ammoPerShot()`) for the parts that differ. Children fill in the blanks and can't break the steps (make `fire()` `final`).\n\n**When not to use inheritance.** Use it only for a real \"is a\" relationship: a Slime *is an* Enemy. If you're tempted to extend a class just to reuse one method, use **composition** instead: give your class a field of that type. A `Tractor` *has an* `Engine`; it isn't one. Deep chains (A extends B extends C extends D) get hard to change, because a change at the top ripples down. Many teams prefer small interfaces plus composition, and keep inheritance shallow: one abstract base and a few children.\n\nCommon mistakes: calling an overridable method from a constructor; forgetting `@Override`; making fields `public` instead of `protected`/`private`; copying the parent's code into an override instead of calling `super`.",
+ "example": {
+  "file": "Example.java",
+  "code": "abstract class Animal {\n    protected final String name;\n    protected Animal(String name) { this.name = name; }\n\n    public abstract String sound();\n\n    public String describe() { return name + \" says \" + sound(); }\n}\n\nclass Cow extends Animal {\n    Cow(String name) { super(name); }\n    @Override public String sound() { return \"moo\"; }\n}\n\nclass Goat extends Animal {\n    Goat(String name) { super(name); }\n    @Override public String sound() { return \"meh\"; }\n    @Override public String describe() { return super.describe() + \" (and eats everything)\"; }\n}\n\npublic class Example {\n    public static void main(String[] args) {\n        Animal[] herd = { new Cow(\"Daisy\"), new Goat(\"Kipchoge\") };\n        for (Animal a : herd) System.out.println(a.describe());\n    }\n}\n",
+  "notes": [
+   "Animal is abstract: it can't be made on its own.",
+   "sound() is abstract: every animal must provide one.",
+   "super(name) runs Animal's constructor first.",
+   "Goat adds to describe() with super.describe() instead of copying it.",
+   "The loop treats both as Animal; each still uses its own sound()."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Slime, Archer, Golem",
+   "file": "Enemy.java",
+   "prompt": "Enemy is finished. Complete the three children: Slime (name \"Slime\", 20 health, attackPower 3); Archer (\"Archer\", 35 health, attackPower 7, and describe() adds \" [ranged]\" to the parent's text using super.describe()); Golem (\"Golem\", 80 health, attackPower 12, and its stone skin halves damage: override takeDamage to call super.takeDamage(amount / 2)).",
+   "starter": "public abstract class Enemy {\n    protected final String name;\n    protected int health;\n\n    protected Enemy(String name, int health) {\n        this.name = name;\n        this.health = health;\n    }\n\n    public void takeDamage(int amount) { health = Math.max(0, health - amount); }\n    public boolean isAlive() { return health > 0; }\n    public int getHealth() { return health; }\n    public abstract int attackPower();\n    public String describe() { return name + \" (\" + health + \" hp)\"; }\n}\n\nclass Slime extends Enemy {\n    Slime() { super(\"?\", 0); }\n    @Override public int attackPower() { return 0; }\n}\n\nclass Archer extends Enemy {\n    Archer() { super(\"?\", 0); }\n    @Override public int attackPower() { return 0; }\n}\n\nclass Golem extends Enemy {\n    Golem() { super(\"?\", 0); }\n    @Override public int attackPower() { return 0; }\n}\n",
+   "tests": [
+    {
+     "call": "new Slime().describe()",
+     "expect": "Slime (20 hp)"
+    },
+    {
+     "call": "new Archer().describe()",
+     "expect": "Archer (35 hp) [ranged]"
+    },
+    {
+     "call": "new Slime().attackPower() + new Archer().attackPower() + new Golem().attackPower()",
+     "expect": "22"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Golem g = new Golem(); g.takeDamage(30); return g.describe(); }).get()",
+     "expect": "Golem (65 hp)",
+     "name": "stone skin"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Enemy e = new Golem(); e.takeDamage(500); return e.getHealth() + \" \" + e.isAlive(); }).get()",
+     "expect": "0 false",
+     "hidden": true,
+     "name": "golem can still fall"
+    },
+    {
+     "src_has": "super.describe()",
+     "why": "Archer should build on the parent's describe() with super.describe()."
+    },
+    {
+     "src_has": "super.takeDamage(",
+     "why": "Golem should call super.takeDamage(...) rather than copy the code."
+    }
+   ],
+   "hints": [
+    "Each constructor just calls super with the right name and health: super(\"Slime\", 20);",
+    "Archer: @Override public String describe() { return super.describe() + \" [ranged]\"; }",
+    "Golem: @Override public void takeDamage(int amount) { super.takeDamage(amount / 2); }"
+   ],
+   "solution": "public abstract class Enemy {\n    protected final String name;\n    protected int health;\n\n    protected Enemy(String name, int health) {\n        this.name = name;\n        this.health = health;\n    }\n\n    public void takeDamage(int amount) { health = Math.max(0, health - amount); }\n    public boolean isAlive() { return health > 0; }\n    public int getHealth() { return health; }\n    public abstract int attackPower();\n    public String describe() { return name + \" (\" + health + \" hp)\"; }\n}\n\nclass Slime extends Enemy {\n    Slime() { super(\"Slime\", 20); }\n    @Override public int attackPower() { return 3; }\n}\n\nclass Archer extends Enemy {\n    Archer() { super(\"Archer\", 35); }\n    @Override public int attackPower() { return 7; }\n    @Override public String describe() { return super.describe() + \" [ranged]\"; }\n}\n\nclass Golem extends Enemy {\n    Golem() { super(\"Golem\", 80); }\n    @Override public int attackPower() { return 12; }\n    @Override public void takeDamage(int amount) { super.takeDamage(amount / 2); }   // stone skin\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Group savings account",
+   "file": "Account.java",
+   "prompt": "Account is finished. Write class GroupSavings extends Account with constructor GroupSavings(String owner, double opening, double ratePercent). Overrides: withdraw(double amount) returns false if amount is more than half the balance, otherwise uses the parent's withdraw (super.withdraw); summary() adds \" (group, 2.0%)\" (the rate) to the parent's summary. New method monthEnd() adds the monthly interest: balance × (1 + rate/100), rounded to 2 decimals.",
+   "starter": "public class Account {\n    protected final String owner;\n    protected double balance;\n\n    public Account(String owner, double opening) {\n        if (opening < 0) throw new IllegalArgumentException(\"opening can't be negative\");\n        this.owner = owner;\n        this.balance = opening;\n    }\n\n    public void deposit(double amount) {\n        if (amount <= 0) throw new IllegalArgumentException(\"amount must be positive\");\n        balance += amount;\n    }\n\n    public boolean withdraw(double amount) {\n        if (amount <= 0) throw new IllegalArgumentException(\"amount must be positive\");\n        if (amount > balance) return false;\n        balance -= amount;\n        return true;\n    }\n\n    public double getBalance() { return balance; }\n    public String summary() { return owner + \": \" + balance; }\n}\n\nclass GroupSavings extends Account {\n    GroupSavings(String owner, double opening, double ratePercent) {\n        super(owner, opening);\n    }\n\n    public void monthEnd() {\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { GroupSavings g = new GroupSavings(\"Wanjiru\", 1000, 2); return g.withdraw(600) + \" \" + g.withdraw(500) + \" \" + g.getBalance(); }).get()",
+     "expect": "false true 500.0",
+     "name": "only half can leave"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { GroupSavings g = new GroupSavings(\"Wanjiru\", 1000, 2); g.monthEnd(); return g.getBalance() + \"\"; }).get()",
+     "expect": "1020.0",
+     "name": "interest"
+    },
+    {
+     "call": "new GroupSavings(\"Wanjiru\", 1000, 2).summary()",
+     "expect": "Wanjiru: 1000.0 (group, 2.0%)"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Account a = new GroupSavings(\"Amina\", 800, 1); return a.withdraw(500) + \"\"; }).get()",
+     "expect": "false",
+     "name": "override works through an Account variable"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { GroupSavings g = new GroupSavings(\"Juma\", 333.33, 1.5); g.monthEnd(); return g.getBalance() + \"\"; }).get()",
+     "expect": "338.33",
+     "hidden": true,
+     "name": "rounding"
+    },
+    {
+     "call": "new GroupSavings(\"A\", 100, 1).withdraw(-5)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "negative still rejected"
+    },
+    {
+     "src_has": "super.withdraw(",
+     "why": "Reuse the parent's checks with super.withdraw(amount)."
+    }
+   ],
+   "hints": [
+    "Store the rate in a private final double field.",
+    "@Override public boolean withdraw(double amount) { if (amount > balance / 2) return false; return super.withdraw(amount); }",
+    "monthEnd: balance = Math.round(balance * (1 + rate / 100) * 100) / 100.0;"
+   ],
+   "solution": "public class Account {\n    protected final String owner;\n    protected double balance;\n\n    public Account(String owner, double opening) {\n        if (opening < 0) throw new IllegalArgumentException(\"opening can't be negative\");\n        this.owner = owner;\n        this.balance = opening;\n    }\n\n    public void deposit(double amount) {\n        if (amount <= 0) throw new IllegalArgumentException(\"amount must be positive\");\n        balance += amount;\n    }\n\n    public boolean withdraw(double amount) {\n        if (amount <= 0) throw new IllegalArgumentException(\"amount must be positive\");\n        if (amount > balance) return false;\n        balance -= amount;\n        return true;\n    }\n\n    public double getBalance() { return balance; }\n    public String summary() { return owner + \": \" + balance; }\n}\n\nclass GroupSavings extends Account {\n    private final double rate;   // percent per month\n\n    GroupSavings(String owner, double opening, double ratePercent) {\n        super(owner, opening);\n        this.rate = ratePercent;\n    }\n\n    @Override\n    public boolean withdraw(double amount) {\n        if (amount > balance / 2) return false;   // the group rule\n        return super.withdraw(amount);           // the normal checks\n    }\n\n    public void monthEnd() {\n        balance = Math.round(balance * (1 + rate / 100) * 100) / 100.0;\n    }\n\n    @Override\n    public String summary() {\n        return super.summary() + \" (group, \" + rate + \"%)\";\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Turrets",
+   "file": "Turret.java",
+   "prompt": "abstract class Turret holds the ammo. Write its final fire(): if ammo is less than ammoPerShot() return 0; otherwise subtract ammoPerShot() and return damage(). Write fireAll(): keep firing until a shot returns 0, and return the total damage. The constructor throws IllegalArgumentException for negative ammo. Children: Cannon(int ammo) does 40 damage using 2 ammo per shot; Laser(int ammo) does 15 damage using 1 ammo per shot.",
+   "starter": "public abstract class Turret {\n    private int ammo;\n\n    protected Turret(int ammo) {\n        this.ammo = ammo;\n    }\n\n    public int getAmmo() { return ammo; }\n\n    protected abstract int damage();\n    protected abstract int ammoPerShot();\n\n    public final int fire() {\n        return 0;\n    }\n\n    public int fireAll() {\n        return 0;\n    }\n}\n\nclass Cannon extends Turret {\n    Cannon(int ammo) { super(ammo); }\n    @Override protected int damage() { return 0; }\n    @Override protected int ammoPerShot() { return 1; }\n}\n\nclass Laser extends Turret {\n    Laser(int ammo) { super(ammo); }\n    @Override protected int damage() { return 0; }\n    @Override protected int ammoPerShot() { return 1; }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Cannon c = new Cannon(5); return c.fire() + \" \" + c.fire() + \" \" + c.fire() + \" \" + c.getAmmo(); }).get()",
+     "expect": "40 40 0 1",
+     "name": "cannon"
+    },
+    {
+     "call": "new Laser(3).fireAll()",
+     "expect": "45"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { int total = 0; for (Turret t : java.util.List.of(new Cannon(4), new Laser(2))) total += t.fireAll(); return total + \"\"; }).get()",
+     "expect": "110",
+     "name": "a list of turrets"
+    },
+    {
+     "call": "new Cannon(1).fire()",
+     "expect": "0",
+     "hidden": true,
+     "name": "not enough ammo"
+    },
+    {
+     "call": "new Laser(0).fireAll()",
+     "expect": "0",
+     "hidden": true,
+     "name": "empty"
+    },
+    {
+     "call": "new Laser(-1)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "negative ammo"
+    }
+   ],
+   "hints": [
+    "fire(): if (ammo < ammoPerShot()) return 0; ammo -= ammoPerShot(); return damage();",
+    "fireAll(): int total = 0; int d; while ((d = fire()) > 0) total += d; return total;",
+    "The children only return numbers: damage() { return 40; } ammoPerShot() { return 2; }"
+   ],
+   "solution": "public abstract class Turret {\n    private int ammo;\n\n    protected Turret(int ammo) {\n        if (ammo < 0) throw new IllegalArgumentException(\"ammo can't be negative\");\n        this.ammo = ammo;\n    }\n\n    public int getAmmo() { return ammo; }\n\n    protected abstract int damage();\n    protected abstract int ammoPerShot();\n\n    // The steps are fixed here; children only fill in the numbers.\n    public final int fire() {\n        if (ammo < ammoPerShot()) return 0;\n        ammo -= ammoPerShot();\n        return damage();\n    }\n\n    public int fireAll() {\n        int total = 0;\n        int d;\n        while ((d = fire()) > 0) total += d;\n        return total;\n    }\n}\n\nclass Cannon extends Turret {\n    Cannon(int ammo) { super(ammo); }\n    @Override protected int damage() { return 40; }\n    @Override protected int ammoPerShot() { return 2; }\n}\n\nclass Laser extends Turret {\n    Laser(int ammo) { super(ammo); }\n    @Override protected int damage() { return 15; }\n    @Override protected int ammoPerShot() { return 1; }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What must the first line of a child constructor be when the parent has only Enemy(String, int)?",
+   "choices": [
+    "this()",
+    "super(name, health)",
+    "Enemy(name, health)",
+    "nothing"
+   ],
+   "answer": 1,
+   "why": "The parent must be built first, with arguments it accepts."
+  },
+  {
+   "q": "Why write @Override?",
+   "choices": [
+    "It makes the method faster",
+    "The compiler errors if you didn't really override (e.g. a typo)",
+    "It's required for abstract methods only",
+    "It makes the method final"
+   ],
+   "answer": 1,
+   "why": "It turns a silent mistake into a compile error."
+  },
+  {
+   "q": "Archer's describe() returns super.describe() + \" [ranged]\". What does super.describe() run?",
+   "choices": [
+    "Archer's describe (infinite loop)",
+    "Enemy's describe",
+    "Object's toString",
+    "Nothing"
+   ],
+   "answer": 1,
+   "why": "super calls the parent's version."
+  },
+  {
+   "q": "A Tractor needs an Engine. Best design?",
+   "choices": [
+    "class Tractor extends Engine",
+    "Tractor has a field of type Engine (composition)",
+    "Engine extends Tractor",
+    "Copy the engine code into Tractor"
+   ],
+   "answer": 1,
+   "why": "A tractor HAS an engine; it isn't one."
+  },
+  {
+   "q": "An abstract method…",
+   "choices": [
+    "has a body the child may use",
+    "has no body; every concrete child must write it",
+    "can be called with new",
+    "is private"
+   ],
+   "answer": 1,
+   "why": "That's how the parent leaves a blank for children."
+  }
+ ],
+ "cards": [
+  {
+   "q": "How many classes can a class extend?",
+   "a": "One. (It can implement many interfaces.)"
+  },
+  {
+   "q": "protected means?",
+   "a": "Visible to child classes (and the same package), not everyone."
+  },
+  {
+   "q": "Call the parent's version of a method?",
+   "a": "super.methodName(...)"
+  },
+  {
+   "q": "Inheritance vs composition rule of thumb?",
+   "a": "'is a' -> extends; 'has a' -> a field. Prefer composition when unsure."
+  }
+ ],
+ "explain": "Explain when you would use inheritance and when composition, with one example of each from a game or farm program you make up."
+}

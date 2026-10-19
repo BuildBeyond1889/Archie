@@ -1,0 +1,7 @@
+{"name": "Local web app", "kind": "shell", "lang": "Python", "version": "1.0.0",
+ "summary": "A small web server in plain Python with a page and a JSON API. Open it in a browser on this PC, or start it with --share so phones on the same Wi-Fi (or a Raspberry Pi hotspot) can use it with no internet.",
+ "tags": ["web", "server", "api", "phone", "wifi", "raspberry-pi", "offline", "hotspot"],
+ "files": {"main.py": "main.py", "web/index.html": "web/index.html"},
+ "use": "Add an API route in Handler.api(). The page in web/ calls it with fetch('/api/...').",
+ "test": {"run": ["python", "main.py", "--selftest"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

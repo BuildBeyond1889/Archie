@@ -1,0 +1,78 @@
+{
+ "name": "Python",
+ "lang": "Python",
+ "version": "1.1.0",
+ "summary": "From how computers work to building and shipping real programs, modeled on Harvard's CS50 and MIT's 6.100 and 6.006: lessons, worked examples, problem sets graded by real tests, quizzes, and a final project you defend.",
+ "levels": [
+  {
+   "n": 0,
+   "name": "How computers work",
+   "ready": true
+  },
+  {
+   "n": 1,
+   "name": "Basics",
+   "ready": true
+  },
+  {
+   "n": 2,
+   "name": "Data and structure: classes, modules, testing your own code",
+   "ready": true
+  },
+  {
+   "n": 3,
+   "name": "Algorithms and data structures (MIT 6.006 style)",
+   "ready": false
+  },
+  {
+   "n": 4,
+   "name": "Systems: memory, files, networking, databases, concurrency",
+   "ready": false
+  },
+  {
+   "n": 5,
+   "name": "Mastering Python: idioms, the standard library, debugging, performance",
+   "ready": false
+  },
+  {
+   "n": 6,
+   "name": "Professional craft: git, design, code review, security, accessibility",
+   "ready": false
+  },
+  {
+   "n": 7,
+   "name": "Capstone: a real project for real people, then a defense",
+   "ready": false
+  }
+ ],
+ "units": [
+  "py-0-1",
+  "py-0-2",
+  "py-0-3",
+  "py-1-01",
+  "py-1-02",
+  "py-1-03",
+  "py-1-04",
+  "py-1-05",
+  "py-1-06",
+  "py-1-07",
+  "py-1-08",
+  "py-1-09",
+  "py-1-10",
+  "py-1-11",
+  "py-1-12",
+  "py-2-01",
+  "py-2-02",
+  "py-2-03",
+  "py-2-04",
+  "py-2-05",
+  "py-2-06",
+  "py-2-07",
+  "py-2-08",
+  "py-2-09"
+ ],
+ "certs": [
+  "Python Institute PCEP (entry level) after Level 1-2",
+  "PCAP after Level 4-5"
+ ]
+}

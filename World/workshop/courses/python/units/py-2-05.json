@@ -1,0 +1,224 @@
+{
+ "id": "py-2-05",
+ "level": 2,
+ "title": "Dataclasses and enums",
+ "concepts": [
+  "data-modeling",
+  "records",
+  "enums",
+  "classes"
+ ],
+ "skills": [
+  "dataclasses",
+  "enums",
+  "modelling"
+ ],
+ "lesson": "Many classes are mostly data: a harvest record, a patient visit, a save-game slot. Writing `__init__`, `__repr__` and `__eq__` by hand for each is slow and easy to get wrong. A **dataclass** writes them for you from a list of fields:\n\n```\nfrom dataclasses import dataclass, field\n\n@dataclass\nclass Harvest:\n    farmer: str\n    crop: str\n    kg: float\n    price_per_kg: float = 50.0       # a default\n\n    def value(self):\n        return self.kg * self.price_per_kg\n```\n\n`Harvest(\"Amina\", \"maize\", 40)` now works, prints as `Harvest(farmer='Amina', crop='maize', kg=40, price_per_kg=50.0)`, and two harvests with the same fields are `==`. You can still add methods. The `: str` parts are **type hints**: Python needs them to find the fields, and they document what each field holds (Python doesn't enforce them).\n\nThree options to know:\n- Fields with defaults must come after fields without.\n- A list or dict default must be `field(default_factory=list)`. Writing `notes: list = []` is refused, because one list would be shared by every object (the same trap as Unit 1).\n- `@dataclass(frozen=True)` makes objects that can't be changed after creation. Frozen objects can be dict keys and set members, which is handy for things like map coordinates or bed numbers.\n\n**Enums** solve a different problem. A clinic visit's status could be the text \"waiting\", \"in room\" or \"done\". But text allows typos: `if status == \"wating\"` is never true, and nothing warns you. An **Enum** is a fixed set of named values:\n\n```\nfrom enum import Enum\n\nclass Status(Enum):\n    WAITING = \"waiting\"\n    IN_ROOM = \"in room\"\n    DONE = \"done\"\n```\n\nNow you write `Status.WAITING`; a typo like `Status.WATING` is an immediate AttributeError. Compare with `is`: `if visit.status is Status.DONE`. Each member has `.name` (\"DONE\") and `.value` (\"done\"), you can loop over `Status`, and `Status(\"done\")` turns saved text back into the member (raising ValueError for unknown text).\n\n**Common mistakes**\n- Forgetting the `@dataclass` line: the class then has no `__init__` that takes the fields.\n- Comparing an enum to its text: `Status.DONE == \"done\"` is False. Compare members to members.\n- Using a dataclass for something with lots of rules and hidden state. Then a normal class with properties (Unit 3) fits better.\n\n**In real programs** dataclasses are the records that flow through an app: rows from a CSV, messages from a sensor, items in an inventory. Enums model states: a traffic light, a game's menu/playing/paused screen, a robot's idle/moving/charging mode. A state machine is often just an enum plus a function that picks the next state.",
+ "example": {
+  "file": "example.py",
+  "code": "from dataclasses import dataclass, field\nfrom enum import Enum\n\n\nclass Status(Enum):\n    WAITING = \"waiting\"\n    IN_ROOM = \"in room\"\n    DONE = \"done\"\n\n\n@dataclass\nclass Visit:\n    patient: str\n    status: Status = Status.WAITING\n    notes: list = field(default_factory=list)\n\n\n@dataclass(frozen=True)\nclass Bed:\n    ward: str\n    number: int\n\n\nv = Visit(\"Amina\")\nprint(v)\nv.status = Status.IN_ROOM\nv.notes.append(\"fever, 38.5\")\nprint(v.status.name, v.status.value, v.status is Status.IN_ROOM)\nprint(Status(\"done\"))\nbeds = {Bed(\"A\", 1): \"Amina\"}\nprint(beds[Bed(\"A\", 1)])\n",
+  "notes": [
+   "The enum lists every allowed status, once.",
+   "@dataclass writes __init__, __repr__ and __eq__ from the fields.",
+   "default_factory=list gives each visit its own notes list.",
+   "frozen=True: a Bed can't change, so it can be a dict key.",
+   "Compare enum members with is; .name and .value give the parts.",
+   "Status(\"done\") turns saved text back into a member."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A harvest record",
+   "file": "ex1_harvest.py",
+   "prompt": "Make Harvest a dataclass with fields farmer (str), crop (str), kg (float), price_per_kg (float, default 50.0), and a method value() that returns kg * price_per_kg.\nThen write best(harvests): the Harvest with the highest value(), or None for an empty list.",
+   "starter": "from dataclasses import dataclass\n\n\nclass Harvest:\n    pass\n\n\ndef best(harvests):\n    pass\n",
+   "solution": "from dataclasses import dataclass\n\n\n@dataclass\nclass Harvest:\n    farmer: str\n    crop: str\n    kg: float\n    price_per_kg: float = 50.0\n\n    def value(self):\n        return self.kg * self.price_per_kg\n\n\ndef best(harvests):\n    if not harvests:\n        return None\n    return max(harvests, key=lambda h: h.value())\n",
+   "tests": [
+    {
+     "check": "import dataclasses\nassert dataclasses.is_dataclass(Harvest), 'put @dataclass on the line above class Harvest'\nh = Harvest('Amina', 'maize', 40)\nassert h.price_per_kg == 50.0 and h.value() == 2000, h",
+     "name": "dataclass with a default"
+    },
+    {
+     "check": "assert Harvest('Juma', 'beans', 12, 120) == Harvest('Juma', 'beans', 12, 120), 'dataclasses compare by fields'\nassert repr(Harvest('Juma', 'beans', 12, 120)).startswith(\"Harvest(farmer='Juma'\"), repr(Harvest('Juma', 'beans', 12, 120))",
+     "name": "free __eq__ and __repr__"
+    },
+    {
+     "call": "best([Harvest('Amina', 'maize', 40), Harvest('Juma', 'beans', 25, 120), Harvest('Wanjiru', 'maize', 55)]).farmer",
+     "expect": "Juma",
+     "name": "best by value, not kg"
+    },
+    {
+     "call": "best([])",
+     "expect": null,
+     "hidden": true
+    },
+    {
+     "check": "import dataclasses\nnames = [f.name for f in dataclasses.fields(Harvest)]\nassert names == ['farmer', 'crop', 'kg', 'price_per_kg'], 'fields in this order please: %r' % names",
+     "name": "field order",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "@dataclass goes on the line right above class Harvest, and each field is name: type.",
+    "price_per_kg: float = 50.0 gives the default. value() is a normal method.",
+    "best: if not harvests: return None, then max(harvests, key=lambda h: h.value())."
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "A traffic light",
+   "file": "ex2_light.py",
+   "prompt": "Finish the Enum Light with RED = \"red\", GREEN = \"green\", YELLOW = \"yellow\". Then write:\n- next_light(light): RED -> GREEN -> YELLOW -> RED. Returns a Light member.\n- can_go(light): True only for GREEN.\n- parse(text): turns text like \" Red \" into Light.RED (ignore spaces and case). Unknown text raises ValueError.",
+   "starter": "from enum import Enum\n\n\nclass Light(Enum):\n    RED = \"red\"\n    # add GREEN and YELLOW\n\n\ndef next_light(light):\n    pass\n\n\ndef can_go(light):\n    pass\n\n\ndef parse(text):\n    pass\n",
+   "solution": "from enum import Enum\n\n\nclass Light(Enum):\n    RED = \"red\"\n    GREEN = \"green\"\n    YELLOW = \"yellow\"\n\n\nNEXT = {Light.RED: Light.GREEN, Light.GREEN: Light.YELLOW, Light.YELLOW: Light.RED}\n\n\ndef next_light(light):\n    return NEXT[light]\n\n\ndef can_go(light):\n    return light is Light.GREEN\n\n\ndef parse(text):\n    # Light(\"red\") looks a member up by its value and raises ValueError if there is none\n    return Light(text.strip().lower())\n",
+   "tests": [
+    {
+     "check": "assert issubclass(Light, Enum)\nassert {l.value for l in Light} == {'red', 'green', 'yellow'}, 'Light needs RED, GREEN and YELLOW with values red, green, yellow'",
+     "name": "three lights"
+    },
+    {
+     "check": "assert next_light(Light.RED) is Light.GREEN, 'red -> green'\nassert next_light(Light.GREEN) is Light.YELLOW, 'green -> yellow'\nassert next_light(Light.YELLOW) is Light.RED, 'yellow -> red'",
+     "name": "the cycle"
+    },
+    {
+     "call": "[can_go(l) for l in (Light.RED, Light.GREEN, Light.YELLOW)]",
+     "expect": [
+      false,
+      true,
+      false
+     ],
+     "name": "can_go"
+    },
+    {
+     "check": "assert parse('red') is Light.RED\nassert parse(' Yellow ') is Light.YELLOW, 'spaces and capitals should not matter'",
+     "name": "parse",
+     "hidden": true
+    },
+    {
+     "check": "try:\n    parse('blue')\n    raise AssertionError('parse(\"blue\") should raise ValueError')\nexcept ValueError:\n    pass",
+     "name": "unknown colour",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Add GREEN = \"green\" and YELLOW = \"yellow\" inside the enum.",
+    "A dict from each member to the next one makes next_light a single line.",
+    "Light(\"red\") gives Light.RED and raises ValueError for unknown text, so parse is Light(text.strip().lower())."
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "The clinic queue",
+   "file": "ex3_queue.py",
+   "prompt": "- Enum Status: WAITING = \"waiting\", IN_ROOM = \"in room\", DONE = \"done\".\n- Dataclass Visit: patient (str), status (Status, default Status.WAITING), notes (list, default a NEW empty list for each visit).\n- call_next(visits): the first visit that is WAITING becomes IN_ROOM and is returned. None if nobody is waiting.\n- finish(visit, note): only for a visit that is IN_ROOM (otherwise ValueError). Adds the note to visit.notes and sets status DONE.\n- waiting_count(visits): how many are WAITING.\n- Bed: a FROZEN dataclass with ward (str) and number (int).",
+   "starter": "from dataclasses import dataclass, field\nfrom enum import Enum\n\n\nclass Status(Enum):\n    WAITING = \"waiting\"\n\n\nclass Visit:\n    pass\n\n\ndef call_next(visits):\n    pass\n\n\ndef finish(visit, note):\n    pass\n\n\ndef waiting_count(visits):\n    pass\n\n\nclass Bed:\n    pass\n",
+   "solution": "from dataclasses import dataclass, field\nfrom enum import Enum\n\n\nclass Status(Enum):\n    WAITING = \"waiting\"\n    IN_ROOM = \"in room\"\n    DONE = \"done\"\n\n\n@dataclass\nclass Visit:\n    patient: str\n    status: Status = Status.WAITING\n    notes: list = field(default_factory=list)   # a new list for every visit\n\n\ndef call_next(visits):\n    for v in visits:\n        if v.status is Status.WAITING:\n            v.status = Status.IN_ROOM\n            return v\n    return None\n\n\ndef finish(visit, note):\n    if visit.status is not Status.IN_ROOM:\n        raise ValueError(f\"{visit.patient} is not in the room\")\n    visit.notes.append(note)\n    visit.status = Status.DONE\n\n\ndef waiting_count(visits):\n    return sum(1 for v in visits if v.status is Status.WAITING)\n\n\n@dataclass(frozen=True)\nclass Bed:\n    ward: str\n    number: int\n",
+   "tests": [
+    {
+     "check": "v = Visit('Amina')\nassert v.status is Status.WAITING and v.notes == [], v\nassert {s.name for s in Status} == {'WAITING', 'IN_ROOM', 'DONE'}",
+     "name": "a new visit"
+    },
+    {
+     "check": "q = [Visit('Amina'), Visit('Juma'), Visit('Otieno')]\nfirst = call_next(q)\nassert first is q[0] and first.status is Status.IN_ROOM, 'Amina is called first'\nassert waiting_count(q) == 2\nfinish(first, 'malaria test negative')\nassert first.status is Status.DONE and first.notes == ['malaria test negative']\nassert call_next(q).patient == 'Juma'",
+     "name": "call, finish, count"
+    },
+    {
+     "check": "q = [Visit('Amina', Status.DONE), Visit('Juma', Status.IN_ROOM)]\nassert call_next(q) is None, 'nobody is waiting'\ntry:\n    finish(Visit('Otieno'), 'x')\n    raise AssertionError('finish on a WAITING visit should raise ValueError')\nexcept ValueError:\n    pass",
+     "name": "nobody waiting / wrong state"
+    },
+    {
+     "check": "a = Visit('Amina')\nb = Visit('Juma')\na.notes.append('cough')\nassert b.notes == [], 'two visits share one notes list: use field(default_factory=list)'",
+     "name": "own notes list",
+     "hidden": true
+    },
+    {
+     "check": "import dataclasses\nb = Bed('A', 1)\ntry:\n    b.number = 2\n    raise AssertionError('Bed should be frozen')\nexcept dataclasses.FrozenInstanceError:\n    pass\nbeds = {Bed('A', 1): 'Amina'}\nassert beds[Bed('A', 1)] == 'Amina', 'equal frozen beds work as the same dict key'",
+     "name": "frozen bed",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Visit needs @dataclass and notes: list = field(default_factory=list).",
+    "call_next: loop, and on the first v.status is Status.WAITING change it and return v. After the loop, return None.",
+    "@dataclass(frozen=True) above class Bed, with ward: str and number: int."
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does @dataclass write for you?",
+   "choices": [
+    "Only __init__",
+    "__init__, __repr__ and __eq__ from the fields",
+    "A database table",
+    "Getters and setters with validation"
+   ],
+   "answer": 1,
+   "why": "Those three come free; validation is still your job."
+  },
+  {
+   "q": "Why must a list default be field(default_factory=list)?",
+   "choices": [
+    "Lists aren't allowed",
+    "So each object gets its own new list instead of sharing one",
+    "It's faster",
+    "To make the list frozen"
+   ],
+   "answer": 1,
+   "why": "A plain [] default would be shared; dataclasses refuse it."
+  },
+  {
+   "q": "Status.DONE == \"done\" is...",
+   "choices": [
+    "True",
+    "False",
+    "An error",
+    "\"done\""
+   ],
+   "answer": 1,
+   "why": "A member is not its text. Compare with Status.DONE, or use .value."
+  },
+  {
+   "q": "What is the main benefit of an Enum over plain text for a status?",
+   "choices": [
+    "Less memory",
+    "A typo becomes an error right away instead of a silent bug",
+    "It prints nicer",
+    "It can hold any value"
+   ],
+   "answer": 1,
+   "why": "Only the listed members exist."
+  },
+  {
+   "q": "Why can a frozen dataclass be a dict key but a normal one can't?",
+   "choices": [
+    "Frozen ones are smaller",
+    "It can't change, so Python can safely hash it",
+    "Dict keys must be strings",
+    "Normal dataclasses have no __eq__"
+   ],
+   "answer": 1,
+   "why": "Keys must not change after they go in."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Make a record class quickly?",
+   "a": "@dataclass with fields like name: str and kg: float = 0.0"
+  },
+  {
+   "q": "Mutable default in a dataclass?",
+   "a": "field(default_factory=list)"
+  },
+  {
+   "q": "Turn \"done\" back into Status.DONE?",
+   "a": "Status(\"done\")"
+  },
+  {
+   "q": "How do you compare enum members?",
+   "a": "With is: status is Status.DONE"
+  }
+ ],
+ "explain": "Explain when you'd use an Enum, with a made-up example of a bug it would prevent in a game or app."
+}

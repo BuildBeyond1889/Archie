@@ -1,0 +1,250 @@
+{
+ "id": "cs-2-01",
+ "level": 2,
+ "title": "Classes in depth",
+ "concepts": [
+  "classes",
+  "constructors",
+  "properties",
+  "encapsulation"
+ ],
+ "skills": [
+  "classes",
+  "properties",
+  "validation",
+  "static"
+ ],
+ "lesson": "In Level 1 you wrote methods, and then a class or two: an `Enemy` with a `Health` property, an `Inventory` with a dictionary inside. A class bundles **data** (fields and properties) with the **methods** that are allowed to change it. Level 2 is about doing that well, because in a real game or app most bugs come from data being changed by the wrong code at the wrong time.\n\n**The constructor sets the object up properly, or refuses.** If a water tank with capacity 0 makes no sense, don't allow one to exist:\n\n```\npublic WaterTank(double capacity)\n{\n    if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));\n    Capacity = capacity;\n}\n```\n\nNow every `WaterTank` in your program is valid. You never have to check it again.\n\n**Properties control who can change what.**\n- `public double Capacity { get; }` can only be set in the constructor.\n- `public double Level { get; private set; }` can be read by anyone but changed only by the tank's own methods (`Fill`, `Draw`), which keep the rules.\n- `public string Name { get; init; }` can be set once, in an object initializer (`new Profile { Name = \"Amina\" }`), then never again.\n- A property with a body can **validate**: `set => volume = Math.Clamp(value, 0, 100);` means no caller can ever store 150.\n\nThis is **encapsulation**: the class protects its own rules. The common mistake is making everything `public { get; set; }` \"to be easy\". Then any line anywhere can write `tank.Level = -40`, and you spend an evening hunting the line that did it.\n\n**Static members belong to the class, not to one object.** `static int Issued` is one counter shared by every ticket. Use static for things that really are shared (a count, a factory method, a helper like `Math.Max`). Be careful: static state lives for the whole program, so tests have to reset it.\n\nIn Unity you'll see the same shape: `[SerializeField] private int maxHealth;` shows a private field in the editor, and a public read-only property lets other scripts look without touching.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\npublic class WaterTank\n{\n    public double Capacity { get; }              // set once, in the constructor\n    public double Level { get; private set; }    // read anywhere, changed only in here\n\n    public WaterTank(double capacity)\n    {\n        if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));\n        Capacity = capacity;\n    }\n\n    public double PercentFull => Math.Round(Level / Capacity * 100, 1);\n\n    public double Fill(double litres)\n    {\n        double added = Math.Min(Capacity - Level, litres);\n        Level += added;\n        return litres - added;                   // what spilled over\n    }\n}\n\npublic class Profile\n{\n    public string Name { get; init; } = \"Player\";\n    private int volume = 80;\n    public int Volume { get => volume; set => volume = Math.Clamp(value, 0, 100); }\n    public static int Created { get; private set; }\n    public Profile() { Created++; }\n}\n\nclass Program\n{\n    static void Main()\n    {\n        var tank = new WaterTank(1000);\n        Console.WriteLine($\"spilled {tank.Fill(1200)}, {tank.PercentFull}% full\");\n        var p = new Profile { Name = \"Amina\" };\n        p.Volume = 150;\n        Console.WriteLine($\"{p.Name} volume {p.Volume}, profiles made: {Profile.Created}\");\n    }\n}\n",
+  "notes": [
+   "The constructor throws for a bad capacity, so an invalid tank can never exist.",
+   "Level has a private setter: only Fill (and other tank methods) can change it.",
+   "PercentFull is a computed property: it has no storage, it's worked out each time.",
+   "Name uses init: set in the object initializer, then fixed.",
+   "Volume's setter clamps, so 150 is stored as 100.",
+   "Created is static: one counter for the whole class."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A water tank",
+   "file": "WaterTank.cs",
+   "prompt": "Write class WaterTank:\n- constructor WaterTank(double capacity): throw ArgumentOutOfRangeException if capacity is 0 or less.\n- property Capacity (get only) and Level (get; private set;), starting at 0.\n- PercentFull: Level / Capacity * 100, rounded to 1 decimal.\n- double Fill(double litres): adds what fits, returns how much spilled over. Negative litres: ArgumentOutOfRangeException.\n- double Draw(double litres): takes out up to that much, returns what was really drawn. Negative litres: ArgumentOutOfRangeException.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class WaterTank\n{\n    public double Capacity { get; set; }\n    public double Level { get; set; }\n\n    public WaterTank(double capacity)\n    {\n        Capacity = capacity;\n    }\n\n    public double PercentFull => 0;\n\n    public double Fill(double litres)\n    {\n        return 0;\n    }\n\n    public double Draw(double litres)\n    {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var t = new WaterTank(1000); double spill = t.Fill(1200); return t.Level + \" \" + spill + \" \" + t.PercentFull; }))()",
+     "expect": "1000 200 100",
+     "name": "fill past the top"
+    },
+    {
+     "call": "((Func<string>)(() => { var t = new WaterTank(500); t.Fill(200); double got = t.Draw(50); return t.Level + \" \" + got + \" \" + t.PercentFull; }))()",
+     "expect": "150 50 30",
+     "name": "fill and draw"
+    },
+    {
+     "call": "((Func<string>)(() => { var t = new WaterTank(300); t.Fill(100); return t.Draw(250) + \" \" + t.Level; }))()",
+     "expect": "100 0",
+     "hidden": true,
+     "name": "draw more than there is",
+     "hint_if_fail": "Draw can only give what is in the tank: Math.Min(Level, litres)."
+    },
+    {
+     "call": "new WaterTank(0).Capacity",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "zero capacity is refused"
+    },
+    {
+     "call": "((Func<string>)(() => { var t = new WaterTank(100); t.Fill(-5); return \"no error\"; }))()",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "negative fill is refused"
+    },
+    {
+     "src_has": "private set",
+     "why": "Level should have a private setter so only the tank can change it."
+    }
+   ],
+   "hints": [
+    "Start with the guard in the constructor: if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));",
+    "Fill: double added = Math.Min(Capacity - Level, litres); Level += added; return litres - added;",
+    "Draw: double taken = Math.Min(Level, litres); Level -= taken; return taken;"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class WaterTank\n{\n    public double Capacity { get; }\n    public double Level { get; private set; }\n\n    public WaterTank(double capacity)\n    {\n        if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity), \"A tank needs room for some water.\");\n        Capacity = capacity;\n    }\n\n    public double PercentFull => Math.Round(Level / Capacity * 100, 1);\n\n    // Adds what fits and returns what spilled over the top.\n    public double Fill(double litres)\n    {\n        if (litres < 0) throw new ArgumentOutOfRangeException(nameof(litres));\n        double added = Math.Min(Capacity - Level, litres);\n        Level += added;\n        return litres - added;\n    }\n\n    // Takes out up to `litres` and returns what was really drawn.\n    public double Draw(double litres)\n    {\n        if (litres < 0) throw new ArgumentOutOfRangeException(nameof(litres));\n        double taken = Math.Min(Level, litres);\n        Level -= taken;\n        return taken;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "A player profile",
+   "file": "PlayerProfile.cs",
+   "prompt": "Write class PlayerProfile:\n- Name: get and init. Default \"Player\". The init accessor trims the value and throws ArgumentException if it is null or blank.\n- Volume: get and set, default 80. The setter clamps to 0..100 (150 becomes 100, -3 becomes 0).\n- Xp: get; private set; starts at 0. void AddXp(int amount) adds to it; a negative amount throws ArgumentOutOfRangeException.\n- Level: computed, Xp / 100 + 1 (so 250 xp is level 3).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class PlayerProfile\n{\n    public string Name { get; set; }\n    public int Volume { get; set; }\n    public int Xp { get; set; }\n    public int Level => 1;\n\n    public void AddXp(int amount)\n    {\n    }\n}\n",
+   "tests": [
+    {
+     "call": "new PlayerProfile { Name = \"  Amina \" }.Name",
+     "expect": "Amina",
+     "name": "init trims the name"
+    },
+    {
+     "call": "new PlayerProfile().Name + \" \" + new PlayerProfile().Volume",
+     "expect": "Player 80",
+     "name": "defaults"
+    },
+    {
+     "call": "((Func<string>)(() => { var p = new PlayerProfile { Name = \"Juma\" }; p.Volume = 150; int a = p.Volume; p.Volume = -3; return a + \" \" + p.Volume; }))()",
+     "expect": "100 0",
+     "name": "volume is clamped"
+    },
+    {
+     "call": "((Func<string>)(() => { var p = new PlayerProfile(); p.AddXp(250); return p.Xp + \" \" + p.Level; }))()",
+     "expect": "250 3",
+     "name": "xp and level"
+    },
+    {
+     "call": "new PlayerProfile { Name = \"   \" }.Name",
+     "expect": "!ERR ArgumentException",
+     "hidden": true,
+     "name": "blank name is refused"
+    },
+    {
+     "call": "((Func<string>)(() => { var p = new PlayerProfile(); p.AddXp(-10); return \"no error\"; }))()",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "negative xp is refused"
+    },
+    {
+     "src_has": "init",
+     "why": "Name should use an init accessor."
+    }
+   ],
+   "hints": [
+    "Name needs a backing field: private readonly string name = \"Player\"; then get => name; init { ... name = value.Trim(); }",
+    "Volume: private int volume = 80; public int Volume { get => volume; set => volume = Math.Clamp(value, 0, 100); }",
+    "Level doesn't need storage: public int Level => Xp / 100 + 1;"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class PlayerProfile\n{\n    private readonly string name = \"Player\";\n    private int volume = 80;\n\n    // init: can be set once while the object is being made, then never again.\n    public string Name\n    {\n        get => name;\n        init\n        {\n            if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException(\"A name can't be blank.\");\n            name = value.Trim();\n        }\n    }\n\n    // Whatever comes in, the stored value stays between 0 and 100.\n    public int Volume\n    {\n        get => volume;\n        set => volume = Math.Clamp(value, 0, 100);\n    }\n\n    public int Xp { get; private set; }\n\n    public int Level => Xp / 100 + 1;\n\n    public void AddXp(int amount)\n    {\n        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        Xp += amount;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Clinic tickets (static members)",
+   "file": "Ticket.cs",
+   "prompt": "Write class Ticket for a clinic queue:\n- static int Issued { get; private set; }: how many tickets were made today.\n- constructor Ticket(string patient): throws ArgumentException if the name is null or blank; stores the trimmed name in Patient; adds 1 to Issued and uses it as this ticket's Number (first ticket is 1).\n- static void ResetDay(): sets Issued back to 0.\n- static string NextUp(int served): \"Queue empty\" if served >= Issued, otherwise \"Now serving #N\" where N = served + 1.\n- ToString(): \"#2 Juma\".",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Ticket\n{\n    public int Number { get; }\n    public string Patient { get; }\n\n    public Ticket(string patient)\n    {\n        Patient = patient;\n    }\n\n    // static Issued, ResetDay and NextUp go here\n\n    public override string ToString() => \"\";\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { Ticket.ResetDay(); var a = new Ticket(\"Amina\"); var b = new Ticket(\"Juma\"); return a + \", \" + b + \" | \" + Ticket.Issued; }))()",
+     "expect": "#1 Amina, #2 Juma | 2",
+     "name": "numbers count up"
+    },
+    {
+     "call": "((Func<string>)(() => { Ticket.ResetDay(); new Ticket(\"A\"); new Ticket(\"B\"); new Ticket(\"C\"); return Ticket.NextUp(1); }))()",
+     "expect": "Now serving #2",
+     "name": "next up"
+    },
+    {
+     "call": "((Func<string>)(() => { Ticket.ResetDay(); new Ticket(\"A\"); Ticket.ResetDay(); return new Ticket(\" Otieno \").ToString(); }))()",
+     "expect": "#1 Otieno",
+     "hidden": true,
+     "name": "reset starts again at 1"
+    },
+    {
+     "call": "((Func<string>)(() => { Ticket.ResetDay(); return Ticket.NextUp(0); }))()",
+     "expect": "Queue empty",
+     "hidden": true,
+     "name": "empty queue"
+    },
+    {
+     "call": "new Ticket(\"\")",
+     "expect": "!ERR ArgumentException",
+     "hidden": true,
+     "name": "blank name is refused"
+    }
+   ],
+   "hints": [
+    "public static int Issued { get; private set; } is shared by every ticket.",
+    "In the constructor: check the name, then Issued++; Number = Issued;",
+    "public static string NextUp(int served) => served >= Issued ? \"Queue empty\" : $\"Now serving #{served + 1}\";"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Ticket\n{\n    // static: one counter for the whole class, not one per ticket\n    public static int Issued { get; private set; }\n\n    public int Number { get; }\n    public string Patient { get; }\n\n    public Ticket(string patient)\n    {\n        if (string.IsNullOrWhiteSpace(patient)) throw new ArgumentException(\"Who is the ticket for?\");\n        Patient = patient.Trim();\n        Issued++;\n        Number = Issued;\n    }\n\n    public static void ResetDay() => Issued = 0;\n\n    public static string NextUp(int served) => served >= Issued ? \"Queue empty\" : $\"Now serving #{served + 1}\";\n\n    public override string ToString() => $\"#{Number} {Patient}\";\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why throw an exception in the constructor for a capacity of 0?",
+   "choices": [
+    "To make the program slower",
+    "So an invalid object can never exist, and no other code has to check",
+    "Constructors must always throw",
+    "Because 0 is not a double"
+   ],
+   "answer": 1,
+   "why": "Guard the door once; every object after that is valid."
+  },
+  {
+   "q": "public double Level { get; private set; } means…",
+   "choices": [
+    "nobody can read it",
+    "anyone can read it; only the class's own code can change it",
+    "anyone can change it",
+    "it can be set once in an initializer"
+   ],
+   "answer": 1,
+   "why": "Read outside, write inside."
+  },
+  {
+   "q": "What does an init accessor allow?",
+   "choices": [
+    "Setting the value any time",
+    "Setting it only in the constructor or an object initializer, then never again",
+    "Only reading",
+    "Setting it from static methods"
+   ],
+   "answer": 1,
+   "why": "init = set during creation only."
+  },
+  {
+   "q": "Ticket.Issued is static. If you make 3 tickets, how many Issued counters exist?",
+   "choices": [
+    "3",
+    "1, shared by the class",
+    "0",
+    "One per method"
+   ],
+   "answer": 1,
+   "why": "Static members belong to the class."
+  },
+  {
+   "q": "A teammate makes every property public { get; set; } 'to keep it simple'. What is the real risk?",
+   "choices": [
+    "It won't compile",
+    "Any code anywhere can break the object's rules, and bugs become hard to trace",
+    "Properties get slower",
+    "None"
+   ],
+   "answer": 1,
+   "why": "Encapsulation keeps the rules in one place."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Read anywhere, change only inside?",
+   "a": "public int X { get; private set; }"
+  },
+  {
+   "q": "Set once while creating?",
+   "a": "public string Name { get; init; }"
+  },
+  {
+   "q": "Validate in a setter?",
+   "a": "set => volume = Math.Clamp(value, 0, 100);"
+  },
+  {
+   "q": "Static member?",
+   "a": "Belongs to the class, shared by all objects: Ticket.Issued"
+  }
+ ],
+ "explain": "Explain encapsulation in your own words, using an example you make up (a fuel tank, a bank account, a game character)."
+}

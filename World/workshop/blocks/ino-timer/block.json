@@ -1,0 +1,52 @@
+{
+ "name": "Timers without delay()",
+ "kind": "toolkit",
+ "lang": "Arduino",
+ "version": "1.0.0",
+ "summary": "Run things every few seconds without delay(), so buttons, sensors and alarms all keep working at once. Safe when millis() wraps around after 49 days.",
+ "tags": [
+  "timer",
+  "millis",
+  "non-blocking",
+  "schedule",
+  "arduino"
+ ],
+ "files": {
+  "sketch/every.h": "every.h"
+ },
+ "imports": {
+  "ino": [
+   "#include \"every.h\""
+  ]
+ },
+ "use": "Every readSoil(2000); ... if (readSoil.ready()) { ... }",
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-Wall",
+   "-x",
+   "c++",
+   "test_every.cpp",
+   "-o",
+   "t.exe"
+  ],
+  "files": [
+   "test_every.cpp"
+  ],
+  "stub": true,
+  "then": "t.exe"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "now - last_ >= ms_",
+   "note": "Subtracting (instead of comparing to a future time) keeps working when millis() wraps around to 0 after 49 days."
+  }
+ ]
+}

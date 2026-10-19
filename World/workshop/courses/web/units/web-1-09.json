@@ -1,0 +1,170 @@
+{
+ "id": "web-1-09",
+ "level": 1,
+ "title": "JavaScript: decisions and loops",
+ "concepts": [
+  "conditions",
+  "loops"
+ ],
+ "skills": [
+  "javascript",
+  "conditions",
+  "loops"
+ ],
+ "bridge": "`if (x > 5) { ... } else if (...) { ... } else { ... }`; and/or/not are `&&`, `||`, `!`. Loops: `for (let i = 0; i < 10; i++)`, `while (cond)`, and `for (const item of list)` for every item (note: **of**, not in).",
+ "lesson": "Decisions:\n\n```\nif (score >= 80) {\n  grade = \"A\";\n} else if (score >= 65) {\n  grade = \"B\";\n} else {\n  grade = \"C\";\n}\nconst size = kg > 100 ? \"big\" : \"small\";     // one-line choice\n```\n\n`&&` and, `||` or, `!` not. Use `===`.\n\nLoops:\n\n```\nfor (let i = 1; i <= 12; i++) { ... }        // counting\nwhile (saved < goal) { ... }                  // until something happens\nfor (const crop of crops) { ... }             // every item of an array or string\n```\n\nWatch out: `for (const x in list)` (with **in**) gives the *positions* as strings, not the items; `of` is almost always what you want. `break` leaves a loop, `continue` skips to the next round.\n\nLoops that build a result: start an empty array (`const out = [];`), `out.push(...)` inside, return it after. Or a string, joined at the end: `lines.join(\"\\n\")`.",
+ "example": {
+  "file": "example.js",
+  "code": "function grade(score) {\n  if (score < 0 || score > 100) return \"invalid\";\n  if (score >= 80) return \"A\";\n  if (score >= 65) return \"B\";\n  return \"C\";\n}\nconsole.log(grade(85), grade(70), grade(30), grade(120));\n\nconst lines = [];\nfor (let i = 1; i <= 3; i++) lines.push(`7 x ${i} = ${7 * i}`);\nconsole.log(lines.join(\"\\n\"));\nfor (const ch of \"Habari\") console.log(ch);\n",
+  "notes": [
+   "Guard bad input first, then highest grade down.",
+   "Build an array of lines and join.",
+   "for…of goes letter by letter."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Fridge check",
+   "file": "ex1_fridge.js",
+   "prompt": "Write fridge(temp): \"too cold\" below 2, \"ok\" from 2 to 8 (both included), \"too warm\" above 8.",
+   "starter": "function fridge(temp) {\n  return \"\";\n}\n",
+   "tests": [
+    {
+     "call": "fridge(5)",
+     "expect": "ok"
+    },
+    {
+     "call": "fridge(-1)",
+     "expect": "too cold"
+    },
+    {
+     "call": "fridge(9.5)",
+     "expect": "too warm"
+    },
+    {
+     "call": "fridge(2)",
+     "expect": "ok",
+     "hidden": true
+    },
+    {
+     "call": "fridge(8)",
+     "expect": "ok",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "if (temp < 2) ... else if (temp <= 8) ... else ..."
+   ],
+   "solution": "function fridge(temp) {\n  if (temp < 2) return \"too cold\";\n  if (temp <= 8) return \"ok\";\n  return \"too warm\";\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Times table",
+   "file": "ex2_table.js",
+   "prompt": "Write timesTable(n) that returns an ARRAY of 12 strings like \"7 x 3 = 21\" (from 1 to 12).",
+   "starter": "function timesTable(n) {\n  const out = [];\n  return out;\n}\n",
+   "tests": [
+    {
+     "call": "timesTable(7)[2]",
+     "expect": "7 x 3 = 21"
+    },
+    {
+     "call": "timesTable(7).length",
+     "expect": 12
+    },
+    {
+     "call": "timesTable(9)[11]",
+     "expect": "9 x 12 = 108",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "for (let i = 1; i <= 12; i++) out.push(...)",
+    "out.push(`${n} x ${i} = ${n * i}`);"
+   ],
+   "solution": "function timesTable(n) {\n  const out = [];\n  for (let i = 1; i <= 12; i++) out.push(`${n} x ${i} = ${n * i}`);\n  return out;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Count the vowels",
+   "file": "ex3_vowels.js",
+   "prompt": "Write countVowels(text): how many a, e, i, o, u (capitals count too). Use a for…of loop.",
+   "starter": "function countVowels(text) {\n  return 0;\n}\n",
+   "tests": [
+    {
+     "call": "countVowels(\"Kilimanjaro\")",
+     "expect": 5
+    },
+    {
+     "call": "countVowels(\"AEIOU xyz\")",
+     "expect": 5
+    },
+    {
+     "call": "countVowels(\"\")",
+     "expect": 0,
+     "hidden": true
+    },
+    {
+     "src_has": " of ",
+     "why": "Use a for…of loop."
+    }
+   ],
+   "hints": [
+    "for (const ch of text.toLowerCase())",
+    "if (\"aeiou\".includes(ch)) n++;"
+   ],
+   "solution": "function countVowels(text) {\n  let n = 0;\n  for (const ch of text.toLowerCase()) if (\"aeiou\".includes(ch)) n++;\n  return n;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "for (const x of [10, 20]) gives x =",
+   "choices": [
+    "0 then 1",
+    "10 then 20",
+    "\"0\" then \"1\"",
+    "the whole array"
+   ],
+   "answer": 1,
+   "why": "of gives the items; in gives positions."
+  },
+  {
+   "q": "JavaScript's 'or'?",
+   "choices": [
+    "or",
+    "|",
+    "||",
+    "+"
+   ],
+   "answer": 2,
+   "why": "||"
+  },
+  {
+   "q": "Build up an array in a loop?",
+   "choices": [
+    "out = out + x",
+    "out.push(x)",
+    "out.add(x)",
+    "out[] = x"
+   ],
+   "answer": 1,
+   "why": "push adds to the end."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Every item of an array?",
+   "a": "for (const x of arr) { }"
+  },
+  {
+   "q": "Add to an array?",
+   "a": "arr.push(x)"
+  },
+  {
+   "q": "One-line choice?",
+   "a": "cond ? a : b"
+  }
+ ],
+ "explain": "Explain javascript: decisions and loops to someone who has never programmed, in your own words, with an example you make up."
+}

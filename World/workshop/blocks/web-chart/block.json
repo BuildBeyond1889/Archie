@@ -1,0 +1,8 @@
+{"name": "Charts (web)", "kind": "feature", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "Bar and line charts on a canvas with tidy axes, sharp on phone screens, no libraries. sumBy() adds up records by category for you.",
+ "tags": ["chart", "graph", "bar", "line", "canvas", "visual", "totals"],
+ "files": {"js/chart.js": "chart.js"},
+ "imports": {"js": ["<script src=\"js/chart.js\"></script>"]},
+ "use": "const s = sumBy(rows, 'crop', 'kg'); barChart(canvas, s.labels, s.values, {title: 'Kg by crop'})",
+ "test": {"run": ["node", "test_chart.js"], "files": ["test_chart.js"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

@@ -1,0 +1,381 @@
+{
+ "id": "web-2-09",
+ "level": 2,
+ "title": "Level 2 project: a chama contributions tracker",
+ "concepts": [
+  "dom",
+  "forms",
+  "validation",
+  "storage",
+  "rendering",
+  "iteration",
+  "design"
+ ],
+ "skills": [
+  "design",
+  "forms",
+  "storage",
+  "rendering"
+ ],
+ "project": true,
+ "lesson": "Time to build a complete offline app that a real group could use. A **chama** is a savings group: members pay in regularly, and the treasurer has to know who paid what, each member's total, and the group's total. Many treasurers do this in a notebook; a small page on a shared laptop or phone saves arguments and arithmetic.\n\nYou'll use every part of this level:\n- **A form with validation** (unit 3): member name and amount, errors shown next to each box.\n- **State plus render** (unit 4): an array of payments `{ id, member, amount }` is the truth; `render()` draws the payment list, the totals and the grand total from it.\n- **Array methods** (unit 5): totals per member with `reduce`, sorted with a compare function.\n- **localStorage** (unit 6): saved on every change, loaded on start, safe against broken data.\n- **Organisation and accessibility** (unit 8): pure logic separate from the view; labels, a real submit button, an `aria-live` status line.\n\n**Three files, three exercises.**\n1. **ex1_chama.html**: the page. A `<main>` with a max-width, the form `#pay-form` (inputs `#member` and `#amount` with labels, HTML checks, error spans `#member-error` and `#amount-error`, and a submit button), a status line `#status` with `aria-live=\"polite\"`, the lists `#payments` and `#totals`, the grand total `#grand`, and the script `ex2_chama.js`.\n2. **ex2_chama.js**: the app. Its exercise prompt lists every function and exactly what it must do. The starter lays out the sections (state, logic, storage, actions, view, wiring) so each piece has a home.\n3. **ex3_owes.js**: the treasurer's question at every meeting: *who still owes, and how much of the target have we collected?* Pure functions with array methods.\n\n**Plan before you type.** Write the logic first (`validatePayment`, `totalsByMember`, `grandTotal`) and run the tests: they don't need a page. Then storage (`loadPayments`, `savePayments`), then `addPayment`/`removePayment` (change state, save, render), then `render`, and the submit wiring last. Test by hand in the preview too: add payments, remove one, reload the page and check they're still there.\n\n**Think like the treasurer.** What if someone types \"  Amina\" with spaces? (Trim it.) A blank amount? (\"Enter an amount\", not 0.) 250.50 shillings? (Whole numbers only.) The browser data was cleared? (Start empty, don't crash.) Someone overpays? (It must not hide another member's debt in the collection percentage.) Every hidden test is one of these real situations.\n\nWhen it works, it's genuinely useful: the same pattern runs a clinic's stock book, a school's attendance, or a game's save system.",
+ "example": {
+  "file": "example.js",
+  "code": "// The shape of every action in the tracker:\nfunction addPayment(member, amount) {\n  const errors = validatePayment(member, amount);     // 1. logic decides\n  if (Object.keys(errors).length > 0) return errors;  //    (and says why not)\n  payments.push({ id: nextId++, member: member.trim(), amount: Number(amount) });  // 2. state changes\n  savePayments();                                     // 3. storage remembers\n  render();                                           // 4. view redraws from state\n  return {};\n}\n",
+  "notes": [
+   "Logic first: nothing changes unless the input is valid.",
+   "State is the one array of payments, each with its own id.",
+   "Save on every change, so a closed tab loses nothing.",
+   "render() draws everything from state, so lists and totals always agree."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "The tracker page",
+   "file": "ex1_chama.html",
+   "prompt": "Build the page as the lesson describes. Inside <main> (give main a max-width in CSS): <form id=\"pay-form\"> with a text input #member (required) and a number input #amount (required, min=\"1\"), each with a <label for>, each followed by its error span (#member-error, #amount-error), and a <button type=\"submit\">; a <p id=\"status\" aria-live=\"polite\">; <ul id=\"payments\">; <ul id=\"totals\">; and <p id=\"grand\">. Include the viewport meta tag and link ex2_chama.js at the end of the body.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Chama contributions</title>\n</head>\n<body>\n<h1>Chama contributions</h1>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "main form#pay-form input#member[required]"
+      },
+      {
+       "has": "form#pay-form input#amount[type=number][required][min=1]"
+      }
+     ],
+     "name": "the form"
+    },
+    {
+     "html": [
+      {
+       "has": "label",
+       "min": 2
+      },
+      {
+       "attr": "label",
+       "needs": "for"
+      },
+      {
+       "has": "label[for=member]"
+      },
+      {
+       "has": "label[for=amount]"
+      }
+     ],
+     "name": "labels"
+    },
+    {
+     "html": [
+      {
+       "has": "#member-error"
+      },
+      {
+       "has": "#amount-error"
+      },
+      {
+       "has": "form#pay-form button[type=submit]"
+      }
+     ],
+     "name": "error spots and a submit button"
+    },
+    {
+     "html": [
+      {
+       "has": "ul#payments"
+      },
+      {
+       "has": "ul#totals"
+      },
+      {
+       "has": "#grand"
+      }
+     ],
+     "name": "lists and the grand total"
+    },
+    {
+     "html": [
+      {
+       "has": "#status[aria-live=polite]"
+      }
+     ],
+     "name": "an announced status line",
+     "hidden": true
+    },
+    {
+     "html": [
+      {
+       "has": "meta[name=viewport]"
+      },
+      {
+       "css": "main",
+       "prop": "max-width"
+      }
+     ],
+     "name": "comfortable on a phone"
+    },
+    {
+     "html": [
+      {
+       "has": "script[src=ex2_chama.js]"
+      }
+     ],
+     "name": "links the script"
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "Start from the harvest form in unit 3: same idea, different ids.",
+    "<input id=\"amount\" type=\"number\" min=\"1\" required aria-describedby=\"amount-error\">",
+    "In a <style> in the head: main { max-width: 480px; margin: 0 auto; }"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Chama contributions</title>\n<style>\n* { box-sizing: border-box; }\nbody { margin: 0; font-family: system-ui, sans-serif; background: #f6f4ee; color: #222; }\nmain { max-width: 480px; margin: 0 auto; padding: 16px; }\nlabel, input { display: block; width: 100%; margin-top: 8px; font-size: 1.05rem; }\nbutton { margin-top: 12px; padding: 10px 16px; font-size: 1rem; }\n.error { color: #b00020; font-size: 0.9rem; }\n.invalid { border: 2px solid #b00020; }\n#grand { font-size: 1.4rem; font-weight: bold; }\n</style>\n</head>\n<body>\n<main>\n<h1>Chama contributions</h1>\n<form id=\"pay-form\" novalidate>\n  <label for=\"member\">Member</label>\n  <input id=\"member\" type=\"text\" required aria-describedby=\"member-error\">\n  <span id=\"member-error\" class=\"error\"></span>\n\n  <label for=\"amount\">Amount (KSh)</label>\n  <input id=\"amount\" type=\"number\" min=\"1\" step=\"1\" required aria-describedby=\"amount-error\">\n  <span id=\"amount-error\" class=\"error\"></span>\n\n  <button type=\"submit\">Record payment</button>\n</form>\n<p id=\"status\" aria-live=\"polite\"></p>\n\n<h2>Payments</h2>\n<ul id=\"payments\"></ul>\n\n<h2>Totals</h2>\n<ul id=\"totals\"></ul>\n<p id=\"grand\">Total: 0 KSh</p>\n</main>\n<script src=\"ex2_chama.js\"></script>\n</body>\n</html>\n",
+   "extra_files": {
+    "ex2_chama.js": "// the tracker's code goes here (next exercise)\n"
+   }
+  },
+  {
+   "id": "e2",
+   "title": "The tracker app",
+   "file": "ex2_chama.js",
+   "prompt": "Write the tracker (the page is ex1_chama.html). State: var payments (an array of { id, member, amount }) loaded with loadPayments() on start, and var nextId continuing after the biggest saved id. validatePayment(member, amount) (both text): errors.member = \"Enter a member name\" if blank after trimming; errors.amount = \"Enter an amount\" if blank, or \"Amount must be a whole number above 0\" if it isn't a whole number above 0; returns {} when fine. totalsByMember(list): an array of { member, total }, biggest total first, ties A to Z. grandTotal(list): all amounts added. loadPayments(): the array saved as JSON under \"chama.payments\", or [] if missing, broken or not an array; keep only items with a whole-number id, a text member and an amount above 0. savePayments(): saves payments as JSON under that key. addPayment(member, amount): if invalid, return the errors object and change nothing; otherwise add { id: nextId++, member: trimmed, amount: as a number }, save, render, return {}. removePayment(id): remove it, save, render. render(): empty and redraw #payments (one <li> per payment holding a <span> \"MEMBER: AMOUNT KSh\" and a <button> \"Remove\" that removes that payment), #totals (one <li> \"MEMBER: TOTAL KSh\" per totalsByMember row) and #grand (\"Total: N KSh\"). On submit of #pay-form: preventDefault; addPayment with the two boxes; show each message (or \"\") in #member-error / #amount-error with the class \"invalid\" on the box; if it worked, set #status to \"Saved AMOUNT KSh from MEMBER\" and empty both boxes.",
+   "starter": "// ================= Chama contributions tracker =================\n// Fill in each part. Keep the names: Archie's tests call them.\n\n// ---- state ----\nvar KEY = \"chama.payments\";\nvar payments = loadPayments();\nvar nextId = 1;   // should continue after the biggest saved id\n\n// ---- logic (pure) ----\nfunction validatePayment(member, amount) {\n  return {};\n}\n\nfunction totalsByMember(list) {\n  return [];\n}\n\nfunction grandTotal(list) {\n  return 0;\n}\n\n// ---- storage ----\nfunction loadPayments() {\n  return [];\n}\n\nfunction savePayments() {\n}\n\n// ---- actions: change state, save, redraw ----\nfunction addPayment(member, amount) {\n  return {};\n}\n\nfunction removePayment(id) {\n}\n\n// ---- view ----\nfunction render() {\n}\n\nfunction showErrors(errors) {\n}\n\n// ---- wiring: submit on #pay-form ----\n\nrender();\n",
+   "tests": [
+    {
+     "call": "[validatePayment(\"\", \"500\").member, validatePayment(\" Amina \", \" 500 \")]",
+     "expect": [
+      "Enter a member name",
+      {}
+     ],
+     "name": "validate the member"
+    },
+    {
+     "call": "[\"\", \"abc\", \"-5\", \"0\", \"12.5\"].map((a) => validatePayment(\"Amina\", a).amount)",
+     "expect": [
+      "Enter an amount",
+      "Amount must be a whole number above 0",
+      "Amount must be a whole number above 0",
+      "Amount must be a whole number above 0",
+      "Amount must be a whole number above 0"
+     ],
+     "name": "validate the amount",
+     "hint_if_fail": "Check \"\" first (Number(\"\") is 0), then Number.isInteger(n) && n > 0."
+    },
+    {
+     "call": "totalsByMember([{ id: 1, member: \"Amina\", amount: 500 }, { id: 2, member: \"Juma\", amount: 300 }, { id: 3, member: \"Amina\", amount: 700 }, { id: 4, member: \"Wanjiru\", amount: 1000 }])",
+     "expect": [
+      {
+       "member": "Amina",
+       "total": 1200
+      },
+      {
+       "member": "Wanjiru",
+       "total": 1000
+      },
+      {
+       "member": "Juma",
+       "total": 300
+      }
+     ],
+     "name": "totals per member"
+    },
+    {
+     "call": "[grandTotal([{ id: 1, member: \"Amina\", amount: 500 }, { id: 2, member: \"Juma\", amount: 300 }, { id: 3, member: \"Amina\", amount: 700 }, { id: 4, member: \"Wanjiru\", amount: 1000 }]), grandTotal([]), totalsByMember([])]",
+     "expect": [
+      2500,
+      0,
+      []
+     ],
+     "name": "grand total"
+    },
+    {
+     "call": "totalsByMember([{ id: 1, member: \"Wanjiru\", amount: 500 }, { id: 2, member: \"Amina\", amount: 500 }]).map((t) => t.member)",
+     "expect": [
+      "Amina",
+      "Wanjiru"
+     ],
+     "name": "ties A to Z",
+     "hidden": true
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.setItem(\"chama.payments\", \"oops{\");\n__eq(loadPayments(), [], \"broken saved text\");\nlocalStorage.setItem(\"chama.payments\", '{\"a\":1}');\n__eq(loadPayments(), [], \"not an array\");\nlocalStorage.setItem(\"chama.payments\", '[{\"id\":1,\"member\":\"Amina\",\"amount\":500},{\"id\":2,\"member\":\"Juma\"},null,{\"id\":3,\"member\":\"Otieno\",\"amount\":-20}]');\n__eq(loadPayments(), [{ id: 1, member: \"Amina\", amount: 500 }], \"only good payments\");\nlocalStorage.removeItem(\"chama.payments\");\n__eq(loadPayments(), [], \"nothing saved\");\n})();",
+     "name": "safe loading",
+     "hint_if_fail": "try/catch around JSON.parse, Array.isArray, then filter."
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.clear();\npayments = [];\nconst ul = __live(document.getElementById(\"payments\")), tl = __live(document.getElementById(\"totals\"));\nconst m = document.getElementById(\"member\"), a = document.getElementById(\"amount\");\nm.value = \" Amina \"; a.value = \"500\";\nconst ev = __fire(document.getElementById(\"pay-form\"), \"submit\");\nif (!ev.defaultPrevented) throw new Error(\"call event.preventDefault()\");\n__eq(payments.length, 1, \"payments.length after one good submit\");\n__eq(ul.children.length, 1, \"li count in #payments\");\nif (!ul.children[0].children[0]) throw new Error(\"each payment li needs a span\");\n__eq(ul.children[0].children[0].textContent, \"Amina: 500 KSh\", \"the payment span\");\n__eq(tl.children.length, 1, \"li count in #totals\");\n__eq(tl.children[0].textContent, \"Amina: 500 KSh\", \"the total li\");\n__eq(document.getElementById(\"grand\").textContent, \"Total: 500 KSh\", \"#grand\");\n__eq(document.getElementById(\"status\").textContent, \"Saved 500 KSh from Amina\", \"#status\");\n__eq([m.value, a.value], [\"\", \"\"], \"the boxes should be emptied\");\nconst saved = JSON.parse(localStorage.getItem(\"chama.payments\") || \"null\");\nif (!Array.isArray(saved) || saved.length !== 1 || saved[0].member !== \"Amina\" || saved[0].amount !== 500) throw new Error(\"the payment should be saved under chama.payments, got \" + localStorage.getItem(\"chama.payments\"));\n})();",
+     "name": "a good payment is recorded, shown and saved"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"payments\"));\nconst m = document.getElementById(\"member\"), a = document.getElementById(\"amount\");\nm.value = \"\"; a.value = \"12.5\";\n__fire(document.getElementById(\"pay-form\"), \"submit\");\n__eq(payments.length, 1, \"payments.length after a bad submit\");\n__eq(document.getElementById(\"member-error\").textContent, \"Enter a member name\", \"#member-error\");\n__eq(document.getElementById(\"amount-error\").textContent, \"Amount must be a whole number above 0\", \"#amount-error\");\nif (!a.classList.contains(\"invalid\")) throw new Error(\"#amount should get the class invalid\");\n__eq(addPayment(\"Juma\", \"0\").amount, \"Amount must be a whole number above 0\", \"addPayment() returns the errors\");\n__eq(payments.length, 1, \"payments.length\");\n})();",
+     "name": "a bad payment shows errors and changes nothing"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"payments\")), tl = __live(document.getElementById(\"totals\"));\naddPayment(\"Juma\", \"300\");\naddPayment(\"Amina\", \"200\");\n__eq(ul.children.length, 3, \"li count in #payments\");\n__eq(tl.children.map((li) => li.textContent), [\"Amina: 700 KSh\", \"Juma: 300 KSh\"], \"#totals\");\n__eq(document.getElementById(\"grand\").textContent, \"Total: 1000 KSh\", \"#grand\");\nconst btn = ul.children[1].children[1];\nif (!btn || btn.tagName !== \"BUTTON\") throw new Error(\"each payment li needs a Remove button after the span\");\nbtn.click();\n__eq(payments.map((p) => p.member), [\"Amina\", \"Amina\"], \"payments after removing Juma's\");\n__eq(ul.children.length, 2, \"li count\");\n__eq(document.getElementById(\"grand\").textContent, \"Total: 700 KSh\", \"#grand\");\n__eq(JSON.parse(localStorage.getItem(\"chama.payments\")).length, 2, \"saved payments after the removal\");\n})();",
+     "name": "totals and Remove"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ids = payments.map((p) => p.id);\naddPayment(\"Wanjiru\", \"50\");\nconst id = payments[payments.length - 1].id;\nif (ids.includes(id)) throw new Error(\"a new payment reused an id: \" + id);\n})();",
+     "name": "ids are never reused",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Do the pure logic first and get those tests passing; they don't need the page.",
+    "loadPayments: try { const data = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(data) ? data.filter(isPayment) : []; } catch (err) { return []; }",
+    "render: list.innerHTML = \"\" then one li per payment with span + button (btn.addEventListener(\"click\", () => removePayment(p.id))); then the same for totalsByMember(payments); then #grand."
+   ],
+   "solution": "// ================= Chama contributions tracker =================\n\n// ---- state ----\nvar KEY = \"chama.payments\";\nvar payments = loadPayments();\nvar nextId = payments.reduce((max, p) => Math.max(max, p.id), 0) + 1;\n\n// ---- logic (pure) ----\nfunction validatePayment(member, amount) {\n  const errors = {};\n  if (String(member).trim() === \"\") errors.member = \"Enter a member name\";\n  const text = String(amount).trim();\n  const n = Number(text);\n  if (text === \"\") errors.amount = \"Enter an amount\";\n  else if (!Number.isInteger(n) || n <= 0) errors.amount = \"Amount must be a whole number above 0\";\n  return errors;\n}\n\nfunction totalsByMember(list) {\n  const totals = list.reduce((t, p) => {\n    t[p.member] = (t[p.member] || 0) + p.amount;\n    return t;\n  }, {});\n  return Object.entries(totals)\n    .map(([member, total]) => ({ member, total }))\n    .sort((a, b) => b.total - a.total || a.member.localeCompare(b.member));\n}\n\nfunction grandTotal(list) {\n  return list.reduce((sum, p) => sum + p.amount, 0);\n}\n\n// ---- storage ----\nfunction isPayment(p) {\n  return p !== null && typeof p === \"object\" && Number.isInteger(p.id) && typeof p.member === \"string\" && Number.isFinite(p.amount) && p.amount > 0;\n}\n\nfunction loadPayments() {\n  try {\n    const data = JSON.parse(localStorage.getItem(KEY));\n    return Array.isArray(data) ? data.filter(isPayment) : [];\n  } catch (err) {\n    return [];\n  }\n}\n\nfunction savePayments() {\n  localStorage.setItem(KEY, JSON.stringify(payments));\n}\n\n// ---- actions: change state, save, redraw ----\nfunction addPayment(member, amount) {\n  const errors = validatePayment(member, amount);\n  if (Object.keys(errors).length > 0) return errors;\n  payments.push({ id: nextId++, member: String(member).trim(), amount: Number(amount) });\n  savePayments();\n  render();\n  return {};\n}\n\nfunction removePayment(id) {\n  payments = payments.filter((p) => p.id !== id);\n  savePayments();\n  render();\n}\n\n// ---- view ----\nfunction render() {\n  const list = document.getElementById(\"payments\");\n  list.innerHTML = \"\";\n  for (const p of payments) {\n    const li = document.createElement(\"li\");\n    const span = document.createElement(\"span\");\n    span.textContent = `${p.member}: ${p.amount} KSh`;\n    const btn = document.createElement(\"button\");\n    btn.textContent = \"Remove\";\n    btn.addEventListener(\"click\", () => removePayment(p.id));\n    li.appendChild(span);\n    li.appendChild(btn);\n    list.appendChild(li);\n  }\n\n  const totals = document.getElementById(\"totals\");\n  totals.innerHTML = \"\";\n  for (const t of totalsByMember(payments)) {\n    const li = document.createElement(\"li\");\n    li.textContent = `${t.member}: ${t.total} KSh`;\n    totals.appendChild(li);\n  }\n\n  document.getElementById(\"grand\").textContent = `Total: ${grandTotal(payments)} KSh`;\n}\n\nfunction showErrors(errors) {\n  for (const field of [\"member\", \"amount\"]) {\n    const message = errors[field] || \"\";\n    document.getElementById(field + \"-error\").textContent = message;\n    document.getElementById(field).classList.toggle(\"invalid\", message !== \"\");\n  }\n}\n\n// ---- wiring ----\ndocument.getElementById(\"pay-form\").addEventListener(\"submit\", (event) => {\n  event.preventDefault();\n  const memberBox = document.getElementById(\"member\");\n  const amountBox = document.getElementById(\"amount\");\n  const errors = addPayment(memberBox.value, amountBox.value);\n  showErrors(errors);\n  if (Object.keys(errors).length > 0) return;\n  document.getElementById(\"status\").textContent = `Saved ${Number(amountBox.value)} KSh from ${memberBox.value.trim()}`;\n  memberBox.value = \"\";\n  amountBox.value = \"\";\n  memberBox.focus();\n});\n\nrender();\n",
+   "extra_files": {
+    "ex1_chama.html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Chama contributions</title>\n<style>\n* { box-sizing: border-box; }\nbody { margin: 0; font-family: system-ui, sans-serif; background: #f6f4ee; color: #222; }\nmain { max-width: 480px; margin: 0 auto; padding: 16px; }\nlabel, input { display: block; width: 100%; margin-top: 8px; font-size: 1.05rem; }\nbutton { margin-top: 12px; padding: 10px 16px; font-size: 1rem; }\n.error { color: #b00020; font-size: 0.9rem; }\n.invalid { border: 2px solid #b00020; }\n#grand { font-size: 1.4rem; font-weight: bold; }\n</style>\n</head>\n<body>\n<main>\n<h1>Chama contributions</h1>\n<form id=\"pay-form\" novalidate>\n  <label for=\"member\">Member</label>\n  <input id=\"member\" type=\"text\" required aria-describedby=\"member-error\">\n  <span id=\"member-error\" class=\"error\"></span>\n\n  <label for=\"amount\">Amount (KSh)</label>\n  <input id=\"amount\" type=\"number\" min=\"1\" step=\"1\" required aria-describedby=\"amount-error\">\n  <span id=\"amount-error\" class=\"error\"></span>\n\n  <button type=\"submit\">Record payment</button>\n</form>\n<p id=\"status\" aria-live=\"polite\"></p>\n\n<h2>Payments</h2>\n<ul id=\"payments\"></ul>\n\n<h2>Totals</h2>\n<ul id=\"totals\"></ul>\n<p id=\"grand\">Total: 0 KSh</p>\n</main>\n<script src=\"ex2_chama.js\"></script>\n</body>\n</html>\n"
+   }
+  },
+  {
+   "id": "e3",
+   "title": "Who still owes?",
+   "file": "ex3_owes.js",
+   "prompt": "Each member should pay the target amount this month. Write whoOwes(payments, members, target): payments are like [{ id, member, amount }], members is the list of names. Return an array of { member, owes } for each member who has paid less than target (owes = target minus what they paid), most owed first, ties A to Z. Payments from people not in members are ignored. Write percentCollected(payments, members, target): the percentage of (members times target) collected, rounded to 1 decimal, where each member counts at most target (an overpayment doesn't cover someone else); 0 if there are no members or target is 0.",
+   "starter": "function whoOwes(payments, members, target) {\n  return [];\n}\n\nfunction percentCollected(payments, members, target) {\n  return 0;\n}\n",
+   "tests": [
+    {
+     "call": "whoOwes([{ id: 1, member: \"Amina\", amount: 500 }, { id: 2, member: \"Juma\", amount: 300 }, { id: 3, member: \"Amina\", amount: 700 }, { id: 4, member: \"Wanjiru\", amount: 1000 }], [\"Amina\", \"Juma\", \"Wanjiru\", \"Otieno\"], 1000).map((r) => [r.member, r.owes])",
+     "expect": [
+      [
+       "Otieno",
+       1000
+      ],
+      [
+       "Juma",
+       700
+      ]
+     ],
+     "name": "who owes"
+    },
+    {
+     "call": "percentCollected([{ id: 1, member: \"Amina\", amount: 500 }, { id: 2, member: \"Juma\", amount: 300 }, { id: 3, member: \"Amina\", amount: 700 }, { id: 4, member: \"Wanjiru\", amount: 1000 }], [\"Amina\", \"Juma\", \"Wanjiru\", \"Otieno\"], 1000)",
+     "expect": 57.5,
+     "name": "percent collected",
+     "hint_if_fail": "Amina paid 1200 but counts as 1000: (1000 + 300 + 1000 + 0) / 4000 = 57.5%."
+    },
+    {
+     "call": "whoOwes([{ id: 1, member: \"Zawadi\", amount: 900 }], [\"Chebet\", \"Baraka\"], 500).map((r) => [r.member, r.owes])",
+     "expect": [
+      [
+       "Baraka",
+       500
+      ],
+      [
+       "Chebet",
+       500
+      ]
+     ],
+     "name": "non-members ignored, ties A to Z",
+     "hidden": true
+    },
+    {
+     "call": "[percentCollected([], [], 1000), percentCollected([], [\"Amina\"], 0), whoOwes([], [], 1000)]",
+     "expect": [
+      0,
+      0,
+      []
+     ],
+     "name": "no members, no target",
+     "hidden": true
+    },
+    {
+     "call": "percentCollected([{ id: 1, member: \"Amina\", amount: 100 }], [\"Amina\", \"Juma\", \"Otieno\"], 1000)",
+     "expect": 3.3,
+     "name": "rounded to 1 decimal",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "First total what each person paid: reduce into an object.",
+    "whoOwes: members.map((m) => ({ member: m, owes: target - (paid[m] || 0) })).filter((r) => r.owes > 0).sort(...)",
+    "percent: members.reduce((s, m) => s + Math.min(paid[m] || 0, target), 0) / (members.length * target) * 100, then Math.round(x * 10) / 10."
+   ],
+   "solution": "function paidBy(payments) {\n  return payments.reduce((t, p) => {\n    t[p.member] = (t[p.member] || 0) + p.amount;\n    return t;\n  }, {});\n}\n\nfunction whoOwes(payments, members, target) {\n  const paid = paidBy(payments);\n  return members\n    .map((m) => ({ member: m, owes: target - (paid[m] || 0) }))\n    .filter((r) => r.owes > 0)\n    .sort((a, b) => b.owes - a.owes || a.member.localeCompare(b.member));\n}\n\nfunction percentCollected(payments, members, target) {\n  if (members.length === 0 || target <= 0) return 0;\n  const paid = paidBy(payments);\n  // each member counts at most the target, so one overpayment can't hide another's debt\n  const counted = members.reduce((sum, m) => sum + Math.min(paid[m] || 0, target), 0);\n  return Math.round((counted / (members.length * target)) * 1000) / 10;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "A treasurer reloads the page and all payments vanish. What's missing?",
+   "choices": [
+    "render()",
+    "Saving to localStorage on each change and loading on start",
+    "preventDefault",
+    "validation"
+   ],
+   "answer": 1,
+   "why": "Variables only live while the page is open."
+  },
+  {
+   "q": "Why does every action end with render() instead of updating the totals by hand?",
+   "choices": [
+    "It's faster",
+    "The lists and totals are always drawn from the same state, so they can't disagree",
+    "Totals can't be changed",
+    "Browsers require it"
+   ],
+   "answer": 1,
+   "why": "One source of truth, one drawing function."
+  },
+  {
+   "q": "Why must validatePayment reject an empty amount before converting with Number()?",
+   "choices": [
+    "Number(\"\") throws",
+    "Number(\"\") is 0, which would quietly record a zero payment",
+    "Empty strings are numbers",
+    "It doesn't matter"
+   ],
+   "answer": 1,
+   "why": "Check for blank first."
+  },
+  {
+   "q": "Why does percentCollected cap each member at the target?",
+   "choices": [
+    "To round nicely",
+    "So one member's overpayment doesn't hide another member's debt",
+    "Targets are maximums",
+    "JavaScript requires it"
+   ],
+   "answer": 1,
+   "why": "Each member's share is counted separately."
+  },
+  {
+   "q": "Which part of the tracker is easiest to test without a browser?",
+   "choices": [
+    "The submit wiring",
+    "render()",
+    "Pure functions like totalsByMember and validatePayment",
+    "The CSS"
+   ],
+   "answer": 2,
+   "why": "Pure logic needs only data in and answers out."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Every action's shape?",
+   "a": "Validate, change state, save, render."
+  },
+  {
+   "q": "Safe load from localStorage?",
+   "a": "try { JSON.parse } catch, then Array.isArray, then filter good items."
+  },
+  {
+   "q": "Totals per member, biggest first?",
+   "a": "reduce into an object, Object.entries, map to { member, total }, sort with b.total - a.total."
+  },
+  {
+   "q": "Round to 1 decimal?",
+   "a": "Math.round(x * 10) / 10"
+  }
+ ],
+ "explain": "Explain how your tracker keeps the page, the saved data and the totals in agreement, as if to the group's treasurer."
+}

@@ -1,0 +1,163 @@
+{
+ "id": "py-1-01",
+ "level": 1,
+ "title": "Variables and types",
+ "skills": [
+  "variables",
+  "types"
+ ],
+ "lesson": "A **variable** is a name for a value, so you can use it later. `=` means \"store this\": `price = 50` puts 50 in a box labelled price. It is not \"equals\" in the maths sense: `count = count + 1` is fine and means \"take count, add 1, store it back in count\".\n\nEvery value has a **type**:\n- `int`: whole numbers, `42`, `-3`\n- `float`: numbers with a decimal point, `3.5`\n- `str`: text, `\"Amina\"`\n- `bool`: `True` or `False`\n\n`type(x)` tells you which. Types matter because they decide what works: `\"5\" + \"5\"` is `\"55\"` (joining text), while `5 + 5` is `10`. Turning one type into another is called **converting**: `int(\"5\")` is 5, `str(5)` is `\"5\"`, `float(\"2.5\")` is 2.5.\n\nGood names say what the value is: `harvest_kg` beats `x`. Use lowercase with underscores. Names can't start with a number or contain spaces, and capitals matter: `Price` and `price` are different variables.",
+ "example": {
+  "code": "crop = \"maize\"\nkg = 40\nprice_per_kg = 55.5\nsold = False\nprint(crop, kg, price_per_kg, sold)\nprint(type(kg), type(price_per_kg))\nkg = kg + 10\nprint(\"now\", kg)\nprint(\"5\" + \"5\", 5 + 5)\n",
+  "notes": [
+   "Four variables of four types.",
+   "type() shows int and float.",
+   "kg = kg + 10 updates the value.",
+   "Text joins, numbers add."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A record in variables",
+   "file": "ex1_vars.py",
+   "prompt": "Make variables: name = \"Juma\", age = 14, height_m = 1.62, in_school = True. Then print each one on its own line, followed by its type, like: Juma <class 'str'>",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Juma <class 'str'>",
+      "14 <class 'int'>",
+      "1.62 <class 'float'>",
+      "True <class 'bool'>"
+     ],
+     "case": true,
+     "name": "four lines with types"
+    },
+    {
+     "call": "age",
+     "expect": 14,
+     "name": "age is 14 (a number)"
+    },
+    {
+     "call": "in_school",
+     "expect": true,
+     "name": "in_school is True"
+    }
+   ],
+   "hints": [
+    "print can take two things: print(name, type(name)).",
+    "Watch the spelling: in_school, height_m. True has a capital T and no quotes."
+   ],
+   "solution": "name = \"Juma\"\nage = 14\nheight_m = 1.62\nin_school = True\nprint(name, type(name))\nprint(age, type(age))\nprint(height_m, type(height_m))\nprint(in_school, type(in_school))\n"
+  },
+  {
+   "id": "e2",
+   "title": "Swap two values",
+   "file": "ex2_swap.py",
+   "prompt": "a = \"left\" and b = \"right\" are given. Swap them so a holds \"right\" and b holds \"left\", without typing the words again. Then print a and b.",
+   "starter": "a = \"left\"\nb = \"right\"\n# swap them here, without writing \"left\" or \"right\" again\n\nprint(a, b)\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "right left"
+     ],
+     "name": "prints right left"
+    },
+    {
+     "check": "s = CODE\nassert s.count('\"left\"') + s.count(\"'left'\") == 1, 'Don\\'t type the words again: move the values with variables.'",
+     "name": "no retyping"
+    }
+   ],
+   "hints": [
+    "If you do a = b first, the old value of a is gone. Keep a copy first.",
+    "temp = a, then a = b, then b = temp. (Python also allows a, b = b, a.)"
+   ],
+   "solution": "a = \"left\"\nb = \"right\"\na, b = b, a\nprint(a, b)\n"
+  },
+  {
+   "id": "e3",
+   "title": "Converting",
+   "file": "ex3_convert.py",
+   "prompt": "You get the text \"12\" and the text \"30\". Make total the NUMBER 42 by converting them, and print total. Then print total as text joined with \" kg\" (like 42 kg) using str().",
+   "starter": "a = \"12\"\nb = \"30\"\n",
+   "tests": [
+    {
+     "call": "total",
+     "expect": 42,
+     "name": "total is the number 42"
+    },
+    {
+     "stdin": "",
+     "out": [
+      "42",
+      "42 kg"
+     ],
+     "name": "prints 42 and 42 kg"
+    }
+   ],
+   "hints": [
+    "int(a) turns \"12\" into 12.",
+    "total = int(a) + int(b), then print(str(total) + \" kg\")."
+   ],
+   "solution": "a = \"12\"\nb = \"30\"\ntotal = int(a) + int(b)\nprint(total)\nprint(str(total) + \" kg\")\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does \"3\" + \"4\" give?",
+   "choices": [
+    "7",
+    "\"34\"",
+    "an error",
+    "12"
+   ],
+   "answer": 1,
+   "why": "Two strings join into \"34\"."
+  },
+  {
+   "q": "After x = 5 then x = x * 2, what is x?",
+   "choices": [
+    "5",
+    "x * 2",
+    "10",
+    "an error"
+   ],
+   "answer": 2,
+   "why": "Take x (5), times 2, store back: 10."
+  },
+  {
+   "q": "Which is a valid variable name?",
+   "choices": [
+    "2nd_place",
+    "harvest kg",
+    "harvest_kg",
+    "class"
+   ],
+   "answer": 2,
+   "why": "No starting digit, no spaces, and class is a word Python reserves."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What does = do in Python?",
+   "a": "Stores the value on the right in the name on the left."
+  },
+  {
+   "q": "The four basic types?",
+   "a": "int, float, str, bool."
+  },
+  {
+   "q": "How do you turn \"7\" into the number 7?",
+   "a": "int(\"7\")"
+  }
+ ],
+ "concepts": [
+  "variables",
+  "types"
+ ],
+ "bridge": "Python variables have **no declared type**: `kg = 40` then later `kg = \"forty\"` is allowed (but confusing). Names use snake_case: `price_per_kg`. Convert with `int()`, `float()`, `str()`.",
+ "explain": "Explain variables and types to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

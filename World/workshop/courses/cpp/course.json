@@ -1,0 +1,70 @@
+{
+ "name": "C++",
+ "lang": "C++",
+ "grader": "C++",
+ "version": "1.1.0",
+ "summary": "C++ the way game-dev and university courses teach it: types, strings, decisions, loops, vectors, references, maps and classes, ending with tower-defence turret logic (targeting and cooldowns) you can carry into Unreal. Graded by real tests.",
+ "levels": [
+  {
+   "n": 1,
+   "name": "Basics: types, input, strings, decisions, loops, vectors, references, maps, classes",
+   "ready": true
+  },
+  {
+   "n": 2,
+   "name": "Memory: pointers, new/delete, smart pointers, RAII",
+   "ready": true
+  },
+  {
+   "n": 3,
+   "name": "Objects in depth: inheritance, virtual functions, templates, the STL",
+   "ready": false
+  },
+  {
+   "n": 4,
+   "name": "Games: Unreal C++ (actors, components, Tick), maths for games",
+   "ready": false
+  },
+  {
+   "n": 5,
+   "name": "Algorithms and data structures in C++",
+   "ready": false
+  },
+  {
+   "n": 6,
+   "name": "Professional craft: CMake, debugging, profiling, testing",
+   "ready": false
+  },
+  {
+   "n": 7,
+   "name": "Capstone: a real game system or tool, then a defense",
+   "ready": false
+  }
+ ],
+ "units": [
+  "cpp-1-01",
+  "cpp-1-02",
+  "cpp-1-03",
+  "cpp-1-04",
+  "cpp-1-05",
+  "cpp-1-06",
+  "cpp-1-07",
+  "cpp-1-08",
+  "cpp-1-09",
+  "cpp-1-10",
+  "cpp-1-11",
+  "cpp-2-01",
+  "cpp-2-02",
+  "cpp-2-03",
+  "cpp-2-04",
+  "cpp-2-05",
+  "cpp-2-06",
+  "cpp-2-07",
+  "cpp-2-08",
+  "cpp-2-09"
+ ],
+ "certs": [
+  "C++ Institute CPA (entry level) covers Levels 1-3",
+  "Unreal Engine's free learning paths (dev.epicgames.com) for Level 4"
+ ]
+}

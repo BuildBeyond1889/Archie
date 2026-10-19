@@ -1,0 +1,226 @@
+{
+ "id": "cs-2-02",
+ "level": 2,
+ "title": "Interfaces",
+ "concepts": [
+  "interfaces",
+  "polymorphism",
+  "comparators"
+ ],
+ "skills": [
+  "interfaces",
+  "contracts",
+  "sorting"
+ ],
+ "lesson": "An **interface** is a promise: \"anything that is an `IDamageable` has a `Health` and a `TakeDamage` method\". It has no code of its own, only the shape.\n\n```\npublic interface IDamageable\n{\n    int Health { get; }\n    bool IsDestroyed { get; }\n    void TakeDamage(int amount);\n}\n\npublic class Crate : IDamageable { ... }\npublic class ArmoredWall : IDamageable { ... }\n```\n\n**Why bother?** Because now an explosion doesn't care what it hits:\n\n```\nforeach (IDamageable target in targets)\n    target.TakeDamage(30);\n```\n\nA crate, a wall, a player, a tree: if it signs the contract, the explosion works on it. Tomorrow you add a `Barrel` and the explosion code doesn't change at all. This is called **programming to an interface**: write code against the promise, not the concrete class.\n\nNames start with `I` by convention: `IDamageable`, `IComparable<T>`, `IEnumerable<T>`. A class can implement **many** interfaces (`class Player : IDamageable, IHealable`), which is a big reason to prefer interfaces over one deep family tree.\n\n**Built-in interfaces plug your classes into .NET.** If `Score` implements `IComparable<Score>`, then `list.Sort()` knows how to sort scores:\n\n```\npublic int CompareTo(Score other)\n{\n    int byPoints = other.Points.CompareTo(Points);   // higher first\n    if (byPoints != 0) return byPoints;\n    return Seconds.CompareTo(other.Seconds);          // then faster first\n}\n```\n\n`CompareTo` returns a negative number if this one comes first, 0 for a tie, positive if it comes after. The common mistake is getting the direction backwards: `Points.CompareTo(other.Points)` sorts lowest first. Swap the two sides to sort high scores first.\n\n**Interfaces make code testable.** A `StockAlert` that needs an `INotifier` can be given a real SMS sender in the clinic, an email sender in the office, or a fake that just records messages in a test. In Unity you'll call `other.GetComponent<IDamageable>()` on whatever a bullet hit, and it works for every kind of target.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\n\npublic interface IDamageable\n{\n    int Health { get; }\n    void TakeDamage(int amount);\n}\n\npublic class Crate : IDamageable\n{\n    public int Health { get; private set; } = 10;\n    public void TakeDamage(int amount) => Health = Math.Max(0, Health - amount);\n}\n\npublic class Player : IDamageable\n{\n    public int Health { get; private set; } = 100;\n    public int Shield { get; private set; } = 20;\n    public void TakeDamage(int amount)\n    {\n        int soaked = Math.Min(Shield, amount);      // the shield takes the hit first\n        Shield -= soaked;\n        Health = Math.Max(0, Health - (amount - soaked));\n    }\n}\n\nclass Program\n{\n    static void Main()\n    {\n        var hit = new List<IDamageable> { new Crate(), new Player() };\n        foreach (IDamageable t in hit) t.TakeDamage(30);\n        foreach (IDamageable t in hit) Console.WriteLine($\"{t.GetType().Name}: {t.Health}\");\n    }\n}\n",
+  "notes": [
+   "The interface lists what every damageable thing must have, with no code.",
+   "Crate and Player both sign the contract with `: IDamageable`, but each does it its own way.",
+   "The list's type is IDamageable, so it can hold both kinds.",
+   "The loop only knows the interface; it never asks what the real class is."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Things that can be hurt",
+   "file": "Damage.cs",
+   "prompt": "The interface IDamageable is given. Write:\n- class Crate : IDamageable, constructor Crate(int health). TakeDamage lowers Health by the amount, never below 0. IsDestroyed is true at 0.\n- class ArmoredWall : IDamageable, constructor ArmoredWall(int health, int armor). Each hit is reduced by Armor first (a hit smaller than the armor does nothing), never below 0 health.\n- In static class Combat, int Explode(List<IDamageable> targets, int damage): hit every target once, return how many are destroyed afterwards.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic interface IDamageable\n{\n    int Health { get; }\n    bool IsDestroyed { get; }\n    void TakeDamage(int amount);\n}\n\n// Crate and ArmoredWall go here.\n\npublic static class Combat\n{\n    public static int Explode(List<IDamageable> targets, int damage)\n    {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var c = new Crate(10); c.TakeDamage(4); return c.Health + \" \" + c.IsDestroyed; }))()",
+     "expect": "6 False",
+     "name": "a crate takes damage"
+    },
+    {
+     "call": "((Func<string>)(() => { var w = new ArmoredWall(50, 5); w.TakeDamage(20); w.TakeDamage(3); return w.Health.ToString(); }))()",
+     "expect": "35",
+     "name": "armor soaks part of each hit"
+    },
+    {
+     "call": "((Func<string>)(() => { var list = new List<IDamageable> { new Crate(10), new Crate(30), new ArmoredWall(12, 2) }; return Combat.Explode(list, 14) + \" \" + list[1].Health; }))()",
+     "expect": "2 16",
+     "name": "explosion hits everything"
+    },
+    {
+     "call": "((Func<string>)(() => { IDamageable c = new Crate(5); c.TakeDamage(100); return c.Health + \" \" + c.IsDestroyed; }))()",
+     "expect": "0 True",
+     "hidden": true,
+     "name": "never below zero"
+    }
+   ],
+   "hints": [
+    "public class Crate : IDamageable { public int Health { get; private set; } ... }",
+    "ArmoredWall: Health = Math.Max(0, Health - Math.Max(0, amount - Armor));",
+    "Explode: foreach (var t in targets) t.TakeDamage(damage); return targets.Count(t => t.IsDestroyed);"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic interface IDamageable\n{\n    int Health { get; }\n    bool IsDestroyed { get; }\n    void TakeDamage(int amount);\n}\n\npublic class Crate : IDamageable\n{\n    public int Health { get; private set; }\n\n    public Crate(int health) { Health = health; }\n\n    public bool IsDestroyed => Health <= 0;\n\n    public void TakeDamage(int amount) => Health = Math.Max(0, Health - amount);\n}\n\npublic class ArmoredWall : IDamageable\n{\n    public int Health { get; private set; }\n    public int Armor { get; }\n\n    public ArmoredWall(int health, int armor)\n    {\n        Health = health;\n        Armor = armor;\n    }\n\n    public bool IsDestroyed => Health <= 0;\n\n    // Armor soaks up part of every hit; a small hit does nothing at all.\n    public void TakeDamage(int amount) => Health = Math.Max(0, Health - Math.Max(0, amount - Armor));\n}\n\npublic static class Combat\n{\n    public static int Explode(List<IDamageable> targets, int damage)\n    {\n        foreach (IDamageable t in targets) t.TakeDamage(damage);\n        return targets.Count(t => t.IsDestroyed);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "A sortable leaderboard",
+   "file": "Scores.cs",
+   "prompt": "Make Score implement IComparable<Score> so that list.Sort() puts the HIGHEST Points first, and for equal points the FEWER Seconds first. A null 'other' sorts after (return -1).\nThen write Leaderboard.Top(List<Score> scores, int n): the Player names of the best n, in order. Don't change the list you were given (sort a copy).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Score : IComparable<Score>\n{\n    public string Player { get; }\n    public int Points { get; }\n    public int Seconds { get; }\n\n    public Score(string player, int points, int seconds)\n    {\n        Player = player;\n        Points = points;\n        Seconds = seconds;\n    }\n\n    public int CompareTo(Score other)\n    {\n        return 0;\n    }\n\n    public override string ToString() => $\"{Player} {Points}\";\n}\n\npublic static class Leaderboard\n{\n    public static List<string> Top(List<Score> scores, int n)\n    {\n        return new List<string>();\n    }\n}\n",
+   "tests": [
+    {
+     "call": "(new Score(\"Amina\", 50, 30).CompareTo(new Score(\"Juma\", 40, 10)) < 0).ToString()",
+     "expect": "True",
+     "name": "more points comes first"
+    },
+    {
+     "call": "((Func<string>)(() => { var s = new List<Score> { new(\"Juma\", 40, 10), new(\"Amina\", 50, 30), new(\"Wanjiru\", 50, 20) }; s.Sort(); return string.Join(\",\", s.Select(x => x.Player)); }))()",
+     "expect": "Wanjiru,Amina,Juma",
+     "name": "ties go to the faster player"
+    },
+    {
+     "call": "Leaderboard.Top(new List<Score> { new(\"A\", 10, 5), new(\"B\", 30, 9), new(\"C\", 30, 2) }, 2)",
+     "expect": "[C, B]",
+     "name": "top two"
+    },
+    {
+     "call": "((Func<string>)(() => { var s = new List<Score> { new(\"A\", 10, 5), new(\"B\", 30, 9) }; Leaderboard.Top(s, 1); return s[0].Player; }))()",
+     "expect": "A",
+     "hidden": true,
+     "name": "the original list is untouched",
+     "hint_if_fail": "Sort a copy: var copy = new List<Score>(scores);"
+    },
+    {
+     "call": "Leaderboard.Top(new List<Score> { new(\"A\", 1, 1) }, 5)",
+     "expect": "[A]",
+     "hidden": true,
+     "name": "asking for more than there are"
+    }
+   ],
+   "hints": [
+    "Higher first means comparing the other way round: other.Points.CompareTo(Points).",
+    "If that isn't 0, return it. Otherwise return Seconds.CompareTo(other.Seconds).",
+    "Top: var copy = new List<Score>(scores); copy.Sort(); return copy.Take(n).Select(s => s.Player).ToList();"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Score : IComparable<Score>\n{\n    public string Player { get; }\n    public int Points { get; }\n    public int Seconds { get; }\n\n    public Score(string player, int points, int seconds)\n    {\n        Player = player;\n        Points = points;\n        Seconds = seconds;\n    }\n\n    // Negative: this one comes first. Positive: the other one does. 0: a tie.\n    public int CompareTo(Score other)\n    {\n        if (other is null) return -1;\n        int byPoints = other.Points.CompareTo(Points);   // reversed, so higher points come first\n        if (byPoints != 0) return byPoints;\n        return Seconds.CompareTo(other.Seconds);          // faster first\n    }\n\n    public override string ToString() => $\"{Player} {Points}\";\n}\n\npublic static class Leaderboard\n{\n    public static List<string> Top(List<Score> scores, int n)\n    {\n        var copy = new List<Score>(scores);   // never surprise the caller by reordering their list\n        copy.Sort();\n        return copy.Take(n).Select(s => s.Player).ToList();\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Stock alerts (program to an interface)",
+   "file": "Alerts.cs",
+   "prompt": "INotifier is given. Write two classes that implement it, each adding one line to Sent:\n- SmsNotifier: \"SMS to {to}: {message}\", but an SMS message longer than 30 characters is cut to its first 30.\n- EmailNotifier: \"EMAIL to {to}: {message}\".\nThen finish StockAlert.Check(medicine, count, minimum, contact): if count < minimum, send \"Low stock: {medicine} ({count} left)\" to contact through the notifier it was given and return true; otherwise return false. A negative count throws ArgumentOutOfRangeException.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic interface INotifier\n{\n    List<string> Sent { get; }\n    void Send(string to, string message);\n}\n\n// SmsNotifier and EmailNotifier go here.\n\npublic class StockAlert\n{\n    private readonly INotifier notifier;\n\n    public StockAlert(INotifier notifier)\n    {\n        this.notifier = notifier;\n    }\n\n    public bool Check(string medicine, int count, int minimum, string contact)\n    {\n        return false;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var sms = new SmsNotifier(); var alert = new StockAlert(sms); bool a = alert.Check(\"Zinc\", 4, 10, \"Amina\"); bool b = alert.Check(\"Zinc\", 40, 10, \"Amina\"); return a + \" \" + b + \" | \" + string.Join(\";\", sms.Sent); }))()",
+     "expect": "True False | SMS to Amina: Low stock: Zinc (4 left)",
+     "name": "sms alert"
+    },
+    {
+     "call": "((Func<string>)(() => { var mail = new EmailNotifier(); new StockAlert(mail).Check(\"Paracetamol\", 2, 5, \"clinic@mail\"); return mail.Sent[0]; }))()",
+     "expect": "EMAIL to clinic@mail: Low stock: Paracetamol (2 left)",
+     "name": "email alert"
+    },
+    {
+     "call": "((Func<string>)(() => { var sms = new SmsNotifier(); sms.Send(\"Juma\", \"This message is far too long for one SMS\"); return sms.Sent[0]; }))()",
+     "expect": "SMS to Juma: This message is far too long f",
+     "hidden": true,
+     "name": "long SMS is cut to 30"
+    },
+    {
+     "call": "((Func<string>)(() => { INotifier n = new EmailNotifier(); new StockAlert(n).Check(\"Zinc\", 10, 10, \"x\"); return n.Sent.Count.ToString(); }))()",
+     "expect": "0",
+     "hidden": true,
+     "name": "exactly the minimum is fine"
+    },
+    {
+     "call": "new StockAlert(new SmsNotifier()).Check(\"Zinc\", -1, 10, \"x\")",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "negative count"
+    }
+   ],
+   "hints": [
+    "public class SmsNotifier : INotifier { public List<string> Sent { get; } = new(); public void Send(string to, string message) { ... } }",
+    "Cut a long SMS: if (message.Length > 30) message = message.Substring(0, 30);",
+    "StockAlert never says 'SMS' or 'email': it only calls notifier.Send(contact, ...). That's the point."
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic interface INotifier\n{\n    List<string> Sent { get; }\n    void Send(string to, string message);\n}\n\npublic class SmsNotifier : INotifier\n{\n    public List<string> Sent { get; } = new();\n\n    public void Send(string to, string message)\n    {\n        if (message.Length > 30) message = message.Substring(0, 30);   // SMS has little room\n        Sent.Add($\"SMS to {to}: {message}\");\n    }\n}\n\npublic class EmailNotifier : INotifier\n{\n    public List<string> Sent { get; } = new();\n\n    public void Send(string to, string message) => Sent.Add($\"EMAIL to {to}: {message}\");\n}\n\npublic class StockAlert\n{\n    private readonly INotifier notifier;   // any notifier will do: SMS, email, or a fake in a test\n\n    public StockAlert(INotifier notifier)\n    {\n        this.notifier = notifier;\n    }\n\n    public bool Check(string medicine, int count, int minimum, string contact)\n    {\n        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));\n        if (count >= minimum) return false;\n        notifier.Send(contact, $\"Low stock: {medicine} ({count} left)\");\n        return true;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does an interface contain?",
+   "choices": [
+    "Fields and full method bodies",
+    "A list of members a class promises to have",
+    "Only static methods",
+    "A constructor"
+   ],
+   "answer": 1,
+   "why": "It's the contract; classes supply the code."
+  },
+  {
+   "q": "You add a new Barrel : IDamageable. What changes in the explosion code that loops over List<IDamageable>?",
+   "choices": [
+    "A new if for Barrel",
+    "Nothing",
+    "The list type",
+    "Everything"
+   ],
+   "answer": 1,
+   "why": "Code written against the interface works for every new implementer."
+  },
+  {
+   "q": "Which CompareTo sorts the HIGHEST points first?",
+   "choices": [
+    "Points.CompareTo(other.Points)",
+    "other.Points.CompareTo(Points)",
+    "Points - 1",
+    "return 0"
+   ],
+   "answer": 1,
+   "why": "Swapping the sides reverses the order."
+  },
+  {
+   "q": "Why does StockAlert take an INotifier instead of an SmsNotifier?",
+   "choices": [
+    "It's shorter",
+    "So it works with any sender, including a fake one in tests",
+    "SmsNotifier can't be passed",
+    "Interfaces are faster"
+   ],
+   "answer": 1,
+   "why": "Programming to an interface keeps it flexible and testable."
+  },
+  {
+   "q": "How many interfaces can one C# class implement?",
+   "choices": [
+    "One",
+    "Two",
+    "As many as it needs",
+    "None if it has a base class"
+   ],
+   "answer": 2,
+   "why": "One base class, but many interfaces."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Declare an interface?",
+   "a": "public interface IDamageable { void TakeDamage(int amount); }"
+  },
+  {
+   "q": "Implement one?",
+   "a": "public class Crate : IDamageable { ... }"
+  },
+  {
+   "q": "Make a class sortable?",
+   "a": "Implement IComparable<T> and its CompareTo"
+  },
+  {
+   "q": "CompareTo result meanings?",
+   "a": "negative: this first, 0: tie, positive: other first"
+  }
+ ],
+ "explain": "Explain what 'programming to an interface' means, with an example from a game or an app you'd like to build."
+}

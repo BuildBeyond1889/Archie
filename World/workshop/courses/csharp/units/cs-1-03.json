@@ -1,0 +1,131 @@
+{
+ "id": "cs-1-03",
+ "level": 1,
+ "title": "Input and maths",
+ "concepts": [
+  "input",
+  "operators"
+ ],
+ "skills": [
+  "input",
+  "operators"
+ ],
+ "bridge": "Read a line with `Console.ReadLine()` (it can return null at the end of input) and convert with `int.Parse` / `double.Parse`. As in Java, `int / int` is whole division (`7 / 2` is 3); use a double (`7 / 2.0`). Format numbers in interpolation: `{value:F2}` for 2 decimals.",
+ "lesson": "```\nConsole.Write(\"Minutes? \");\nint m = int.Parse(Console.ReadLine());\nConsole.WriteLine($\"{m / 60} h {m % 60} min\");\n```\n\n- `Console.ReadLine()` gives the typed line as a `string`.\n- Division: two ints give whole division (`7 / 2` is `3`); make one a double for decimals (`7 / 2.0` or `(double)a / b`).\n- `%` remainder; `Math.Round(x, 2)`, `Math.Ceiling(x)` (round up), `Math.Floor`, `Math.Max`, `Math.Sqrt`, `Math.Pow`.\n- Formatting inside interpolation: `{price:F2}` (2 decimals), `{big:N0}` (thousands separators), `{share:P0}` (percent).\n\nComputers in different countries write numbers differently (10,5 vs 10.5). Archie's tests use the \"invariant\" format (a dot); `double.Parse(text, System.Globalization.CultureInfo.InvariantCulture)` reads dots everywhere.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.Write(\"Minutes? \");\n        int m = int.Parse(Console.ReadLine() ?? \"0\");\n        Console.WriteLine($\"{m / 60} h {m % 60} min\");\n        Console.WriteLine($\"{7 / 2} vs {7 / 2.0}\");\n        Console.WriteLine($\"{10 / 3.0:F2}\");\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Hours and minutes",
+   "file": "Time.cs",
+   "prompt": "Read a number of minutes and print: 135 minutes is 2 h 15 min",
+   "starter": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "135\n",
+     "out": [
+      "135 minutes is 2 h 15 min"
+     ]
+    },
+    {
+     "stdin": "59\n",
+     "out": [
+      "59 minutes is 0 h 59 min"
+     ]
+    },
+    {
+     "stdin": "600\n",
+     "out": [
+      "600 minutes is 10 h 0 min"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "int m = int.Parse(Console.ReadLine());",
+    "Console.WriteLine($\"{m} minutes is {m / 60} h {m % 60} min\");"
+   ],
+   "solution": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        int m = int.Parse(Console.ReadLine());\n        Console.WriteLine($\"{m} minutes is {m / 60} h {m % 60} min\");\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Bags needed",
+   "file": "BagsNeeded.cs",
+   "prompt": "Write Needed(int kg) in class BagsNeeded for 90 kg bags: a part-full bag still needs a bag.",
+   "starter": "using System;\n\npublic static class BagsNeeded\n{\n    public static int Needed(int kg)\n    {\n        return kg / 90;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "BagsNeeded.Needed(250)",
+     "expect": "3"
+    },
+    {
+     "call": "BagsNeeded.Needed(180)",
+     "expect": "2"
+    },
+    {
+     "call": "BagsNeeded.Needed(1)",
+     "expect": "1",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "kg / 90 is whole division: it rounds down.",
+    "return (int)Math.Ceiling(kg / 90.0);"
+   ],
+   "solution": "using System;\n\npublic static class BagsNeeded\n{\n    public static int Needed(int kg)\n    {\n        return (int)Math.Ceiling(kg / 90.0);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "7 / 2 in C# with ints is…",
+   "choices": [
+    "3.5",
+    "3",
+    "4",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Whole division."
+  },
+  {
+   "q": "{x:F2} means…",
+   "choices": [
+    "2 digits",
+    "2 decimal places",
+    "factor 2",
+    "format 2 times"
+   ],
+   "answer": 1,
+   "why": "Fixed-point, 2 decimals."
+  },
+  {
+   "q": "Round UP?",
+   "choices": [
+    "Math.Round",
+    "Math.Floor",
+    "Math.Ceiling",
+    "(int)"
+   ],
+   "answer": 2,
+   "why": "Ceiling."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Read a line in C#?",
+   "a": "Console.ReadLine()"
+  },
+  {
+   "q": "2 decimals in interpolation?",
+   "a": "{x:F2}"
+  },
+  {
+   "q": "int / int?",
+   "a": "Whole division; use a double for decimals."
+  }
+ ],
+ "explain": "Explain input and maths to someone who has never programmed, in your own words, with an example you make up."
+}

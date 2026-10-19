@@ -1,0 +1,139 @@
+{
+ "id": "web-1-07",
+ "level": 1,
+ "title": "Pages that work on phones",
+ "concepts": [
+  "css"
+ ],
+ "skills": [
+  "css",
+  "responsive",
+  "accessibility"
+ ],
+ "lesson": "Most people in the world reach the web on a phone, often a cheap one on a slow connection. **Responsive** pages adapt to the screen:\n\n1. The viewport meta tag (you've had it since lesson 1): `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">`. Without it, phones show a shrunken desktop page.\n2. Flexible sizes: widths in `%`, `max-width` instead of fixed `width`, flex with wrap.\n3. Images never wider than their box: `img { max-width: 100%; height: auto; }`.\n4. **Media queries** change rules for some screen sizes:\n\n```\n@media (max-width: 600px) {\n  .row { flex-direction: column; }\n  h1 { font-size: 1.4rem; }\n}\n```\n\nDesign for the phone first, then add rules for bigger screens. Buttons and links need room for a thumb: at least about 44px tall. Keep pages light: big photos cost people real money in data.\n\nTo test, make the preview narrow, or in a browser press F12 and choose a phone size.",
+ "example": {
+  "file": "example.html",
+  "code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<style>\nimg { max-width: 100%; height: auto; }\n.row { display: flex; gap: 12px; }\n.card { flex: 1; border: 1px solid #ccc; padding: 12px; }\nbutton { min-height: 44px; padding: 0 20px; }\n@media (max-width: 600px) {\n  .row { flex-direction: column; }\n}\n</style>\n</head>\n<body>\n<h1>Market</h1>\n<img src=\"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27800%27 height=%27200%27%3E%3Crect width=%27800%27 height=%27200%27 fill=%27%23cde8b5%27/%3E%3C/svg%3E\" alt=\"A green field\">\n<div class=\"row\"><div class=\"card\">Maize</div><div class=\"card\">Beans</div></div>\n<button>Order</button>\n</body>\n</html>\n",
+  "notes": [
+   "The image shrinks to fit.",
+   "Side by side on wide screens…",
+   "…stacked on phones.",
+   "A thumb-sized button."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Make it phone-friendly",
+   "file": "ex1_phone.html",
+   "prompt": "Add: img { max-width: 100%; } so the photo fits; a .row flex layout for the cards; and a @media (max-width: 600px) rule that stacks the row (flex-direction: column). Give button a min-height of at least 44px.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n</head>\n<body>\n<h1>Market</h1>\n<img src=\"field.svg\" alt=\"A green field\">\n<div class=\"row\"><div class=\"card\">Maize</div><div class=\"card\">Beans</div><div class=\"card\">Kale</div></div>\n<button>Order</button>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "css": "img",
+       "prop": "max-width",
+       "value": "100%"
+      }
+     ],
+     "name": "images fit"
+    },
+    {
+     "html": [
+      {
+       "css": ".row",
+       "prop": "display",
+       "value": "flex"
+      }
+     ],
+     "name": "a flex row"
+    },
+    {
+     "html": [
+      {
+       "media": true
+      },
+      {
+       "css": ".row",
+       "prop": "flex-direction",
+       "value": "column"
+      }
+     ],
+     "name": "stacks on phones"
+    },
+    {
+     "html": [
+      {
+       "css": "button",
+       "prop": "min-height"
+      }
+     ],
+     "name": "thumb-sized button"
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "The @media block goes inside <style>, with its own rules inside its braces.",
+    "@media (max-width: 600px) { .row { flex-direction: column; } }"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<style>\nimg { max-width: 100%; height: auto; }\n.row { display: flex; gap: 12px; }\nbutton { min-height: 44px; }\n@media (max-width: 600px) {\n  .row { flex-direction: column; }\n}\n</style>\n</head>\n<body>\n<h1>Market</h1>\n<img src=\"field.svg\" alt=\"A green field\">\n<div class=\"row\"><div class=\"card\">Maize</div><div class=\"card\">Beans</div><div class=\"card\">Kale</div></div>\n<button>Order</button>\n</body>\n</html>\n",
+   "extra_files": {
+    "field.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1200\" height=\"300\"><rect width=\"1200\" height=\"300\" fill=\"#cde8b5\"/></svg>\n"
+   }
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What happens on a phone without the viewport meta tag?",
+   "choices": [
+    "Nothing",
+    "It shows a shrunken desktop-sized page",
+    "The page won't load",
+    "Images vanish"
+   ],
+   "answer": 1,
+   "why": "Phones assume a ~980px page."
+  },
+  {
+   "q": "Rules inside @media (max-width: 600px) apply…",
+   "choices": [
+    "always",
+    "only on screens 600px wide or less",
+    "only above 600px",
+    "only when printing"
+   ],
+   "answer": 1,
+   "why": "Up to 600px."
+  },
+  {
+   "q": "Smallest comfortable height for a tap target?",
+   "choices": [
+    "10px",
+    "about 44px",
+    "200px",
+    "it doesn't matter"
+   ],
+   "answer": 1,
+   "why": "Thumbs are big."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Images that fit the screen?",
+   "a": "img { max-width: 100%; height: auto; }"
+  },
+  {
+   "q": "Rules for small screens?",
+   "a": "@media (max-width: 600px) { … }"
+  },
+  {
+   "q": "Phone-first?",
+   "a": "Design for the small screen first, then add rules for bigger ones."
+  }
+ ],
+ "explain": "Explain pages that work on phones to someone who has never programmed, in your own words, with an example you make up."
+}

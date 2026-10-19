@@ -1,0 +1,171 @@
+{
+ "id": "py-1-02",
+ "level": 1,
+ "title": "Input and output",
+ "skills": [
+  "input",
+  "f-strings",
+  "types"
+ ],
+ "lesson": "`input(\"question \")` shows the question, waits for the person to type something and press Enter, and gives back what they typed **as a string**, always, even if they typed a number. So to do maths with it, convert it: `age = int(input(\"Age? \"))`.\n\nFor output, **f-strings** are the cleanest way to mix text and values. Put an f before the quote and values in curly brackets:\n\n```\nname = \"Amina\"\nkg = 12.5\nprint(f\"{name} picked {kg} kg\")\n```\n\nYou can format numbers inside the brackets: `{price:.2f}` shows 2 decimal places, `{big:,}` adds thousands commas.\n\nA program that asks, works something out and answers is the simplest useful program there is: a calculator, a converter, a quiz. Almost every program is that pattern, just bigger.",
+ "example": {
+  "code": "name = input(\"What is your name? \")\nyear = int(input(\"What year were you born? \"))\nage = 2026 - year\nprint(f\"Hello {name}, you turn {age} this year.\")\nprint(f\"Price: {1234.5:,.2f} KSh\")\n",
+  "notes": [
+   "input gives text.",
+   "int(...) makes it a number.",
+   "Maths with the number.",
+   "f-string puts the values in the sentence.",
+   ":,.2f gives commas and 2 decimals."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Greeting",
+   "file": "ex1_greet.py",
+   "prompt": "Ask for the person's name and their village, then print: Habari NAME from VILLAGE!",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "Wanjiru\nNyeri\n",
+     "out": [
+      "Habari Wanjiru from Nyeri!"
+     ],
+     "case": true,
+     "name": "Wanjiru from Nyeri"
+    },
+    {
+     "stdin": "Otieno\nKisumu\n",
+     "out": [
+      "Habari Otieno from Kisumu!"
+     ],
+     "case": true,
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Two input() calls, saved in two variables.",
+    "print(f\"Habari {name} from {village}!\")"
+   ],
+   "solution": "name = input(\"Name? \")\nvillage = input(\"Village? \")\nprint(f\"Habari {name} from {village}!\")\n"
+  },
+  {
+   "id": "e2",
+   "title": "Shillings to dollars",
+   "file": "ex2_convert.py",
+   "prompt": "Ask how many Kenyan shillings, and the rate (shillings per dollar). Print the dollars with exactly 2 decimals, like: 1300 KSh = 10.00 USD",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "1300\n130\n",
+     "out": [
+      "1300 KSh = 10.00 USD"
+     ],
+     "name": "1300 at 130"
+    },
+    {
+     "stdin": "5000\n129.5\n",
+     "out": [
+      "5000 KSh = 38.61 USD"
+     ],
+     "name": "5000 at 129.5"
+    },
+    {
+     "stdin": "0\n130\n",
+     "out": [
+      "0 KSh = 0.00 USD"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "The rate can have decimals: use float(...) for it.",
+    "dollars = ksh / rate, and {dollars:.2f} shows 2 decimals."
+   ],
+   "solution": "ksh = int(input(\"Shillings? \"))\nrate = float(input(\"Rate? \"))\nprint(f\"{ksh} KSh = {ksh / rate:.2f} USD\")\n"
+  },
+  {
+   "id": "e3",
+   "title": "Area of a plot",
+   "file": "ex3_area.py",
+   "prompt": "Ask for a plot's length and width in metres (they can have decimals). Print the area in square metres with 1 decimal, and in acres with 3 decimals (1 acre = 4046.86 m²). Format: Area: 1200.0 m2 = 0.297 acres",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "40\n30\n",
+     "out": [
+      "Area: 1200.0 m2 = 0.297 acres"
+     ],
+     "name": "40 by 30"
+    },
+    {
+     "stdin": "63.6\n63.6\n",
+     "out": [
+      "Area: 4045.0 m2 = 1.000 acres"
+     ],
+     "name": "about an acre"
+    }
+   ],
+   "hints": [
+    "area = length * width",
+    "acres = area / 4046.86, then {area:.1f} and {acres:.3f}"
+   ],
+   "solution": "l = float(input(\"Length? \"))\nw = float(input(\"Width? \"))\narea = l * w\nprint(f\"Area: {area:.1f} m2 = {area / 4046.86:.3f} acres\")\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What type does input() give back?",
+   "choices": [
+    "int",
+    "whatever the person typed",
+    "str, always",
+    "float"
+   ],
+   "answer": 2,
+   "why": "Always a string; convert it yourself."
+  },
+  {
+   "q": "What does print(f\"{3.14159:.2f}\") show?",
+   "choices": [
+    "3.14159",
+    "3.14",
+    "3.1",
+    "{3.14159:.2f}"
+   ],
+   "answer": 1,
+   "why": ".2f means 2 decimal places."
+  },
+  {
+   "q": "age = input(\"Age? \") then age + 1. What happens if they type 20?",
+   "choices": [
+    "21",
+    "201",
+    "TypeError: can't add str and int",
+    "20"
+   ],
+   "answer": 2,
+   "why": "age is the text \"20\"; convert with int first."
+  }
+ ],
+ "cards": [
+  {
+   "q": "How do you read a whole number from the person?",
+   "a": "int(input(\"...\"))"
+  },
+  {
+   "q": "What makes an f-string?",
+   "a": "An f before the quote; values in {curly brackets}."
+  },
+  {
+   "q": "Format a number with 2 decimals?",
+   "a": "{value:.2f}"
+  }
+ ],
+ "concepts": [
+  "input",
+  "output"
+ ],
+ "bridge": "`input(\"question \")` always returns text; wrap it in `int()` or `float()`. f-strings format output: `f\"{name} has {kg:.1f} kg\"`.",
+ "explain": "Explain input and output to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

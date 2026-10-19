@@ -1,0 +1,56 @@
+{
+ "name": "Buzzer alarm",
+ "kind": "hardware",
+ "lang": "Arduino",
+ "version": "1.0.0",
+ "summary": "Beep patterns (slow, fast, SOS) on a buzzer while everything else keeps running. For tank-full, too-hot or door alarms.",
+ "tags": [
+  "buzzer",
+  "alarm",
+  "sound",
+  "beep",
+  "warning"
+ ],
+ "parts": [
+  "passive or active buzzer",
+  "2 jumper wires"
+ ],
+ "files": {
+  "sketch/alarm.h": "alarm.h"
+ },
+ "imports": {
+  "ino": [
+   "#include \"alarm.h\""
+  ]
+ },
+ "use": "Alarm alarm(8); setup: alarm.begin(); loop: alarm.update(); if (full) alarm.start(Alarm::FAST);",
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-Wall",
+   "-x",
+   "c++",
+   "test_alarm.cpp",
+   "-o",
+   "t.exe"
+  ],
+  "files": [
+   "test_alarm.cpp"
+  ],
+  "stub": true,
+  "then": "t.exe"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "void update()",
+   "note": "Each call checks whether it's time for the next beep or pause, so the buzzer never stops the rest of the program."
+  }
+ ]
+}

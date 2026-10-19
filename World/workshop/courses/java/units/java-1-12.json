@@ -1,0 +1,123 @@
+{
+ "id": "java-1-12",
+ "level": 1,
+ "title": "Level 1 project: a grade book",
+ "concepts": [
+  "classes",
+  "lists",
+  "functions"
+ ],
+ "skills": [
+  "design",
+  "classes",
+  "lists",
+  "maps"
+ ],
+ "project": true,
+ "lesson": "Put Level 1 together like a real problem set: a **grade book** for a class, built as a class you could later put behind a window or a phone screen.\n\nMake `public class GradeBook` with:\n1. `addScore(String student, int score)`: tidy the name (trim, first letter capital, rest lower), refuse scores below 0 or above 100 with `IllegalArgumentException`, and store it. A student can have many scores.\n2. `average(String student)`: the student's average, rounded to 1 decimal; 0.0 if they have no scores.\n3. `best()`: the name of the student with the highest average (\"\" if empty).\n4. `report()`: one line per student in alphabetical order, `Name: average`, joined with newlines, e.g. `Amina: 85.0\\nJuma: 72.5`.\n\nPlan first: what field holds the data? (A `TreeMap<String, ArrayList<Integer>>` gives alphabetical order for free.) Write the method headers with a comment each, then build and check them one at a time.\n\nNext: **Level 2** (interfaces, inheritance, collections in depth, testing with JUnit) when it's ready.",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.*;\n\npublic class Example {\n    public static void main(String[] args) {\n        TreeMap<String, ArrayList<Integer>> scores = new TreeMap<>();\n        scores.computeIfAbsent(\"Amina\", k -> new ArrayList<>()).add(80);\n        scores.computeIfAbsent(\"Amina\", k -> new ArrayList<>()).add(90);\n        System.out.println(scores);\n    }\n}\n",
+  "notes": [
+   "computeIfAbsent makes the list the first time a name appears, then adds to it."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "The grade book",
+   "file": "GradeBook.java",
+   "prompt": "Build GradeBook with addScore, average, best and report as described in the lesson. All the tests must pass, including hidden ones.",
+   "starter": "import java.util.*;\n\npublic class GradeBook {\n    // your field here\n\n    public void addScore(String student, int score) {\n    }\n\n    public double average(String student) {\n        return 0;\n    }\n\n    public String best() {\n        return \"\";\n    }\n\n    public String report() {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { GradeBook g = new GradeBook(); g.addScore(\" amina \", 80); g.addScore(\"AMINA\", 90); g.addScore(\"juma\", 72); g.addScore(\"Juma\", 73); return g.average(\"Amina\") + \" \" + g.average(\"Juma\"); }).get()",
+     "expect": "85.0 72.5",
+     "name": "averages"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { GradeBook g = new GradeBook(); g.addScore(\"juma\", 72); g.addScore(\"amina\", 85); return g.best(); }).get()",
+     "expect": "Amina",
+     "name": "best"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { GradeBook g = new GradeBook(); g.addScore(\"juma\", 72); g.addScore(\"amina\", 85); return g.report().replace(\"\\n\", \"|\"); }).get()",
+     "expect": "Amina: 85.0|Juma: 72.0",
+     "name": "report"
+    },
+    {
+     "call": "new GradeBook().average(\"Nobody\")",
+     "expect": "0.0",
+     "hidden": true
+    },
+    {
+     "call": "new GradeBook().best()",
+     "expect": "",
+     "hidden": true
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { new GradeBook().addScore(\"x\", 101); return \"no\"; }).get()",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "hint_if_fail": "Scores above 100 or below 0 must throw IllegalArgumentException."
+    }
+   ],
+   "hints": [
+    "Field: private final TreeMap<String, ArrayList<Integer>> scores = new TreeMap<>();",
+    "best: loop over scores.keySet(), keep the name with the highest average(name).",
+    "report: StringBuilder; for each name append name + \": \" + average(name), with \"\\n\" between lines."
+   ],
+   "solution": "import java.util.*;\n\npublic class GradeBook {\n    private final TreeMap<String, ArrayList<Integer>> scores = new TreeMap<>();\n\n    private static String tidy(String s) {\n        s = s.trim();\n        return s.isEmpty() ? s : s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();\n    }\n\n    public void addScore(String student, int score) {\n        if (score < 0 || score > 100) throw new IllegalArgumentException();\n        scores.computeIfAbsent(tidy(student), k -> new ArrayList<>()).add(score);\n    }\n\n    public double average(String student) {\n        List<Integer> s = scores.get(tidy(student));\n        if (s == null || s.isEmpty()) return 0.0;\n        double sum = 0;\n        for (int x : s) sum += x;\n        return Math.round(sum / s.size() * 10) / 10.0;\n    }\n\n    public String best() {\n        String best = \"\";\n        for (String n : scores.keySet()) if (best.isEmpty() || average(n) > average(best)) best = n;\n        return best;\n    }\n\n    public String report() {\n        StringBuilder sb = new StringBuilder();\n        for (String n : scores.keySet()) {\n            if (sb.length() > 0) sb.append(\"\\n\");\n            sb.append(n).append(\": \").append(average(n));\n        }\n        return sb.toString();\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why a TreeMap<String, ArrayList<Integer>>?",
+   "choices": [
+    "It's the only map",
+    "Each name maps to its list of scores, and the names stay alphabetical",
+    "It's faster than arrays",
+    "Java requires it"
+   ],
+   "answer": 1,
+   "why": "Right shape for the data, order for free."
+  },
+  {
+   "q": "Where should 'scores must be 0-100' be enforced?",
+   "choices": [
+    "In the report",
+    "In addScore, so bad data never gets in",
+    "Nowhere",
+    "In main"
+   ],
+   "answer": 1,
+   "why": "Guard the data at the door."
+  },
+  {
+   "q": "Before writing a bigger class you should…",
+   "choices": [
+    "Type from the top",
+    "Plan the fields and method headers first",
+    "Copy one online",
+    "Skip tests"
+   ],
+   "answer": 1,
+   "why": "Plan, then build one method at a time."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Make a list in a map the first time a key appears?",
+   "a": "map.computeIfAbsent(key, k -> new ArrayList<>()).add(x)"
+  },
+  {
+   "q": "Join lines efficiently?",
+   "a": "StringBuilder with append and \"\\n\""
+  },
+  {
+   "q": "Where to validate input?",
+   "a": "In the method that stores it."
+  }
+ ],
+ "explain": "Explain level 1 project: a grade book to someone who has never programmed, in your own words, with an example you make up."
+}

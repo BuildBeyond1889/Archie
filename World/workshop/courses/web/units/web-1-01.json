@@ -1,0 +1,159 @@
+{
+ "id": "web-1-01",
+ "level": 1,
+ "title": "Your first web page",
+ "concepts": [
+  "html"
+ ],
+ "skills": [
+  "html",
+  "structure"
+ ],
+ "lesson": "A web page is a text file written in **HTML**, which marks up what each part *is*: this is a heading, this is a paragraph, this is a list. The browser decides how it looks (CSS changes that later).\n\n```\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Shamba Notes</title>\n</head>\n<body>\n  <h1>Shamba Notes</h1>\n  <p>What we planted this season.</p>\n</body>\n</html>\n```\n\n- Things in angle brackets are **tags**. Most come in pairs: `<p>` opens a paragraph and `</p>` closes it. What's between is the **content**.\n- `<!DOCTYPE html>` on the first line tells the browser to use modern rules.\n- `<head>` holds information *about* the page: the `<title>` shown on the tab, the character set (`utf-8`, so Swahili, accents and emoji all work) and the viewport line that makes it fit phones.\n- `<body>` holds what you see. Headings go from `<h1>` (one per page, the main title) down to `<h6>`.\n- Tags **nest** like boxes: close the inner one before the outer one. `<p><b>yes</b></p>` is right; `<p><b>yes</p></b>` is broken.\n\nOpen the file in a browser to see it (or press **preview**). Archie's page checker catches tags left open or closed in the wrong order on every save.",
+ "example": {
+  "file": "example.html",
+  "code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Shamba Notes</title>\n</head>\n<body>\n<h1>Shamba Notes</h1>\n<p>What we planted this season, and how it grew.</p>\n<h2>Maize</h2>\n<p>Planted in <b>March</b>, harvested in <i>July</i>.</p>\n</body>\n</html>\n",
+  "notes": [
+   "The skeleton every page has.",
+   "One h1, then h2 for sections.",
+   "b and i inside a paragraph: nested correctly."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A page about you",
+   "file": "ex1_about.html",
+   "prompt": "Make a page with the title \"About me\", an h1 with your name, a paragraph about yourself, and an h2 \"Things I want to build\" with a paragraph under it.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title></title>\n</head>\n<body>\n\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "title"
+      },
+      {
+       "text": "title",
+       "contains": "About me"
+      }
+     ],
+     "name": "the title"
+    },
+    {
+     "html": [
+      {
+       "has": "h1"
+      },
+      {
+       "has": "h2"
+      },
+      {
+       "text": "h2",
+       "contains": "Things I want to build"
+      }
+     ],
+     "name": "the headings"
+    },
+    {
+     "html": [
+      {
+       "has": "p",
+       "min": 2
+      }
+     ],
+     "name": "two paragraphs"
+    },
+    {
+     "clean": true,
+     "name": "no errors in the page"
+    }
+   ],
+   "hints": [
+    "The title goes in the head; everything you see goes in the body.",
+    "<h1>Your name</h1>, <p>...</p>, <h2>Things I want to build</h2>, <p>...</p>"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>About me</title>\n</head>\n<body>\n<h1>Sam</h1>\n<p>I build things and I'm learning to code.</p>\n<h2>Things I want to build</h2>\n<p>A water tank alarm and a game.</p>\n</body>\n</html>\n"
+  },
+  {
+   "id": "e2",
+   "title": "Fix the page",
+   "file": "ex2_fix.html",
+   "prompt": "This page has tags closed in the wrong order and tags never closed. Use the checker's messages (on the right after you save) to fix it until there are no errors. Keep all the text.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>My page</title>\n</head>\n<body>\n<h1>Market prices\n<p>Maize is <b>55 KSh</b> a kilo today.</p>\n<p>Beans are <i>120 KSh</p></i>\n<div>\n<p>Prices change every week.</p>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "clean": true,
+     "name": "no errors in the page"
+    },
+    {
+     "html": [
+      {
+       "text": "h1",
+       "contains": "Market prices"
+      },
+      {
+       "has": "p",
+       "min": 3
+      }
+     ],
+     "name": "all the content is still there"
+    }
+   ],
+   "hints": [
+    "Save, then read the first error on the right: it names the tag and the line.",
+    "Close the h1 on its line, swap </p></i> to </i></p>, and close the div."
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>My page</title>\n</head>\n<body>\n<h1>Market prices</h1>\n<p>Maize is <b>55 KSh</b> a kilo today.</p>\n<p>Beans are <i>120 KSh</i></p>\n<div>\n<p>Prices change every week.</p>\n</div>\n</body>\n</html>\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What goes in <head>?",
+   "choices": [
+    "Everything you see",
+    "Information about the page: title, charset, viewport",
+    "Only images",
+    "The footer"
+   ],
+   "answer": 1,
+   "why": "What you see goes in <body>."
+  },
+  {
+   "q": "Which is nested correctly?",
+   "choices": [
+    "<p><b>hi</p></b>",
+    "<p><b>hi</b></p>",
+    "<b><p>hi</b></p>",
+    "<p>hi<b></p>"
+   ],
+   "answer": 1,
+   "why": "Close the inner tag first."
+  },
+  {
+   "q": "How many h1 should a page usually have?",
+   "choices": [
+    "None",
+    "One: the main title",
+    "One per paragraph",
+    "As many as you like"
+   ],
+   "answer": 1,
+   "why": "One main heading; sections use h2, h3…"
+  }
+ ],
+ "cards": [
+  {
+   "q": "What does HTML describe?",
+   "a": "What each part of the page is (heading, paragraph, list…), not how it looks."
+  },
+  {
+   "q": "Why the viewport meta tag?",
+   "a": "So the page fits phone screens instead of showing a tiny desktop page."
+  },
+  {
+   "q": "Opening vs closing tag?",
+   "a": "<p> opens, </p> closes; content goes between."
+  }
+ ],
+ "explain": "Explain your first web page to someone who has never programmed, in your own words, with an example you make up."
+}

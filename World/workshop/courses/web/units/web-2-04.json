@@ -1,0 +1,244 @@
+{
+ "id": "web-2-04",
+ "level": 2,
+ "title": "Lists that change",
+ "concepts": [
+  "rendering",
+  "dom",
+  "events",
+  "data-modeling"
+ ],
+ "skills": [
+  "state",
+  "render",
+  "events"
+ ],
+ "lesson": "A to-do list, a clinic queue, a player's inventory: lists that grow, shrink and change. The beginner way is to change the page directly: on \"add\", append an `<li>`; on \"delete\", find that `<li>` and remove it; on \"done\", add a class. It works for a while, then the page and your data **drift apart**: the counter says 3 but 4 items show, a deleted patient comes back after a refresh. Every app ends up needing the same fix.\n\n**The fix: state plus render.**\n- **State** is the truth, kept in plain JavaScript: `let queue = [{ id: 1, name: \"Amina\", seen: false }, ...]`.\n- **render()** throws away what's on screen and redraws it entirely from the state.\n- Every event follows one path: **change the state, then call render()**.\n\n```\nfunction render() {\n  list.innerHTML = \"\";                  // 1. empty it (safe: \"\" holds no HTML)\n  for (const p of queue) {              // 2. draw every item from state\n    const li = document.createElement(\"li\");\n    li.textContent = p.name;\n    if (p.seen) li.classList.add(\"seen\");\n    list.appendChild(li);\n  }\n  waiting.textContent = `${queue.filter((p) => !p.seen).length} waiting`;  // 3. summaries too\n}\n```\n\nNow the page can't drift: it's always a picture of the state. (`list.replaceChildren()` also empties an element.) The classic bug is forgetting step 1, so every render adds a second copy of everything.\n\n**Give items ids.** Don't identify items by their position: after a delete, positions shift and you'd toggle the wrong patient. Give each one an `id` from a counter (`nextId++`) and find it with `queue.find((p) => p.id === id)`.\n\n**Buttons inside items.** When render builds a Delete button for an item, attach its listener right there; the arrow function remembers which item it belongs to:\n\n```\ndel.addEventListener(\"click\", () => removePatient(p.id));\n```\n\n**Changing state without surprises.** Two styles both work. You can change the array in place (`todo.done = !todo.done`, `queue.push(...)`), or build a new array and replace the old one:\n\n```\nqueue = queue.filter((p) => p.id !== id);                         // remove\nqueue = queue.map((p) => (p.id === id ? { ...p, seen: !p.seen } : p));   // toggle\nqueue = [...queue, { id: nextId++, name, seen: false }];            // add\n```\n\n`{ ...p, seen: true }` copies an object and changes one field; `[...queue, x]` copies an array and adds one. Functions that return new arrays and never change their inputs are easy to test and can't break other code holding the old array. Game engines, React and most modern app tools are built on exactly this idea: state, a render from state, and events that change state.",
+ "example": {
+  "file": "example.js",
+  "code": "let queue = [];\nlet nextId = 1;\nconst list = document.getElementById(\"queue\");\n\nfunction addPatient(name) {\n  if (name.trim() === \"\") return;\n  queue.push({ id: nextId++, name: name.trim(), seen: false });   // 1. change state\n  render();                                                        // 2. redraw\n}\n\nfunction toggleSeen(id) {\n  const p = queue.find((x) => x.id === id);   // by id, never by position\n  if (p) p.seen = !p.seen;\n  render();\n}\n\nfunction render() {\n  list.innerHTML = \"\";                         // empty first, or items double up\n  for (const p of queue) {\n    const li = document.createElement(\"li\");\n    li.textContent = p.name;\n    li.classList.toggle(\"seen\", p.seen);\n    li.addEventListener(\"click\", () => toggleSeen(p.id));   // remembers this p\n    list.appendChild(li);\n  }\n}\n\naddPatient(\"Amina\");\naddPatient(\"Otieno\");\n",
+  "notes": [
+   "State is an array plus a counter for ids.",
+   "Every action changes the state and then calls render().",
+   "Items are found by id, so deleting one never confuses the others.",
+   "render empties the list and redraws everything, so the page always matches the state."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "State changes",
+   "file": "ex1_queue.js",
+   "prompt": "Write three pure functions for a clinic queue. A queue is an array like [{ id: 1, name: \"Amina\", seen: false }]. None of them may change the array or objects they're given; each returns a NEW array. addPatient(queue, name): trims the name; if it's blank return a copy of the queue unchanged; otherwise add { id, name, seen: false } at the end, where id is one more than the biggest id in the queue (1 if empty). toggleSeen(queue, id): flips seen for that id. removePatient(queue, id): leaves that id out.",
+   "starter": "function addPatient(queue, name) {\n  return queue;\n}\n\nfunction toggleSeen(queue, id) {\n  return queue;\n}\n\nfunction removePatient(queue, id) {\n  return queue;\n}\n",
+   "tests": [
+    {
+     "call": "addPatient([], \" Amina \")",
+     "expect": [
+      {
+       "id": 1,
+       "name": "Amina",
+       "seen": false
+      }
+     ],
+     "name": "the first patient"
+    },
+    {
+     "call": "addPatient([{ id: 1, name: \"Amina\", seen: false }, { id: 4, name: \"Juma\", seen: true }], \"Chebet\")[2].id",
+     "expect": 5,
+     "name": "ids carry on from the biggest"
+    },
+    {
+     "call": "toggleSeen([{ id: 1, name: \"Amina\", seen: false }, { id: 2, name: \"Juma\", seen: false }], 2)",
+     "expect": [
+      {
+       "id": 1,
+       "name": "Amina",
+       "seen": false
+      },
+      {
+       "id": 2,
+       "name": "Juma",
+       "seen": true
+      }
+     ],
+     "name": "toggle seen"
+    },
+    {
+     "call": "removePatient([{ id: 1, name: \"Amina\", seen: false }, { id: 2, name: \"Juma\", seen: false }], 1)",
+     "expect": [
+      {
+       "id": 2,
+       "name": "Juma",
+       "seen": false
+      }
+     ],
+     "name": "remove"
+    },
+    {
+     "call": "addPatient([{ id: 1, name: \"Amina\", seen: false }], \"   \").length",
+     "expect": 1,
+     "name": "a blank name is ignored",
+     "hidden": true
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst q = [{ id: 1, name: \"Amina\", seen: false }];\nconst a = toggleSeen(q, 1);\nif (q[0].seen) throw new Error(\"toggleSeen changed the original object; copy it with { ...p, seen: !p.seen }\");\nif (a === q) throw new Error(\"toggleSeen should return a new array\");\naddPatient(q, \"Juma\");\nif (q.length !== 1) throw new Error(\"addPatient changed the original array; return [...queue, newPatient]\");\nremovePatient(q, 1);\nif (q.length !== 1) throw new Error(\"removePatient changed the original array; use filter\");\n})();",
+     "name": "the originals are never changed",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "The biggest id: queue.reduce((max, p) => Math.max(max, p.id), 0)",
+    "return [...queue, { id, name: clean, seen: false }];",
+    "toggle: queue.map((p) => (p.id === id ? { ...p, seen: !p.seen } : p)); remove: queue.filter((p) => p.id !== id)"
+   ],
+   "solution": "function addPatient(queue, name) {\n  const clean = String(name).trim();\n  if (clean === \"\") return [...queue];\n  const id = queue.reduce((max, p) => Math.max(max, p.id), 0) + 1;\n  return [...queue, { id, name: clean, seen: false }];\n}\n\nfunction toggleSeen(queue, id) {\n  // a copy of the one that changes; the others are kept as they are\n  return queue.map((p) => (p.id === id ? { ...p, seen: !p.seen } : p));\n}\n\nfunction removePatient(queue, id) {\n  return queue.filter((p) => p.id !== id);\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Render from state",
+   "file": "ex2_render.js",
+   "prompt": "The page has <ul id=\"queue\"> and <p id=\"waiting\">. Keep the var queue given. Write render(): empty #queue, then add one <li> per patient with the name as its text and the class \"seen\" if seen is true; then set #waiting to \"N waiting\" (N = patients not yet seen). render() must work when called again and again (no doubles), and must show whatever is in queue at the time. The last line calls render() once.",
+   "starter": "var queue = [\n  { id: 1, name: \"Amina\", seen: false },\n  { id: 2, name: \"Otieno\", seen: true },\n  { id: 3, name: \"Chebet\", seen: false },\n];\n\nfunction render() {\n  // 1. empty #queue  2. one li per patient (class \"seen\" if seen)  3. #waiting shows \"N waiting\"\n}\n\nrender();\n",
+   "tests": [
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"queue\"));\nrender();\n__eq(ul.children.length, 3, \"number of li in #queue\");\n__eq(ul.children[1].textContent, \"Otieno\", \"the second li\");\nif (!ul.children[1].classList.contains(\"seen\")) throw new Error(\"Otieno has been seen: add the class seen\");\nif (ul.children[0].classList.contains(\"seen\")) throw new Error(\"Amina has not been seen\");\n__eq(document.getElementById(\"waiting\").textContent, \"2 waiting\", \"#waiting\");\n})();",
+     "name": "draws the queue"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"queue\"));\nrender(); render(); render();\n__eq(ul.children.length, 3, \"li count after rendering three times\");\n})();",
+     "name": "no doubles",
+     "hint_if_fail": "Empty the list first: list.innerHTML = \"\";"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"queue\"));\nqueue.push({ id: 4, name: \"Juma\", seen: false });\nrender();\n__eq(ul.children.length, 4, \"li count after adding Juma\");\n__eq(document.getElementById(\"waiting\").textContent, \"3 waiting\", \"#waiting\");\n})();",
+     "name": "follows the state"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"queue\"));\nqueue = [];\nrender();\n__eq(ul.children.length, 0, \"li count for an empty queue\");\n__eq(document.getElementById(\"waiting\").textContent, \"0 waiting\", \"#waiting\");\n})();",
+     "name": "an empty queue",
+     "hidden": true,
+     "hint_if_fail": "Read queue inside render, every time; don't copy it once at the top."
+    }
+   ],
+   "hints": [
+    "const list = document.getElementById(\"queue\"); list.innerHTML = \"\"; at the start of render.",
+    "for (const p of queue) { const li = document.createElement(\"li\"); ... }",
+    "queue.filter((p) => !p.seen).length gives the number waiting."
+   ],
+   "solution": "var queue = [\n  { id: 1, name: \"Amina\", seen: false },\n  { id: 2, name: \"Otieno\", seen: true },\n  { id: 3, name: \"Chebet\", seen: false },\n];\n\nfunction render() {\n  const list = document.getElementById(\"queue\");\n  list.innerHTML = \"\";                       // empty first, or every render adds a copy\n  for (const p of queue) {\n    const li = document.createElement(\"li\");\n    li.textContent = p.name;\n    if (p.seen) li.classList.add(\"seen\");\n    list.appendChild(li);\n  }\n  const waiting = queue.filter((p) => !p.seen).length;\n  document.getElementById(\"waiting\").textContent = `${waiting} waiting`;\n}\n\nrender();\n"
+  },
+  {
+   "id": "e3",
+   "title": "A to-do list that works",
+   "file": "ex3_todo.js",
+   "prompt": "A farm to-do list. The page has <form id=\"todo-form\"> with <input id=\"todo-text\">, <ul id=\"todos\"> and <p id=\"left\">. State: var todos = [] (items { id, text, done }) and var nextId = 1. Write addTodo(text) (trim; ignore blank text; add { id: nextId++, text, done: false }; render), toggleTodo(id) (flip done; render), deleteTodo(id) (remove it; render) and render(). render empties #todos and, for each todo, adds an <li> (class \"done\" when done) holding first a <span> with the text and then a <button> with the text \"Delete\". Clicking the span toggles that todo; clicking the button deletes it. #left shows \"N left\" (not done). On submit of #todo-form: preventDefault, addTodo(the box's value), then empty the box.",
+   "starter": "var todos = [];\nvar nextId = 1;\n\nfunction addTodo(text) {\n  // trim; ignore blank; push { id: nextId++, text, done: false }; render()\n}\n\nfunction toggleTodo(id) {\n}\n\nfunction deleteTodo(id) {\n}\n\nfunction render() {\n  // empty #todos; for each todo an li (class \"done\" if done) with a span (the text) and a \"Delete\" button\n  // span click toggles, button click deletes; #left shows \"N left\"\n}\n\n// submit on #todo-form: stop the reload, addTodo(the box's value), empty the box\n\nrender();\n",
+   "tests": [
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"todos\"));\nconst box = document.getElementById(\"todo-text\");\nbox.value = \"  Water the seedlings \";\nconst ev = __fire(document.getElementById(\"todo-form\"), \"submit\");\nif (!ev.defaultPrevented) throw new Error(\"call event.preventDefault()\");\n__eq(todos.length, 1, \"todos.length after one submit\");\n__eq(ul.children.length, 1, \"li count\");\nif (!ul.children[0].children[0]) throw new Error(\"each li needs a span with the text inside it\");\n__eq(ul.children[0].children[0].textContent, \"Water the seedlings\", \"the span's text\");\n__eq(box.value, \"\", \"the box should be emptied\");\n__eq(document.getElementById(\"left\").textContent, \"1 left\", \"#left\");\n})();",
+     "name": "add with the form"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"todos\"));\naddTodo(\"Feed the goats\");\n__eq(ul.children.length, 2, \"li count\");\nconst btn = ul.children[1].children[1];\nif (!btn || btn.tagName !== \"BUTTON\") throw new Error(\"the second child of each li should be a button\");\n__eq(btn.textContent, \"Delete\", \"the button text\");\n})();",
+     "name": "each item has a Delete button"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"todos\"));\nul.children[0].children[0].click();\nif (!ul.children[0].classList.contains(\"done\")) throw new Error(\"clicking the text should mark it done (class done)\");\n__eq(document.getElementById(\"left\").textContent, \"1 left\", \"#left\");\n__eq(todos[0].done, true, \"todos[0].done\");\n})();",
+     "name": "click the text to toggle"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"todos\"));\nul.children[1].children[1].click();\n__eq(todos.map((t) => t.text), [\"Water the seedlings\"], \"todos after deleting Feed the goats\");\n__eq(ul.children.length, 1, \"li count\");\n__eq(document.getElementById(\"left\").textContent, \"0 left\", \"#left\");\n})();",
+     "name": "Delete removes it"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"todos\"));\naddTodo(\"   \");\n__eq(todos.length, 1, \"a blank todo should be ignored; todos.length\");\naddTodo(\"Mend the fence\");\nconst ids = todos.map((t) => t.id);\nif (new Set(ids).size !== ids.length) throw new Error(\"ids must be unique, got \" + JSON.stringify(ids));\n__eq(ul.children.length, 2, \"li count\");\n})();",
+     "name": "blank ignored, ids unique",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Every action ends with render(). render starts with list.innerHTML = \"\".",
+    "In render's loop: span.addEventListener(\"click\", () => toggleTodo(todo.id)); del.addEventListener(\"click\", () => deleteTodo(todo.id));",
+    "toggleTodo: const t = todos.find((x) => x.id === id); deleteTodo: todos = todos.filter((x) => x.id !== id);"
+   ],
+   "solution": "var todos = [];\nvar nextId = 1;\n\nfunction addTodo(text) {\n  const clean = String(text).trim();\n  if (clean === \"\") return;\n  todos.push({ id: nextId++, text: clean, done: false });\n  render();\n}\n\nfunction toggleTodo(id) {\n  const todo = todos.find((t) => t.id === id);\n  if (todo) todo.done = !todo.done;\n  render();\n}\n\nfunction deleteTodo(id) {\n  todos = todos.filter((t) => t.id !== id);\n  render();\n}\n\nfunction render() {\n  const list = document.getElementById(\"todos\");\n  list.innerHTML = \"\";\n  for (const todo of todos) {\n    const li = document.createElement(\"li\");\n    if (todo.done) li.classList.add(\"done\");\n\n    const span = document.createElement(\"span\");\n    span.textContent = todo.text;\n    span.addEventListener(\"click\", () => toggleTodo(todo.id));\n\n    const del = document.createElement(\"button\");\n    del.textContent = \"Delete\";\n    del.addEventListener(\"click\", () => deleteTodo(todo.id));\n\n    li.appendChild(span);\n    li.appendChild(del);\n    list.appendChild(li);\n  }\n  const left = todos.filter((t) => !t.done).length;\n  document.getElementById(\"left\").textContent = `${left} left`;\n}\n\nconst form = document.getElementById(\"todo-form\");\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault();\n  const box = document.getElementById(\"todo-text\");\n  addTodo(box.value);\n  box.value = \"\";\n});\n\nrender();\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Your render() works the first time, but each later call shows every item twice. Why?",
+   "choices": [
+    "render is called too often",
+    "It doesn't empty the list before drawing",
+    "The array has duplicates",
+    "appendChild copies elements"
+   ],
+   "answer": 1,
+   "why": "Start render with list.innerHTML = \"\" (or replaceChildren())."
+  },
+  {
+   "q": "Why identify items by an id instead of their position in the array?",
+   "choices": [
+    "ids are shorter",
+    "Positions shift after a delete, so you'd change the wrong item",
+    "Arrays can't be indexed",
+    "Browsers need ids"
+   ],
+   "answer": 1,
+   "why": "An id stays with its item no matter what else changes."
+  },
+  {
+   "q": "In the state-plus-render pattern, a click should…",
+   "choices": [
+    "Change the li directly",
+    "Change the state, then call render()",
+    "Reload the page",
+    "Call render() only"
+   ],
+   "answer": 1,
+   "why": "One path for every change keeps page and data in step."
+  },
+  {
+   "q": "What does { ...p, seen: true } make?",
+   "choices": [
+    "Changes p",
+    "A new object copying p with seen set to true",
+    "An array",
+    "An error"
+   ],
+   "answer": 1,
+   "why": "Spread copies the fields; the later seen wins."
+  },
+  {
+   "q": "Why does del.addEventListener(\"click\", () => deleteTodo(todo.id)) inside render's loop delete the right item?",
+   "choices": [
+    "Luck",
+    "Each arrow function remembers the todo from its own loop round",
+    "The browser passes the id",
+    "deleteTodo guesses"
+   ],
+   "answer": 1,
+   "why": "A function made inside the loop keeps the variables of that round (a closure)."
+  }
+ ],
+ "cards": [
+  {
+   "q": "State plus render?",
+   "a": "Data lives in variables; render() redraws the page from it; events change the data then call render()."
+  },
+  {
+   "q": "Empty an element?",
+   "a": "el.innerHTML = \"\" or el.replaceChildren()"
+  },
+  {
+   "q": "Remove by id without changing the array?",
+   "a": "list.filter((x) => x.id !== id)"
+  },
+  {
+   "q": "Copy an array and add one?",
+   "a": "[...list, item]"
+  }
+ ],
+ "explain": "Explain the state-plus-render pattern and the bug it prevents, using a made-up game inventory."
+}

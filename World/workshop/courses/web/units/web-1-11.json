@@ -1,0 +1,135 @@
+{
+ "id": "web-1-11",
+ "level": 1,
+ "title": "Make the page react: the DOM",
+ "concepts": [
+  "dom",
+  "events"
+ ],
+ "skills": [
+  "javascript",
+  "dom",
+  "events"
+ ],
+ "lesson": "The browser turns your HTML into a tree of objects called the **DOM**, and JavaScript can read and change it. That's how pages react.\n\n```\n<p id=\"count\">0</p>\n<button id=\"add\">Add one</button>\n<script src=\"script.js\"></script>\n```\n\n```\nconst count = document.getElementById(\"count\");\nconst add = document.getElementById(\"add\");\nlet n = 0;\nadd.addEventListener(\"click\", () => {\n  n++;\n  count.textContent = n;\n});\n```\n\n- `document.getElementById(\"x\")` finds the element with `id=\"x\"`; `document.querySelector(\".card\")` finds the first match for any CSS selector.\n- `.textContent` reads or sets an element's text (safe: it never runs anything someone typed). `.value` reads what's typed in an input. `.style.color = \"red\"` and `.classList.add(\"done\")` change looks.\n- `addEventListener(\"click\", function)` runs the function every time it happens. Other events: `\"input\"` (each keystroke in a box), `\"change\"`, `\"submit\"`.\n- Put the `<script>` at the end of the body (or use `defer`), so the elements exist when the code runs.\n\nKeep the logic (the maths, the rules) in plain functions, and the DOM code thin: plain functions can be tested on their own, which is exactly how these exercises are graded.",
+ "example": {
+  "file": "example.html",
+  "code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Counter</title>\n</head>\n<body>\n<h1>Counter</h1>\n<p id=\"count\">0</p>\n<button id=\"add\">Add one</button>\n<button id=\"reset\">Reset</button>\n<script>\n  const count = document.getElementById(\"count\");\n  let n = 0;\n  document.getElementById(\"add\").addEventListener(\"click\", () => { n++; count.textContent = n; });\n  document.getElementById(\"reset\").addEventListener(\"click\", () => { n = 0; count.textContent = n; });\n</script>\n</body>\n</html>\n",
+  "notes": [
+   "Elements with ids.",
+   "Find them once, keep the number in a variable.",
+   "Each click changes the number and the text."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A counter",
+   "file": "ex1_counter.js",
+   "prompt": "This script goes with a page that has <p id=\"count\">, <button id=\"add\"> and <button id=\"reset\">. Make add increase the number shown in count by 1 each click, and reset set it back to 0.",
+   "starter": "// Find the elements, keep a number, and react to clicks.\n",
+   "tests": [
+    {
+     "check": "const a = document.getElementById(\"add\"), c = document.getElementById(\"count\"); a.click(); a.click(); a.click(); if (String(c.textContent) !== \"3\") throw new Error(\"after 3 clicks, count shows \" + c.textContent);",
+     "name": "three clicks show 3"
+    },
+    {
+     "check": "document.getElementById(\"reset\").click(); if (String(document.getElementById(\"count\").textContent) !== \"0\") throw new Error(\"reset should show 0\"); document.getElementById(\"add\").click(); if (String(document.getElementById(\"count\").textContent) !== \"1\") throw new Error(\"after reset and one click it should show 1\");",
+     "name": "reset works"
+    },
+    {
+     "src_has": "addEventListener(",
+     "why": "Use addEventListener for the clicks."
+    }
+   ],
+   "hints": [
+    "const count = document.getElementById(\"count\"); let n = 0;",
+    "document.getElementById(\"add\").addEventListener(\"click\", () => { n++; count.textContent = n; });"
+   ],
+   "solution": "const count = document.getElementById(\"count\");\nlet n = 0;\ndocument.getElementById(\"add\").addEventListener(\"click\", () => {\n  n++;\n  count.textContent = n;\n});\ndocument.getElementById(\"reset\").addEventListener(\"click\", () => {\n  n = 0;\n  count.textContent = n;\n});\n"
+  },
+  {
+   "id": "e2",
+   "title": "Live converter",
+   "file": "ex2_convert.js",
+   "prompt": "A page has <input id=\"ksh\">, <input id=\"rate\" value=\"130\"> and <p id=\"usd\">. Write a plain function convert(ksh, rate) giving the dollars as text with 2 decimals plus \" USD\" (\"10.00 USD\"; \"–\" if either isn't a number). Then make every \"input\" event on ksh show convert(...) in usd.",
+   "starter": "function convert(ksh, rate) {\n  return \"\";\n}\n",
+   "tests": [
+    {
+     "call": "convert(\"1300\", \"130\")",
+     "expect": "10.00 USD"
+    },
+    {
+     "call": "convert(\"abc\", \"130\")",
+     "expect": "–",
+     "hint_if_fail": "Check with isNaN(Number(x)) or Number.isFinite."
+    },
+    {
+     "call": "convert(\"\", \"130\")",
+     "expect": "–",
+     "hidden": true,
+     "hint_if_fail": "An empty box is Number(\"\") which is 0. Treat empty as not a number."
+    },
+    {
+     "check": "document.getElementById(\"rate\").value = \"130\"; const k = document.getElementById(\"ksh\"); k.value = \"2600\"; k.dispatch(\"input\"); if (document.getElementById(\"usd\").textContent !== \"20.00 USD\") throw new Error(\"typing 2600 should show 20.00 USD, it shows \" + document.getElementById(\"usd\").textContent);",
+     "name": "updates as you type"
+    }
+   ],
+   "hints": [
+    "Keep convert pure: just numbers in, text out.",
+    "ksh.addEventListener(\"input\", () => { usd.textContent = convert(ksh.value, rate.value); });"
+   ],
+   "solution": "function convert(ksh, rate) {\n  if (String(ksh).trim() === \"\" || String(rate).trim() === \"\") return \"–\";\n  const k = Number(ksh), r = Number(rate);\n  if (!Number.isFinite(k) || !Number.isFinite(r) || r === 0) return \"–\";\n  return (k / r).toFixed(2) + \" USD\";\n}\n\nconst kshBox = document.getElementById(\"ksh\");\nconst rateBox = document.getElementById(\"rate\");\nconst usd = document.getElementById(\"usd\");\nkshBox.addEventListener(\"input\", () => {\n  usd.textContent = convert(kshBox.value, rateBox.value);\n});\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why textContent rather than innerHTML for showing what someone typed?",
+   "choices": [
+    "It's faster",
+    "textContent never runs anything as code, so it's safe",
+    "innerHTML doesn't exist",
+    "No difference"
+   ],
+   "answer": 1,
+   "why": "innerHTML with user text is a classic security hole (XSS)."
+  },
+  {
+   "q": "Where should the <script> tag go?",
+   "choices": [
+    "Before <html>",
+    "At the end of the body (or with defer)",
+    "In the title",
+    "Anywhere, no difference"
+   ],
+   "answer": 1,
+   "why": "So the elements exist when the code runs."
+  },
+  {
+   "q": "Event for every keystroke in a box?",
+   "choices": [
+    "click",
+    "input",
+    "submit",
+    "load"
+   ],
+   "answer": 1,
+   "why": "input fires as the value changes."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Find an element by id?",
+   "a": "document.getElementById(\"x\")"
+  },
+  {
+   "q": "React to a click?",
+   "a": "el.addEventListener(\"click\", () => { … })"
+  },
+  {
+   "q": "Read a text box?",
+   "a": "input.value"
+  }
+ ],
+ "explain": "Explain make the page react: the dom to someone who has never programmed, in your own words, with an example you make up."
+}

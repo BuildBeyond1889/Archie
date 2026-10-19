@@ -1,0 +1,232 @@
+{
+ "id": "cpp-2-06",
+ "level": 2,
+ "title": "shared_ptr and weak_ptr",
+ "concepts": [
+  "smart-pointers",
+  "memory",
+  "raii"
+ ],
+ "skills": [
+  "shared_ptr",
+  "weak_ptr",
+  "cycles"
+ ],
+ "lesson": "Sometimes one owner isn't the truth. A texture is used by twenty sprites; it should stay loaded while **any** of them needs it and be freed when the **last** one is gone. That is **shared ownership**, and `std::shared_ptr` does it.\n\n```\nauto tex = std::make_shared<Texture>(\"grass.png\");\nauto a = tex;              // copying is allowed: now 2 owners\nauto b = tex;              // 3 owners\ntex.use_count();           // 3\na.reset();                 // a lets go: 2\n// when the last shared_ptr goes, the Texture is deleted\n```\n\nInside, the shared_ptr keeps a **reference count**. Every copy adds one, every destroyed or reset copy takes one away, and at zero the object is deleted. It is RAII again, with a counter.\n\n**Prefer unique_ptr.** Shared ownership is harder to reason about (\"who is keeping this alive?\") and the counting costs a little. Use `shared_ptr` only when there really are several owners with no clear \"last one\".\n\n**Watching without owning: weak_ptr.** An enemy follows the player. Should the enemy **own** the player? No: if the player leaves the game, the player should go, and the enemy should notice. A `std::weak_ptr` points at something owned by shared_ptrs **without** adding to the count:\n\n```\nstd::weak_ptr<Player> target = player;   // doesn't keep the player alive\nif (auto p = target.lock()) {            // lock(): a shared_ptr, or empty if gone\n    moveToward(p->x);\n} else {\n    wander();                            // the player was destroyed\n}\ntarget.expired();                        // true once the player is gone\n```\n\nAlways `lock()` and check: the thing may have been destroyed since you last looked.\n\n**Cycles: the shared_ptr trap.** A squad owns its soldiers (`shared_ptr<Soldier>`), and each soldier points back at its squad. If that back pointer is also a `shared_ptr`, the squad keeps the soldiers alive and the soldiers keep the squad alive. When the rest of the game lets go, the counts never reach zero and **nothing is ever deleted**: a leak that no `delete` can fix, because there are none to fix.\n\nThe rule: **owners point down with shared_ptr (or unique_ptr); back-pointers and \"I'm watching you\" pointers use weak_ptr.** Parent owns child; child watches parent.\n\nIn Unreal, `TSharedPtr` and `TWeakPtr` work the same way, and for actors there is `TWeakObjectPtr<AActor>`, which is exactly the \"enemy follows a target that may be destroyed\" pointer.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <memory>\n#include <string>\n\nstruct Player\n{\n    std::string name;\n    int x;\n    Player(std::string name, int x) : name(name), x(x) {}\n    ~Player() { std::cout << \"  (\" << name << \" left the game)\\n\"; }\n};\n\nint main()\n{\n    auto player = std::make_shared<Player>(\"Amina\", 10);\n    auto camera = player;                      // a second owner\n    std::cout << \"owners: \" << player.use_count() << \"\\n\";\n\n    std::weak_ptr<Player> enemyTarget = player; // watching, not owning\n    std::cout << \"owners still: \" << player.use_count() << \"\\n\";\n\n    camera.reset();\n    player.reset();                             // last owner gone: Player deleted\n\n    if (auto p = enemyTarget.lock())\n        std::cout << \"chasing \" << p->name << \"\\n\";\n    else\n        std::cout << \"target gone, enemy wanders\\n\";\n    return 0;\n}\n",
+  "notes": [
+   "make_shared creates the Player with one owner; copying the shared_ptr makes another.",
+   "use_count is the number of owners. The weak_ptr doesn't change it.",
+   "The Player is deleted when the last shared_ptr resets, not the first.",
+   "lock() gives a usable shared_ptr only if the Player still exists, so the enemy can react safely."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A texture cache",
+   "file": "textures.cpp",
+   "prompt": "Write class TextureCache, which keeps a std::map<std::string, std::shared_ptr<Texture>>:\n- std::shared_ptr<Texture> load(const std::string& file): if that file is already in the cache, return the same shared_ptr; otherwise create it with std::make_shared, store it and return it.\n- int loadedCount() const: how many textures the cache holds.\n- void unloadUnused(): removes every texture that only the cache is holding (its use_count() is 1).",
+   "starter": "#include <map>\n#include <memory>\n#include <string>\n\nstruct Texture\n{\n    inline static int alive = 0;\n    std::string file;\n    Texture(std::string file) : file(file) { alive++; }\n    ~Texture() { alive--; }\n};\n\nclass TextureCache\n{\npublic:\n    std::shared_ptr<Texture> load(const std::string& file) { return std::make_shared<Texture>(file); }\n    int loadedCount() const { return 0; }\n    void unloadUnused() {}\nprivate:\n    std::map<std::string, std::shared_ptr<Texture>> textures;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ TextureCache c; auto a = c.load(\"grass.png\"); auto b = c.load(\"grass.png\"); return a == b; }()",
+     "expect": "true",
+     "hint_if_fail": "The second load of the same file must return the stored pointer, not a new Texture."
+    },
+    {
+     "call": "[]{ TextureCache c; auto a = c.load(\"grass.png\"); auto b = c.load(\"grass.png\"); return a.use_count(); }()",
+     "expect": "3",
+     "hint_if_fail": "The cache, a and b all own the same Texture."
+    },
+    {
+     "call": "[]{ TextureCache c; c.load(\"a.png\"); c.load(\"b.png\"); c.load(\"a.png\"); return c.loadedCount(); }()",
+     "expect": "2"
+    },
+    {
+     "call": "[]{ int before = Texture::alive; TextureCache c; auto keep = c.load(\"a.png\"); c.load(\"b.png\"); c.unloadUnused(); return c.loadedCount() * 10 + (Texture::alive - before); }()",
+     "expect": "11",
+     "hint_if_fail": "b.png is held only by the cache, so unloadUnused removes it; a.png is still used by keep."
+    },
+    {
+     "call": "[]{ TextureCache c; return c.load(\"a.png\") != c.load(\"b.png\"); }()",
+     "expect": "true",
+     "hidden": true
+    },
+    {
+     "call": "[]{ int before = Texture::alive; { TextureCache c; c.load(\"x.png\"); c.load(\"y.png\"); } return Texture::alive - before; }()",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "load: auto it = textures.find(file); if (it != textures.end()) return it->second;",
+    "Otherwise: auto t = std::make_shared<Texture>(file); textures[file] = t; return t;",
+    "unloadUnused: walk with an iterator; if (it->second.use_count() == 1) it = textures.erase(it); else ++it;"
+   ],
+   "solution": "#include <map>\n#include <memory>\n#include <string>\n\nstruct Texture\n{\n    inline static int alive = 0;\n    std::string file;\n    Texture(std::string file) : file(file) { alive++; }\n    ~Texture() { alive--; }\n};\n\nclass TextureCache\n{\npublic:\n    std::shared_ptr<Texture> load(const std::string& file)\n    {\n        auto it = textures.find(file);\n        if (it != textures.end()) return it->second;   // share the one we have\n        auto t = std::make_shared<Texture>(file);\n        textures[file] = t;\n        return t;\n    }\n    int loadedCount() const { return textures.size(); }\n    void unloadUnused()\n    {\n        for (auto it = textures.begin(); it != textures.end(); ) {\n            if (it->second.use_count() == 1) it = textures.erase(it);   // only we hold it\n            else ++it;\n        }\n    }\nprivate:\n    std::map<std::string, std::shared_ptr<Texture>> textures;\n};\n"
+  },
+  {
+   "id": "e2",
+   "title": "An enemy that follows a player",
+   "file": "follower.cpp",
+   "prompt": "Follower currently OWNS its target, so a player who leaves the game is kept alive by the enemies chasing them. Change it to watch the player with a std::weak_ptr<Player>:\n- void follow(const std::shared_ptr<Player>& p) starts watching p.\n- bool hasTarget() const: true only while the player still exists.\n- std::string targetName() const: the player's name, or \"none\".\n- int stepToward(int myX) const: moves one step toward the player's x (myX + 1 or myX - 1, or myX if already there). With no target it returns myX.",
+   "starter": "#include <memory>\n#include <string>\n\nstruct Player\n{\n    std::string name;\n    int x;\n    Player(std::string name, int x) : name(name), x(x) {}\n};\n\nclass Follower\n{\npublic:\n    void follow(const std::shared_ptr<Player>& p) { target = p; }\n    bool hasTarget() const { return target != nullptr; }\n    std::string targetName() const { return target ? target->name : \"none\"; }\n    int stepToward(int myX) const\n    {\n        if (!target) return myX;\n        if (target->x > myX) return myX + 1;\n        if (target->x < myX) return myX - 1;\n        return myX;\n    }\nprivate:\n    std::shared_ptr<Player> target;   // owns the player: wrong\n};\n",
+   "tests": [
+    {
+     "call": "[]{ auto p = std::make_shared<Player>(\"Amina\", 5); Follower f; f.follow(p); return p.use_count(); }()",
+     "expect": "1",
+     "hint_if_fail": "A follower must not own the player: use std::weak_ptr<Player>."
+    },
+    {
+     "call": "[]{ auto p = std::make_shared<Player>(\"Amina\", 5); Follower f; f.follow(p); return f.targetName(); }()",
+     "expect": "Amina"
+    },
+    {
+     "call": "[]{ auto p = std::make_shared<Player>(\"Amina\", 5); Follower f; f.follow(p); p.reset(); return f.hasTarget(); }()",
+     "expect": "false",
+     "hint_if_fail": "Once the last owner lets go, the player is gone; check with lock() or expired()."
+    },
+    {
+     "call": "[]{ auto p = std::make_shared<Player>(\"Juma\", 5); Follower f; f.follow(p); return std::to_string(f.stepToward(2)) + \",\" + std::to_string(f.stepToward(9)) + \",\" + std::to_string(f.stepToward(5)); }()",
+     "expect": "3,8,5"
+    },
+    {
+     "call": "[]{ auto p = std::make_shared<Player>(\"Juma\", 5); Follower f; f.follow(p); p.reset(); return f.targetName() + \",\" + std::to_string(f.stepToward(2)); }()",
+     "expect": "none,2",
+     "hidden": true
+    },
+    {
+     "call": "[]{ Follower f; return f.hasTarget(); }()",
+     "expect": "false",
+     "hidden": true
+    },
+    {
+     "src_has": "weak_ptr",
+     "why": "Store the target as a std::weak_ptr<Player>."
+    }
+   ],
+   "hints": [
+    "Change the member to std::weak_ptr<Player> target;",
+    "hasTarget: return !target.expired();",
+    "Elsewhere: if (auto p = target.lock()) { ... use p->x ... } else { no target }"
+   ],
+   "solution": "#include <memory>\n#include <string>\n\nstruct Player\n{\n    std::string name;\n    int x;\n    Player(std::string name, int x) : name(name), x(x) {}\n};\n\nclass Follower\n{\npublic:\n    void follow(const std::shared_ptr<Player>& p) { target = p; }\n    bool hasTarget() const { return !target.expired(); }\n    std::string targetName() const\n    {\n        if (auto p = target.lock()) return p->name;\n        return \"none\";\n    }\n    int stepToward(int myX) const\n    {\n        auto p = target.lock();       // a short-lived owner while we read it\n        if (!p) return myX;\n        if (p->x > myX) return myX + 1;\n        if (p->x < myX) return myX - 1;\n        return myX;\n    }\nprivate:\n    std::weak_ptr<Player> target;     // watches, never keeps the player alive\n};\n"
+  },
+  {
+   "id": "e3",
+   "title": "Break the squad cycle",
+   "file": "squad.cpp",
+   "prompt": "A Squad owns its Soldiers, and each Soldier points back at its Squad with a shared_ptr. That is a cycle: when the game lets go of a squad, neither the squad nor its soldiers are ever deleted. Fix it by making Soldier::squad a std::weak_ptr<Squad>, and update squadOf so it returns the squad's name, or \"none\" if the squad no longer exists. enlist(squad, name) and squadOf(soldier) keep the same signatures.",
+   "starter": "#include <memory>\n#include <string>\n#include <vector>\n\nstruct Soldier;\n\nstruct Squad\n{\n    inline static int alive = 0;\n    std::string name;\n    std::vector<std::shared_ptr<Soldier>> members;   // the squad owns its soldiers\n    Squad(std::string name) : name(name) { alive++; }\n    ~Squad() { alive--; }\n};\n\nstruct Soldier\n{\n    inline static int alive = 0;\n    std::string name;\n    std::shared_ptr<Squad> squad;     // PROBLEM: a soldier also owns its squad\n    Soldier(std::string name) : name(name) { alive++; }\n    ~Soldier() { alive--; }\n};\n\nstd::shared_ptr<Soldier> enlist(const std::shared_ptr<Squad>& squad, const std::string& name)\n{\n    auto s = std::make_shared<Soldier>(name);\n    s->squad = squad;\n    squad->members.push_back(s);\n    return s;\n}\n\nstd::string squadOf(const Soldier& s)\n{\n    return s.squad ? s.squad->name : \"none\";\n}\n",
+   "tests": [
+    {
+     "call": "[]{ auto sq = std::make_shared<Squad>(\"Red\"); auto s = enlist(sq, \"Juma\"); return squadOf(*s); }()",
+     "expect": "Red"
+    },
+    {
+     "call": "[]{ int b1 = Squad::alive, b2 = Soldier::alive; { auto sq = std::make_shared<Squad>(\"Red\"); enlist(sq, \"Juma\"); enlist(sq, \"Otieno\"); } return (Squad::alive - b1) * 10 + (Soldier::alive - b2); }()",
+     "expect": "0",
+     "hint_if_fail": "Squad and soldiers keep each other alive. The back-pointer must not own: weak_ptr."
+    },
+    {
+     "call": "[]{ auto sq = std::make_shared<Squad>(\"Red\"); enlist(sq, \"Juma\"); enlist(sq, \"Amina\"); return sq.use_count(); }()",
+     "expect": "1"
+    },
+    {
+     "call": "[]{ std::shared_ptr<Soldier> s; { auto sq = std::make_shared<Squad>(\"Blue\"); s = enlist(sq, \"Wanjiru\"); } return squadOf(*s); }()",
+     "expect": "none",
+     "hidden": true,
+     "hint_if_fail": "The squad is gone, so lock() gives an empty pointer: return \"none\"."
+    },
+    {
+     "src_has": "weak_ptr<Squad>",
+     "why": "Make the soldier's back-pointer a std::weak_ptr<Squad>."
+    }
+   ],
+   "hints": [
+    "Only one line in Soldier changes: std::weak_ptr<Squad> squad;",
+    "squadOf can't use s.squad->name any more: if (auto sq = s.squad.lock()) return sq->name; return \"none\";"
+   ],
+   "solution": "#include <memory>\n#include <string>\n#include <vector>\n\nstruct Soldier;\n\nstruct Squad\n{\n    inline static int alive = 0;\n    std::string name;\n    std::vector<std::shared_ptr<Soldier>> members;   // the squad owns its soldiers\n    Squad(std::string name) : name(name) { alive++; }\n    ~Squad() { alive--; }\n};\n\nstruct Soldier\n{\n    inline static int alive = 0;\n    std::string name;\n    std::weak_ptr<Squad> squad;       // points back up without owning: no cycle\n    Soldier(std::string name) : name(name) { alive++; }\n    ~Soldier() { alive--; }\n};\n\nstd::shared_ptr<Soldier> enlist(const std::shared_ptr<Squad>& squad, const std::string& name)\n{\n    auto s = std::make_shared<Soldier>(name);\n    s->squad = squad;                 // a weak_ptr can be set from a shared_ptr\n    squad->members.push_back(s);\n    return s;\n}\n\nstd::string squadOf(const Soldier& s)\n{\n    if (auto sq = s.squad.lock()) return sq->name;   // still there?\n    return \"none\";\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Three shared_ptrs own a Texture. Two are reset. Is the Texture deleted?",
+   "choices": [
+    "Yes",
+    "No: one owner is left",
+    "Only if use_count was 2",
+    "It leaks"
+   ],
+   "answer": 1,
+   "why": "It is deleted when the count reaches zero."
+  },
+  {
+   "q": "Does copying a weak_ptr from a shared_ptr change use_count?",
+   "choices": [
+    "Yes, +1",
+    "No",
+    "It resets it",
+    "It doubles it"
+   ],
+   "answer": 1,
+   "why": "weak_ptr watches without owning."
+  },
+  {
+   "q": "How do you safely use what a weak_ptr points at?",
+   "choices": [
+    "*w",
+    "w->x",
+    "auto p = w.lock(); then check p",
+    "w.get()"
+   ],
+   "answer": 2,
+   "why": "lock() gives a shared_ptr, empty if the object is gone."
+  },
+  {
+   "q": "A parent and child hold shared_ptrs to each other. What happens when the rest of the program lets go?",
+   "choices": [
+    "Both are deleted",
+    "Neither is deleted: a leak",
+    "A crash",
+    "The child is deleted"
+   ],
+   "answer": 1,
+   "why": "Each keeps the other's count above zero: a cycle."
+  },
+  {
+   "q": "Which should you reach for first for a game entity with one clear owner?",
+   "choices": [
+    "shared_ptr",
+    "unique_ptr",
+    "weak_ptr",
+    "raw new"
+   ],
+   "answer": 1,
+   "why": "One owner: unique_ptr. Use shared_ptr only for real shared ownership."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Create a shared_ptr?",
+   "a": "auto p = std::make_shared<T>(args);"
+  },
+  {
+   "q": "How many owners?",
+   "a": "p.use_count()"
+  },
+  {
+   "q": "Use a weak_ptr?",
+   "a": "if (auto p = w.lock()) { ... } else { gone }"
+  },
+  {
+   "q": "Rule for cycles?",
+   "a": "Owners point down with shared_ptr; back-pointers use weak_ptr."
+  }
+ ],
+ "explain": "Explain why an enemy should watch its target with a weak_ptr rather than own it with a shared_ptr."
+}

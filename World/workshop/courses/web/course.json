@@ -1,0 +1,70 @@
+{
+ "name": "Web (HTML, CSS, JavaScript)",
+ "lang": "Web (HTML, CSS, JavaScript)",
+ "grader": "Web",
+ "version": "1.1.0",
+ "summary": "Build web pages and apps that work on any phone: HTML for structure, CSS for looks and layout, JavaScript for behaviour. Pages are checked by Archie's page checker and structure tests; JavaScript by real tests.",
+ "levels": [
+  {
+   "n": 1,
+   "name": "Pages, style, layout for phones, and JavaScript basics",
+   "ready": true
+  },
+  {
+   "n": 2,
+   "name": "Interactive apps: the DOM in depth, forms, storage, fetch",
+   "ready": true
+  },
+  {
+   "n": 3,
+   "name": "Accessibility, performance, offline apps (PWAs)",
+   "ready": false
+  },
+  {
+   "n": 4,
+   "name": "Algorithms in JavaScript",
+   "ready": false
+  },
+  {
+   "n": 5,
+   "name": "Frameworks and tooling",
+   "ready": false
+  },
+  {
+   "n": 6,
+   "name": "Professional craft: testing, security, deployment",
+   "ready": false
+  },
+  {
+   "n": 7,
+   "name": "Capstone: a real site or app for real people, then a defense",
+   "ready": false
+  }
+ ],
+ "units": [
+  "web-1-01",
+  "web-1-02",
+  "web-1-03",
+  "web-1-04",
+  "web-1-05",
+  "web-1-06",
+  "web-1-07",
+  "web-1-08",
+  "web-1-09",
+  "web-1-10",
+  "web-1-11",
+  "web-1-12",
+  "web-2-01",
+  "web-2-02",
+  "web-2-03",
+  "web-2-04",
+  "web-2-05",
+  "web-2-06",
+  "web-2-07",
+  "web-2-08",
+  "web-2-09"
+ ],
+ "certs": [
+  "freeCodeCamp Responsive Web Design and JavaScript certifications (free)"
+ ]
+}

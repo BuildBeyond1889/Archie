@@ -1,0 +1,321 @@
+{
+ "id": "web-2-08",
+ "level": 2,
+ "title": "Organising a small app",
+ "concepts": [
+  "design",
+  "modules",
+  "testing",
+  "rendering"
+ ],
+ "skills": [
+  "design",
+  "pure functions",
+  "accessibility"
+ ],
+ "lesson": "Small apps grow. A 40-line script becomes 400 lines, and suddenly changing the stock rule breaks the display, and nobody can tell where a bug lives. Professionals avoid this by keeping different jobs in different places. For a small page app, think of four parts:\n\n1. **State**: the data, in one place. `let stock = [{ name: \"ORS\", qty: 30 }];`\n2. **Logic**: plain functions that take data and return new data or answers. No `document`, no `localStorage`. `dispense(stock, \"ORS\", 5)` returns the new stock, or throws if there isn't enough.\n3. **View**: `render()` reads the state and draws the page. No rules in here, just drawing.\n4. **Wiring**: event listeners that read inputs, call the logic, save, and call render.\n\n```\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault();\n  try {\n    stock = dispense(stock, nameBox.value, Number(qtyBox.value));   // logic\n    save(stock);                                                     // storage\n    render();                                                        // view\n  } catch (err) {\n    status.textContent = err.message;\n  }\n});\n```\n\n**Why pure logic matters.** A *pure* function's answer depends only on its arguments, and it changes nothing outside itself. You can test it in a second, without a browser, with any data you like, including the nasty cases. It can't break the page, because it never touches the page. When the clinic asks for a new rule, you change one function and its tests tell you if anything else broke. That's how this course grades your work, and how real teams work.\n\n**A tiny module.** When some state should only be changed through a few functions, hide it inside a function and hand back only those functions:\n\n```\nconst Counter = (function () {\n  let count = 0;                         // private: nothing outside can touch it\n  function add(n) { count += n; return count; }\n  function value() { return count; }\n  return { add, value };                 // the public part\n})();\nCounter.add(5);   // 5;  Counter.count is undefined\n```\n\nThe `(function () { ... })()` runs once straight away; the returned functions still remember `count` (a **closure**). Modern code often uses separate files with `import`/`export` for the same idea; the habit is the same: a small public surface, private insides.\n\n**Accessibility for pages that change.** When your code changes the page, people using screen readers may never hear about it. Basics that cover most of it:\n- Use real `<button>`s and `<form>`s, not clickable `<div>`s: they work with the keyboard and announce themselves.\n- Every input gets a `<label for>`.\n- Put status messages in an element with `aria-live=\"polite\"` (or `role=\"status\"`): the screen reader announces changes to its text without moving the focus.\n- After adding an item, return the focus to the input (`box.focus()`), so the next entry is quick.\n- Wire events in the script, not with `onclick=` in the HTML, so structure and behaviour stay apart.",
+ "example": {
+  "file": "example.js",
+  "code": "// ---- state ----\nlet stock = [{ name: \"ORS\", qty: 30 }];\n\n// ---- logic: pure, testable, no DOM ----\nfunction dispense(list, name, qty) {\n  const item = list.find((i) => i.name === name);\n  if (!item || item.qty < qty) throw new Error(`Not enough ${name}`);\n  return list.map((i) => (i === item ? { ...i, qty: i.qty - qty } : i));\n}\n\n// ---- view: draws state, no rules ----\nfunction render() {\n  const ul = document.getElementById(\"stock\");\n  ul.innerHTML = \"\";\n  for (const i of stock) {\n    const li = document.createElement(\"li\");\n    li.textContent = `${i.name}: ${i.qty}`;\n    ul.appendChild(li);\n  }\n}\n\n// ---- wiring ----\ndocument.getElementById(\"give\").addEventListener(\"click\", () => {\n  const status = document.getElementById(\"status\");   // <p id=\"status\" aria-live=\"polite\">\n  try {\n    stock = dispense(stock, \"ORS\", 5);\n    status.textContent = \"Gave 5 ORS.\";\n  } catch (err) {\n    status.textContent = err.message;                    // announced by screen readers\n  }\n  render();\n});\nrender();\n",
+  "notes": [
+   "State is one variable; logic never touches the page.",
+   "dispense returns a new array or throws a clear error.",
+   "render only draws.",
+   "The listener is the glue, and the status line is aria-live so changes are announced."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Pure stock logic",
+   "file": "ex1_logic.js",
+   "prompt": "Write two pure functions for clinic stock (an array like [{ name: \"ORS\", qty: 30 }]). Neither may change the array or objects it is given. receive(stock, name, qty): if qty isn't a number above 0, throw new Error(\"Quantity must be more than 0\"); if an item with that name exists (ignore case and spaces around the name), return a new array where its qty is increased; otherwise return a new array with { name: (trimmed), qty } added at the end. dispense(stock, name, qty): same quantity check; if the item doesn't exist or has less than qty, throw new Error(\"Not enough NAME\") (the name as given, trimmed); otherwise return a new array with its qty reduced.",
+   "starter": "function receive(stock, name, qty) {\n  return stock;\n}\n\nfunction dispense(stock, name, qty) {\n  return stock;\n}\n",
+   "tests": [
+    {
+     "call": "receive([], \" ORS \", 30)",
+     "expect": [
+      {
+       "name": "ORS",
+       "qty": 30
+      }
+     ],
+     "name": "a new item"
+    },
+    {
+     "call": "receive([{ name: \"ORS\", qty: 30 }, { name: \"Gloves\", qty: 100 }], \"ors\", 10)",
+     "expect": [
+      {
+       "name": "ORS",
+       "qty": 40
+      },
+      {
+       "name": "Gloves",
+       "qty": 100
+      }
+     ],
+     "name": "adding to an item (any case)"
+    },
+    {
+     "call": "dispense([{ name: \"ORS\", qty: 30 }, { name: \"Gloves\", qty: 100 }], \"Gloves\", 40)",
+     "expect": [
+      {
+       "name": "ORS",
+       "qty": 30
+      },
+      {
+       "name": "Gloves",
+       "qty": 60
+      }
+     ],
+     "name": "dispense"
+    },
+    {
+     "call": "(() => { try { dispense([{ name: \"ORS\", qty: 30 }, { name: \"Gloves\", qty: 100 }], \"ORS\", 31); return \"no error\"; } catch (e) { return e.message; } })()",
+     "expect": "Not enough ORS",
+     "name": "not enough",
+     "hint_if_fail": "throw new Error(`Not enough ${name.trim()}`)"
+    },
+    {
+     "call": "[() => dispense([{ name: \"ORS\", qty: 30 }, { name: \"Gloves\", qty: 100 }], \"Zinc\", 1), () => receive([], \"ORS\", 0), () => dispense([{ name: \"ORS\", qty: 30 }, { name: \"Gloves\", qty: 100 }], \"ORS\", -2)].map((f) => { try { f(); return \"no error\"; } catch (e) { return e.message; } })",
+     "expect": [
+      "Not enough Zinc",
+      "Quantity must be more than 0",
+      "Quantity must be more than 0"
+     ],
+     "name": "unknown items and bad quantities",
+     "hidden": true
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst s = [{ name: \"ORS\", qty: 30 }];\nreceive(s, \"ORS\", 5);\ndispense(s, \"ORS\", 5);\nreceive(s, \"Zinc\", 5);\n__eq(s, [{ name: \"ORS\", qty: 30 }], \"the original stock after receive and dispense\");\n})();",
+     "name": "the original is never changed",
+     "hidden": true,
+     "hint_if_fail": "Use map with { ...item, qty: ... } and [...stock, newItem]."
+    }
+   ],
+   "hints": [
+    "A helper: const same = (item) => item.name.toLowerCase() === name.trim().toLowerCase();",
+    "Quantity check first: if (!Number.isFinite(qty) || qty <= 0) throw new Error(\"Quantity must be more than 0\");",
+    "return stock.map((i) => (same(i) ? { ...i, qty: i.qty + qty } : i)); and for a new one return [...stock, { name: name.trim(), qty }];"
+   ],
+   "solution": "function checkQty(qty) {\n  if (!Number.isFinite(qty) || qty <= 0) throw new Error(\"Quantity must be more than 0\");\n}\n\nfunction matches(item, name) {\n  return item.name.toLowerCase() === name.trim().toLowerCase();\n}\n\nfunction receive(stock, name, qty) {\n  checkQty(qty);\n  if (stock.some((i) => matches(i, name))) {\n    return stock.map((i) => (matches(i, name) ? { ...i, qty: i.qty + qty } : i));\n  }\n  return [...stock, { name: name.trim(), qty }];\n}\n\nfunction dispense(stock, name, qty) {\n  checkQty(qty);\n  const item = stock.find((i) => matches(i, name));\n  if (!item || item.qty < qty) throw new Error(`Not enough ${name.trim()}`);\n  return stock.map((i) => (i === item ? { ...i, qty: i.qty - qty } : i));\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "A tiny module",
+   "file": "ex2_chama.js",
+   "prompt": "Build a savings group (chama) as a module: var Chama = (function () { ... })(); keeping the members and their totals PRIVATE inside (a Map works well), and returning an object with five functions. join(name): trims the name; returns false for a blank name or one already joined, otherwise adds the member with 0 paid and returns true. pay(name, amount): throws new Error(\"NAME is not a member\") for an unknown name, throws new Error(\"Amount must be more than 0\") if amount isn't a number above 0, otherwise adds it and returns that member's new total. balanceOf(name): that member's total (0 for an unknown name). total(): everything paid by everyone. names(): the member names sorted A to Z.",
+   "starter": "var Chama = (function () {\n  // private state goes here\n\n  function join(name) {\n    return false;\n  }\n  function pay(name, amount) {\n    return 0;\n  }\n  function balanceOf(name) {\n    return 0;\n  }\n  function total() {\n    return 0;\n  }\n  function names() {\n    return [];\n  }\n  return { join, pay, balanceOf, total, names };\n})();\n",
+   "tests": [
+    {
+     "call": "[Chama.join(\"Amina\"), Chama.pay(\"Amina\", 500), Chama.pay(\"Amina\", 250), Chama.balanceOf(\"Amina\")]",
+     "expect": [
+      true,
+      500,
+      750,
+      750
+     ],
+     "name": "join and pay"
+    },
+    {
+     "call": "(Chama.join(\" Juma \"), Chama.pay(\"Juma\", 300), Chama.total())",
+     "expect": 1050,
+     "name": "the group total",
+     "hint_if_fail": "join trims the name, so \" Juma \" joins as \"Juma\"."
+    },
+    {
+     "call": "(Chama.join(\"Wanjiru\"), Chama.names())",
+     "expect": [
+      "Amina",
+      "Juma",
+      "Wanjiru"
+     ],
+     "name": "names A to Z"
+    },
+    {
+     "call": "[Chama.join(\"Amina\"), Chama.join(\"   \"), typeof Chama.members, Chama.balanceOf(\"Nobody\")]",
+     "expect": [
+      false,
+      false,
+      "undefined",
+      0
+     ],
+     "name": "no doubles, blanks, and private state",
+     "hidden": true,
+     "hint_if_fail": "Keep the Map inside the function; don't return it."
+    },
+    {
+     "call": "[() => Chama.pay(\"Zawadi\", 100), () => Chama.pay(\"Juma\", 0), () => Chama.pay(\"Juma\", \"abc\")].map((f) => { try { f(); return \"no error\"; } catch (e) { return e.message; } }).concat([Chama.total()])",
+     "expect": [
+      "Zawadi is not a member",
+      "Amount must be more than 0",
+      "Amount must be more than 0",
+      1050
+     ],
+     "name": "bad payments are refused",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "const members = new Map(); inside the function, before join.",
+    "join: const clean = name.trim(); if (clean === \"\" || members.has(clean)) return false; members.set(clean, 0); return true;",
+    "total: [...members.values()].reduce((s, v) => s + v, 0); names: [...members.keys()].sort((a, b) => a.localeCompare(b))"
+   ],
+   "solution": "var Chama = (function () {\n  const members = new Map();     // private: name -> total paid\n\n  function join(name) {\n    const clean = String(name).trim();\n    if (clean === \"\" || members.has(clean)) return false;\n    members.set(clean, 0);\n    return true;\n  }\n\n  function pay(name, amount) {\n    if (!members.has(name)) throw new Error(`${name} is not a member`);\n    if (typeof amount !== \"number\" || !Number.isFinite(amount) || amount <= 0) throw new Error(\"Amount must be more than 0\");\n    members.set(name, members.get(name) + amount);\n    return members.get(name);\n  }\n\n  function balanceOf(name) {\n    return members.get(name) || 0;\n  }\n\n  function total() {\n    return [...members.values()].reduce((sum, v) => sum + v, 0);\n  }\n\n  function names() {\n    return [...members.keys()].sort((a, b) => a.localeCompare(b));\n  }\n\n  return { join, pay, balanceOf, total, names };   // the only way in\n})();\n"
+  },
+  {
+   "id": "e3",
+   "title": "A page everyone can use",
+   "file": "ex3_queue.html",
+   "prompt": "This clinic queue page works with a mouse, but not with a keyboard or a screen reader. Fix it: wrap the content in <main>; put the input inside <form id=\"add-form\"> with a <label for=\"patient\">; replace the clickable div with a real <button type=\"submit\">; give #status aria-live=\"polite\" so changes are announced; and remove every inline onclick (ex3_queue.js already wires the form's submit event). Keep the ids patient, queue and status, and the script tag.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Clinic queue</title>\n</head>\n<body>\n<h1>Clinic queue</h1>\n<input id=\"patient\" placeholder=\"Name\">\n<div class=\"btn\" onclick=\"addPatient()\">Add</div>\n<ul id=\"queue\"></ul>\n<p id=\"status\"></p>\n<script src=\"ex3_queue.js\"></script>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "main"
+      },
+      {
+       "has": "main h1"
+      },
+      {
+       "has": "main form#add-form input#patient"
+      }
+     ],
+     "name": "main and a form"
+    },
+    {
+     "html": [
+      {
+       "has": "label[for=patient]"
+      }
+     ],
+     "name": "the input has a label"
+    },
+    {
+     "html": [
+      {
+       "has": "form#add-form button[type=submit]"
+      }
+     ],
+     "name": "a real submit button"
+    },
+    {
+     "html": [
+      {
+       "has": "#status[aria-live=polite]"
+      },
+      {
+       "has": "ul#queue"
+      }
+     ],
+     "name": "status changes are announced"
+    },
+    {
+     "src_not": "onclick",
+     "why": "Remove inline onclick handlers: the script wires the events.",
+     "name": "no inline onclick",
+     "hidden": true
+    },
+    {
+     "html": [
+      {
+       "has": "script[src=ex3_queue.js]"
+      }
+     ],
+     "name": "still links the script",
+     "hidden": true
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "<main> ... </main> around everything except the script tag is fine.",
+    "<form id=\"add-form\"><label for=\"patient\">Patient name</label><input id=\"patient\"><button type=\"submit\">Add</button></form>",
+    "<p id=\"status\" aria-live=\"polite\"></p>"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Clinic queue</title>\n</head>\n<body>\n<main>\n<h1>Clinic queue</h1>\n<form id=\"add-form\">\n  <label for=\"patient\">Patient name</label>\n  <input id=\"patient\" autocomplete=\"off\">\n  <button type=\"submit\">Add</button>\n</form>\n<ul id=\"queue\"></ul>\n<p id=\"status\" aria-live=\"polite\"></p>\n</main>\n<script src=\"ex3_queue.js\"></script>\n</body>\n</html>\n",
+   "extra_files": {
+    "ex3_queue.js": "// Clinic queue: adds names to the list and announces the change.\nconst queue = [];\nconst form = document.getElementById(\"add-form\");\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault();\n  const box = document.getElementById(\"patient\");\n  const name = box.value.trim();\n  if (name === \"\") return;\n  queue.push(name);\n  const li = document.createElement(\"li\");\n  li.textContent = name;\n  document.getElementById(\"queue\").appendChild(li);\n  document.getElementById(\"status\").textContent = `${name} added. ${queue.length} waiting.`;\n  box.value = \"\";\n  box.focus();\n});\n"
+   }
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Which function is pure?",
+   "choices": [
+    "One that sets textContent",
+    "total(list) that adds up qty and returns it",
+    "One that saves to localStorage",
+    "One that reads an input box"
+   ],
+   "answer": 1,
+   "why": "Its answer depends only on its argument and it changes nothing outside."
+  },
+  {
+   "q": "Where should the rule \"you can't dispense more than you have\" live?",
+   "choices": [
+    "In render()",
+    "In a logic function like dispense()",
+    "In the HTML",
+    "In the CSS"
+   ],
+   "answer": 1,
+   "why": "Rules go in logic; render only draws."
+  },
+  {
+   "q": "In const C = (function () { let n = 0; return { add() { n++; } }; })(); what is C.n?",
+   "choices": [
+    "0",
+    "undefined",
+    "1",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "n is private to the function; only add can reach it (a closure)."
+  },
+  {
+   "q": "Your code updates a status message, but screen reader users never hear it. The fix?",
+   "choices": [
+    "Make the text bigger",
+    "Put it in an element with aria-live=\"polite\" (or role=\"status\")",
+    "Use alert()",
+    "Use innerHTML"
+   ],
+   "answer": 1,
+   "why": "Live regions are announced when their content changes."
+  },
+  {
+   "q": "Why a <button> rather than a <div onclick>?",
+   "choices": [
+    "Divs can't be styled",
+    "Buttons work with the keyboard and announce themselves to screen readers",
+    "Buttons are faster",
+    "No difference"
+   ],
+   "answer": 1,
+   "why": "Real controls come with keyboard and accessibility support for free."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Four parts of a small app?",
+   "a": "State, logic (pure functions), view (render), wiring (events)."
+  },
+  {
+   "q": "Pure function?",
+   "a": "Same inputs give the same answer, and it changes nothing outside itself."
+  },
+  {
+   "q": "Tiny module pattern?",
+   "a": "const M = (function () { let secret; return { publicFn }; })();"
+  },
+  {
+   "q": "Announce changes to screen readers?",
+   "a": "aria-live=\"polite\" (or role=\"status\") on the message element"
+  }
+ ],
+ "explain": "Explain why keeping logic separate from the display makes an app easier to fix, using a made-up game or clinic app."
+}

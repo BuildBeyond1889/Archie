@@ -1,0 +1,252 @@
+{
+ "id": "cpp-2-09",
+ "level": 2,
+ "title": "Project: projectile manager",
+ "project": true,
+ "concepts": [
+  "smart-pointers",
+  "raii",
+  "memory",
+  "design"
+ ],
+ "skills": [
+  "object pools",
+  "ownership design",
+  "game loops"
+ ],
+ "lesson": "Time to put Level 2 together in a piece of real game code: the system that owns every bullet, arrow and fireball in flight. A busy shooter can spawn hundreds of projectiles a second. If any of them leak, the game slowly eats memory; if any are used after being destroyed, it crashes at random. Getting ownership right here is the whole job.\n\n**Part 1: a projectile pool.** Instead of an ever-growing list, a **pool** has a fixed number of **slots** (its capacity). Each slot is a `std::unique_ptr<Projectile>`: empty means free, full means a projectile is flying.\n\n- `spawn` puts a new projectile in the **lowest free slot** and returns that slot's number, or `-1` if the pool is full. Games cap projectiles like this on purpose so a frantic moment can't spawn unlimited objects.\n- `update` is called once per frame: every projectile moves by its speed and loses one point of `life`; at 0 it expires and its slot is freed.\n- `despawn(slot)` frees a slot early (the bullet hit a wall).\n- Freed slots are **reused** by later spawns.\n\nNotice what you don't write: a destructor. The vector of `unique_ptr`s deletes everything when the pool dies. Resetting a `unique_ptr` deletes that projectile. That is the rule of zero doing its job, and the live counters in the tests will prove nothing leaks.\n\n(Real engines go one step further and keep the projectile objects themselves alive, only switching them on and off, to avoid allocating at all during play. The slot logic is the same; Unreal's Niagara and many shooters do exactly this.)\n\n**Part 2: homing shots and enemies that can vanish.** Now projectiles chase targets. This brings in shared and weak ownership:\n\n- The battle **owns** its enemies with `shared_ptr` (other systems, such as a UI health bar, may hold them too).\n- The battle **solely owns** its shots with `unique_ptr`.\n- A shot **watches** its target with `weak_ptr`. If the enemy is removed while the shot is flying, `lock()` comes back empty and the shot fizzles instead of chasing a dangling pointer.\n\nPlan the update before coding it: for each shot, lock the target; no target means remove the shot; close enough means hit and remove; otherwise move. Then remove dead enemies. **Erasing from a vector while looping over it** is the classic trap: after `erase(begin() + i)` don't increase `i`, or use `std::remove_if`.\n\n**How to work.** Read each prompt twice and write down what every function must do in your own words. Build one function at a time and run the tests often: the early tests check the basics, the hidden ones the edges (a full pool, slot -1, a target that vanished). When something fails, ask Archie's tutor *why* before you ask *how*.\n\nWhen this works you have the core of a real system. In Unreal the same design appears as an actor component that owns a `TArray<TUniquePtr<...>>` or pooled actors, and targets held with `TWeakObjectPtr<AActor>`.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <memory>\n#include <vector>\n\nstruct Spark\n{\n    int life;\n    Spark(int life) : life(life) {}\n};\n\nint main()\n{\n    std::vector<std::unique_ptr<Spark>> slots(3);   // 3 empty slots\n\n    slots[0] = std::make_unique<Spark>(1);\n    slots[2] = std::make_unique<Spark>(3);\n\n    for (int frame = 1; frame <= 3; frame++) {\n        for (auto& s : slots) {\n            if (!s) continue;                        // free slot\n            if (--s->life <= 0) s.reset();           // expired: deleted, slot freed\n        }\n        int active = 0;\n        for (auto& s : slots) if (s) active++;\n        std::cout << \"frame \" << frame << \": \" << active << \" active\\n\";\n    }\n    return 0;\n}\n",
+  "notes": [
+   "A vector of 3 empty unique_ptrs is a pool with 3 free slots.",
+   "Filling a slot is assigning make_unique to it.",
+   "s.reset() deletes the spark and makes the slot free again, ready for reuse.",
+   "There is no delete and no destructor anywhere, and nothing leaks."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Projectile pool",
+   "file": "pool.cpp",
+   "prompt": "Projectile is given (with a live counter). Write class ProjectilePool, which holds its projectiles in std::vector<std::unique_ptr<Projectile>> slots (an empty unique_ptr is a free slot):\n- explicit ProjectilePool(int capacity): capacity free slots (a capacity of 0 or less means no slots).\n- int spawn(double x, double speed, int life): put a new Projectile in the LOWEST free slot and return that slot number. Return -1 if the pool is full or life is 0 or less.\n- bool despawn(int slot): delete the projectile in that slot and free it; return false if the slot number is out of range or the slot is already free.\n- void update(): for every projectile: x += speed, life -= 1, and if life is now 0 or less it is deleted and its slot freed.\n- int active() const: how many slots are in use. int capacity() const: the number of slots.\n- double positionOf(int slot) const: that projectile's x, or -1 if the slot is out of range or free.\nNo projectile may leak: destroying the pool must delete them all.",
+   "starter": "#include <memory>\n#include <vector>\n\nstruct Projectile\n{\n    inline static int alive = 0;\n    double x;\n    double speed;\n    int life;            // updates left before it expires\n    Projectile(double x, double speed, int life) : x(x), speed(speed), life(life) { alive++; }\n    ~Projectile() { alive--; }\n};\n\nclass ProjectilePool\n{\npublic:\n    explicit ProjectilePool(int capacity) {}\n    int spawn(double x, double speed, int life) { return -1; }\n    bool despawn(int slot) { return false; }\n    void update() {}\n    int active() const { return 0; }\n    int capacity() const { return 0; }\n    double positionOf(int slot) const { return -1; }\nprivate:\n    std::vector<std::unique_ptr<Projectile>> slots;   // an empty unique_ptr = a free slot\n};\n",
+   "tests": [
+    {
+     "call": "[]{ ProjectilePool p(3); int a = p.spawn(0, 1, 5); int b = p.spawn(0, 1, 5); return std::to_string(a) + \",\" + std::to_string(b) + \",\" + std::to_string(p.active()); }()",
+     "expect": "0,1,2"
+    },
+    {
+     "call": "[]{ ProjectilePool p(2); p.spawn(0, 1, 5); p.spawn(0, 1, 5); return p.spawn(0, 1, 5); }()",
+     "expect": "-1"
+    },
+    {
+     "call": "ProjectilePool(4).capacity()",
+     "expect": "4"
+    },
+    {
+     "call": "[]{ ProjectilePool p(3); p.spawn(0, 1, 5); p.spawn(0, 1, 5); p.spawn(0, 1, 5); bool ok = p.despawn(1); return std::to_string(ok) + \",\" + std::to_string(p.spawn(9, 1, 5)); }()",
+     "expect": "1,1",
+     "hint_if_fail": "A freed slot is reused: spawn picks the lowest free slot."
+    },
+    {
+     "call": "[]{ ProjectilePool p(2); int s = p.spawn(2, 1.5, 10); p.update(); p.update(); return p.positionOf(s); }()",
+     "expect": "5",
+     "hint_if_fail": "Each update adds speed to x."
+    },
+    {
+     "call": "[]{ ProjectilePool p(2); p.spawn(0, 1, 2); p.spawn(0, 1, 5); p.update(); p.update(); return std::to_string(p.active()) + \",\" + std::to_string(p.positionOf(0)); }()",
+     "expect": "1,-1.000000",
+     "hint_if_fail": "When life reaches 0 the projectile is deleted and its slot freed."
+    },
+    {
+     "call": "[]{ int before = Projectile::alive; ProjectilePool p(4); p.spawn(0, 1, 9); p.spawn(0, 1, 9); p.spawn(0, 1, 1); p.despawn(0); p.update(); return Projectile::alive - before; }()",
+     "expect": "1",
+     "hint_if_fail": "Despawned and expired projectiles must be deleted (reset the unique_ptr)."
+    },
+    {
+     "call": "[]{ int before = Projectile::alive; { ProjectilePool p(5); for (int i = 0; i < 5; i++) p.spawn(i, 1, 3); } return Projectile::alive - before; }()",
+     "expect": "0"
+    },
+    {
+     "call": "[]{ ProjectilePool p(2); p.spawn(0, 1, 5); bool a = p.despawn(-1); bool b = p.despawn(5); bool c = p.despawn(1); bool d = p.despawn(0); bool e = p.despawn(0); return std::to_string(a) + std::to_string(b) + std::to_string(c) + std::to_string(d) + std::to_string(e); }()",
+     "expect": "00010",
+     "hidden": true,
+     "hint_if_fail": "Out-of-range slots and free slots return false; never index the vector with them."
+    },
+    {
+     "call": "[]{ ProjectilePool p(0); return std::to_string(p.spawn(0, 1, 5)) + \",\" + std::to_string(p.capacity()); }()",
+     "expect": "-1,0",
+     "hidden": true
+    },
+    {
+     "call": "[]{ ProjectilePool p(2); return std::to_string(p.spawn(0, 1, 0)) + \",\" + std::to_string(p.active()); }()",
+     "expect": "-1,0",
+     "hidden": true
+    },
+    {
+     "call": "[]{ ProjectilePool p(3); p.spawn(0, 1, 1); p.spawn(0, 1, 1); p.spawn(0, 1, 1); p.update(); int n = p.active(); return std::to_string(n) + \",\" + std::to_string(p.spawn(0, 1, 1)); }()",
+     "expect": "0,0",
+     "hidden": true
+    },
+    {
+     "call": "ProjectilePool(3).positionOf(7)",
+     "expect": "-1",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Constructor: slots(capacity > 0 ? capacity : 0) makes that many empty unique_ptrs.",
+    "spawn: loop i over slots; the first !slots[i] gets slots[i] = std::make_unique<Projectile>(x, speed, life); return i;",
+    "A small private helper bool valid(int slot) const { return slot >= 0 && slot < (int)slots.size(); } keeps despawn and positionOf safe. In update, p.reset() frees a slot."
+   ],
+   "solution": "#include <memory>\n#include <vector>\n\nstruct Projectile\n{\n    inline static int alive = 0;\n    double x;\n    double speed;\n    int life;            // updates left before it expires\n    Projectile(double x, double speed, int life) : x(x), speed(speed), life(life) { alive++; }\n    ~Projectile() { alive--; }\n};\n\n// Rule of zero: the vector of unique_ptrs owns every projectile,\n// so the pool needs no destructor and can't leak.\nclass ProjectilePool\n{\npublic:\n    explicit ProjectilePool(int capacity) : slots(capacity > 0 ? capacity : 0) {}\n\n    int spawn(double x, double speed, int life)\n    {\n        if (life <= 0) return -1;\n        for (int i = 0; i < (int)slots.size(); i++) {\n            if (!slots[i]) {                        // the lowest free slot\n                slots[i] = std::make_unique<Projectile>(x, speed, life);\n                return i;\n            }\n        }\n        return -1;                                  // pool is full\n    }\n\n    bool despawn(int slot)\n    {\n        if (!valid(slot) || !slots[slot]) return false;\n        slots[slot].reset();                        // deletes the projectile, frees the slot\n        return true;\n    }\n\n    void update()\n    {\n        for (auto& p : slots) {\n            if (!p) continue;\n            p->x += p->speed;\n            p->life--;\n            if (p->life <= 0) p.reset();            // expired\n        }\n    }\n\n    int active() const\n    {\n        int n = 0;\n        for (const auto& p : slots) if (p) n++;\n        return n;\n    }\n    int capacity() const { return slots.size(); }\n    double positionOf(int slot) const\n    {\n        if (!valid(slot) || !slots[slot]) return -1;\n        return slots[slot]->x;\n    }\nprivate:\n    bool valid(int slot) const { return slot >= 0 && slot < (int)slots.size(); }\n    std::vector<std::unique_ptr<Projectile>> slots;   // an empty unique_ptr = a free slot\n};\n"
+  },
+  {
+   "id": "e2",
+   "title": "Homing shots",
+   "file": "battle.cpp",
+   "prompt": "Enemy and Shot are given (both with live counters); a Shot holds a std::weak_ptr<Enemy> target. Battle already has addEnemy and enemiesLeft. Finish it:\n- void fire(double fromX, const std::shared_ptr<Enemy>& target): add a Shot at fromX aimed at target (owned by the shots vector of unique_ptrs). A null target is ignored.\n- void removeEnemy(const std::string& name): the battle drops the first enemy with that name.\n- int shotsInFlight() const.\n- void update(): first go through the shots in order. If a shot's target no longer exists, remove the shot. Else, if the distance between the shot's x and the target's x is 5 or less, the shot hits: the target loses 10 hp and the shot is removed. Otherwise the shot moves 5 toward the target. After all shots, remove every enemy whose hp is 0 or less.\nShots must never keep an enemy alive, and nothing may leak.",
+   "starter": "#include <algorithm>\n#include <cmath>\n#include <memory>\n#include <string>\n#include <vector>\n\nstruct Enemy\n{\n    inline static int alive = 0;\n    std::string name;\n    double x;\n    int hp;\n    Enemy(std::string name, double x, int hp) : name(name), x(x), hp(hp) { alive++; }\n    ~Enemy() { alive--; }\n};\n\nstruct Shot\n{\n    inline static int alive = 0;\n    double x;\n    std::weak_ptr<Enemy> target;    // a shot follows an enemy but never keeps it alive\n    Shot(double x, std::weak_ptr<Enemy> target) : x(x), target(target) { alive++; }\n    ~Shot() { alive--; }\n};\n\nclass Battle\n{\npublic:\n    std::shared_ptr<Enemy> addEnemy(const std::string& name, double x, int hp)\n    {\n        auto e = std::make_shared<Enemy>(name, x, hp);\n        enemies.push_back(e);\n        return e;\n    }\n    int enemiesLeft() const { return enemies.size(); }\n\n    void fire(double fromX, const std::shared_ptr<Enemy>& target) {}\n    void removeEnemy(const std::string& name) {}\n    void update() {}\n    int shotsInFlight() const { return 0; }\nprivate:\n    std::vector<std::shared_ptr<Enemy>> enemies;\n    std::vector<std::unique_ptr<Shot>> shots;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ Battle b; auto e = b.addEnemy(\"Rat\", 50, 10); b.fire(0, e); b.fire(0, e); return b.shotsInFlight(); }()",
+     "expect": "2"
+    },
+    {
+     "call": "[]{ Battle b; auto e = b.addEnemy(\"Rat\", 50, 10); b.fire(0, e); return e.use_count(); }()",
+     "expect": "2",
+     "hint_if_fail": "Only the battle and the test own the enemy; a shot holds a weak_ptr."
+    },
+    {
+     "call": "[]{ Battle b; auto e = b.addEnemy(\"Orc\", 8, 30); b.fire(0, e); b.update(); int first = e->hp; b.update(); return std::to_string(first) + \",\" + std::to_string(e->hp) + \",\" + std::to_string(b.shotsInFlight()); }()",
+     "expect": "30,20,0",
+     "hint_if_fail": "Update 1: 8 away, so the shot moves to 5. Update 2: 3 away, so it hits for 10 and is removed."
+    },
+    {
+     "call": "[]{ Battle b; auto e = b.addEnemy(\"Rat\", 3, 10); b.fire(0, e); e.reset(); b.update(); return std::to_string(b.enemiesLeft()) + \",\" + std::to_string(b.shotsInFlight()); }()",
+     "expect": "0,0",
+     "hint_if_fail": "After the shots, remove enemies whose hp is 0 or less."
+    },
+    {
+     "call": "[]{ Battle b; b.fire(0, b.addEnemy(\"Rat\", 40, 10)); b.removeEnemy(\"Rat\"); b.update(); return std::to_string(b.enemiesLeft()) + \",\" + std::to_string(b.shotsInFlight()); }()",
+     "expect": "0,0",
+     "hint_if_fail": "Once the enemy is gone, lock() gives an empty pointer and the shot fizzles (is removed)."
+    },
+    {
+     "call": "[]{ Battle b; auto e = b.addEnemy(\"Bat\", 4, 20); b.fire(0, e); b.fire(2, e); b.update(); return std::to_string(e->hp) + \",\" + std::to_string(b.enemiesLeft()); }()",
+     "expect": "0,0",
+     "hint_if_fail": "Both shots are close enough, so both hit in the same update."
+    },
+    {
+     "call": "[]{ Battle b; auto e = b.addEnemy(\"Bat\", -12, 20); b.fire(0, e); b.update(); b.update(); b.update(); return std::to_string(e->hp) + \",\" + std::to_string(b.shotsInFlight()); }()",
+     "expect": "10,0",
+     "hidden": true,
+     "hint_if_fail": "Shots move toward the target, which can be on the left (smaller x)."
+    },
+    {
+     "call": "[]{ Battle b; b.fire(0, nullptr); return b.shotsInFlight(); }()",
+     "expect": "0",
+     "hidden": true
+    },
+    {
+     "call": "[]{ Battle b; b.addEnemy(\"A\", 100, 10); auto keep = b.addEnemy(\"A\", 200, 10); b.removeEnemy(\"A\"); b.removeEnemy(\"Nobody\"); return b.enemiesLeft(); }()",
+     "expect": "1",
+     "hidden": true
+    },
+    {
+     "call": "[]{ int e0 = Enemy::alive, s0 = Shot::alive; { Battle b; auto a = b.addEnemy(\"A\", 100, 50); b.fire(0, a); b.fire(0, a); b.update(); b.fire(0, b.addEnemy(\"B\", 30, 10)); if (Shot::alive - s0 != 3) return -1; } return (Enemy::alive - e0) * 10 + (Shot::alive - s0); }()",
+     "expect": "0",
+     "hidden": true
+    },
+    {
+     "src_has": "lock()",
+     "why": "Use target.lock() to check whether a shot's enemy still exists."
+    }
+   ],
+   "hints": [
+    "fire: if (!target) return; shots.push_back(std::make_unique<Shot>(fromX, target));",
+    "In update, loop over shots with an index i and only do i++ when you keep the shot; erase(shots.begin() + i) deletes it.",
+    "auto e = shot.target.lock(); if (!e) remove; else if (std::fabs(e->x - shot.x) <= 5) { e->hp -= 10; remove; } else move 5 toward e->x. Finish with erase + std::remove_if on enemies with hp <= 0."
+   ],
+   "solution": "#include <algorithm>\n#include <cmath>\n#include <memory>\n#include <string>\n#include <vector>\n\nstruct Enemy\n{\n    inline static int alive = 0;\n    std::string name;\n    double x;\n    int hp;\n    Enemy(std::string name, double x, int hp) : name(name), x(x), hp(hp) { alive++; }\n    ~Enemy() { alive--; }\n};\n\nstruct Shot\n{\n    inline static int alive = 0;\n    double x;\n    std::weak_ptr<Enemy> target;    // a shot follows an enemy but never keeps it alive\n    Shot(double x, std::weak_ptr<Enemy> target) : x(x), target(target) { alive++; }\n    ~Shot() { alive--; }\n};\n\nclass Battle\n{\npublic:\n    std::shared_ptr<Enemy> addEnemy(const std::string& name, double x, int hp)\n    {\n        auto e = std::make_shared<Enemy>(name, x, hp);\n        enemies.push_back(e);\n        return e;\n    }\n    int enemiesLeft() const { return enemies.size(); }\n\n    void fire(double fromX, const std::shared_ptr<Enemy>& target)\n    {\n        if (!target) return;\n        shots.push_back(std::make_unique<Shot>(fromX, target));\n    }\n\n    void removeEnemy(const std::string& name)\n    {\n        for (size_t i = 0; i < enemies.size(); i++) {\n            if (enemies[i]->name == name) {\n                enemies.erase(enemies.begin() + i);   // the battle lets go of it\n                return;\n            }\n        }\n    }\n\n    void update()\n    {\n        // 1. move every shot; remove the ones that hit or lost their target\n        for (size_t i = 0; i < shots.size(); ) {\n            Shot& s = *shots[i];\n            auto e = s.target.lock();\n            bool done = false;\n            if (!e) {\n                done = true;                           // target gone: the shot fizzles\n            } else if (std::fabs(e->x - s.x) <= Speed) {\n                e->hp -= Damage;                       // hit\n                done = true;\n            } else {\n                s.x += (e->x > s.x) ? Speed : -Speed;  // fly toward it\n            }\n            if (done) shots.erase(shots.begin() + i);  // deletes the Shot\n            else i++;\n        }\n        // 2. drop enemies with no health left\n        enemies.erase(std::remove_if(enemies.begin(), enemies.end(),\n                                     [](const std::shared_ptr<Enemy>& e) { return e->hp <= 0; }),\n                      enemies.end());\n    }\n\n    int shotsInFlight() const { return shots.size(); }\nprivate:\n    static constexpr double Speed = 5;\n    static constexpr int Damage = 10;\n    std::vector<std::shared_ptr<Enemy>> enemies;   // the battle owns the enemies (others may too)\n    std::vector<std::unique_ptr<Shot>> shots;      // the battle alone owns the shots\n};\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why give a projectile pool a fixed capacity?",
+   "choices": [
+    "C++ requires it",
+    "So a busy moment can't spawn unlimited objects, and slots can be reused",
+    "To make spawning slower",
+    "So update isn't needed"
+   ],
+   "answer": 1,
+   "why": "A cap keeps memory and frame time predictable."
+  },
+  {
+   "q": "In the pool, what does slots[i].reset() do?",
+   "choices": [
+    "Empties the vector",
+    "Deletes that projectile and frees the slot",
+    "Moves the projectile to slot 0",
+    "Leaks it"
+   ],
+   "answer": 1,
+   "why": "Resetting a unique_ptr deletes what it owns."
+  },
+  {
+   "q": "Why does ProjectilePool need no destructor?",
+   "choices": [
+    "Pools never die",
+    "Its vector of unique_ptrs deletes every projectile automatically (rule of zero)",
+    "The OS frees it",
+    "update deletes everything"
+   ],
+   "answer": 1,
+   "why": "The members own and release the projectiles."
+  },
+  {
+   "q": "A shot's target enemy is removed while the shot flies. With a weak_ptr target, what happens?",
+   "choices": [
+    "The shot crashes the game",
+    "lock() is empty, so the shot can fizzle safely",
+    "The enemy comes back",
+    "The shot keeps the enemy alive"
+   ],
+   "answer": 1,
+   "why": "weak_ptr notices that the object is gone."
+  },
+  {
+   "q": "You erase shots[i] inside a for loop that does i++ every time. What goes wrong?",
+   "choices": [
+    "Nothing",
+    "The shot after the erased one is skipped",
+    "It deletes two shots",
+    "It won't compile"
+   ],
+   "answer": 1,
+   "why": "Erasing shifts the next item into index i; i++ jumps over it."
+  }
+ ],
+ "cards": [
+  {
+   "q": "A free slot in a unique_ptr pool?",
+   "a": "An empty unique_ptr: if (!slots[i])"
+  },
+  {
+   "q": "Free a slot?",
+   "a": "slots[i].reset() deletes the object and empties the slot."
+  },
+  {
+   "q": "Who owns what in the battle?",
+   "a": "Battle: enemies (shared_ptr) and shots (unique_ptr). Shots watch enemies (weak_ptr)."
+  },
+  {
+   "q": "Erase while looping by index?",
+   "a": "Only i++ when you keep the item, or use std::remove_if."
+  }
+ ],
+ "explain": "Explain how your projectile manager avoids both memory leaks and dangling pointers, naming which smart pointer owns or watches each object."
+}

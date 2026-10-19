@@ -1,0 +1,8 @@
+{"name": "Local AI (Ollama)", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Ask the AI model running on this computer from inside your app: one-off questions or a chat that remembers. Works with no internet; fails gently if the AI isn't running.",
+ "tags": ["ai", "ollama", "chat", "tutor", "llm", "offline"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/ai.py": "ai.py"},
+ "imports": {"py": ["from lib import ai"]},
+ "use": "ai.ask('Explain fractions simply') or ai.Chat(system='You are a tutor').say('Hi')",
+ "test": {"run": ["python", "test_ai.py"], "files": ["test_ai.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

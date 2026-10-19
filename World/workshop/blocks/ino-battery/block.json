@@ -1,0 +1,9 @@
+{"name": "Battery monitor (12 V solar)", "kind": "hardware", "lang": "Arduino", "version": "1.0.0",
+ "summary": "Reads a 12 V battery's voltage safely through two resistors and estimates charge % for lead-acid or LiFePO4. Warn before the battery gets damaged by running flat.",
+ "tags": ["battery", "solar", "voltage", "power", "lead-acid", "lifepo4", "energy"],
+ "parts": ["30k resistor", "7.5k resistor (or a ready-made 0-25 V voltage sensor module)", "jumper wires"],
+ "files": {"sketch/battery.h": "battery.h"},
+ "imports": {"ino": ["#include \"battery.h\""]},
+ "use": "Battery bat(A2, 30000.0, 7500.0); if (bat.isLow(30)) loads.off();",
+ "test": {"run": ["g++", "-std=c++17", "-Wall", "-x", "c++", "test_battery.cpp", "-o", "t.exe"], "files": ["test_battery.cpp"], "stub": true, "then": "t.exe"},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

@@ -1,0 +1,8 @@
+{"name": "Printable report", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Turn your data into a tidy page with headings, text and tables (with totals) and open it in the browser to print or save as PDF. Good for donor reports and monthly summaries.",
+ "tags": ["report", "print", "pdf", "table", "summary", "donor"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/report.py": "report.py"},
+ "imports": {"py": ["from lib.report import Report"]},
+ "use": "Report('March').text('Total: 340 kg').table(rows, ['crop','kg'], totals=['kg']).open()",
+ "test": {"run": ["python", "test_report.py"], "files": ["test_report.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

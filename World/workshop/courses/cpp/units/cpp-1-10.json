@@ -1,0 +1,110 @@
+{
+ "id": "cpp-1-10",
+ "level": 1,
+ "title": "Classes",
+ "concepts": [
+  "classes"
+ ],
+ "skills": [
+  "classes",
+  "encapsulation"
+ ],
+ "bridge": "A C++ class bundles data and functions: `class Enemy { public: Enemy(std::string n, int hp); void takeDamage(int d); private: int health; };`. Members are `private` by default. A **constructor** has the class's name; the `: name(n), health(hp)` part (an initialiser list) sets the fields. Mark functions that only read with `const`. End the class with `};`.",
+ "lesson": "```\n#include <string>\n\nclass Enemy\n{\npublic:\n    Enemy(std::string name, int health)\n        : name(name), health(health), maxHealth(health) {}\n\n    void takeDamage(int amount)\n    {\n        health -= amount;\n        if (health < 0) health = 0;\n    }\n\n    bool isDead() const { return health == 0; }\n    int getHealth() const { return health; }\n\nprivate:\n    std::string name;\n    int health;\n    int maxHealth;\n};                      // <- this semicolon is easy to forget\n\nEnemy goblin(\"Goblin\", 30);\ngoblin.takeDamage(12);\ngoblin.getHealth();      // 18\n```\n\n- `public:` things anyone can use; `private:` only the class's own functions can touch. That's **encapsulation**: nobody can set health to -500 from outside.\n- `const` after a function means \"this doesn't change the object\".\n- `std::to_string(18)` turns a number into text, for building strings like `\"Goblin (18 HP)\"`.\n\nIn Unreal, a turret is a class too: `class ATurret : public AActor` with `UPROPERTY()` fields that show in the editor. It's this exact pattern with extra engine macros on top.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <string>\n\nclass Door\n{\npublic:\n    Door(std::string name) : name(name) {}\n    void toggle() { open = !open; }\n    std::string describe() const { return name + (open ? \" is open\" : \" is shut\"); }\nprivate:\n    std::string name;\n    bool open = false;\n};\n\nint main()\n{\n    Door d(\"Gate\");\n    std::cout << d.describe() << \"\\n\";\n    d.toggle();\n    std::cout << d.describe() << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Enemy",
+   "file": "enemy.cpp",
+   "prompt": "Finish class Enemy: a constructor Enemy(std::string name, int health); void takeDamage(int amount) (never below 0); void heal(int amount) (never above the starting health); bool isDead() const; and std::string describe() const, which gives e.g. Goblin (18 HP).",
+   "starter": "#include <string>\n\nclass Enemy\n{\npublic:\n    Enemy(std::string name, int health) {}\n    void takeDamage(int amount) {}\n    void heal(int amount) {}\n    bool isDead() const { return false; }\n    std::string describe() const { return \"\"; }\nprivate:\n};\n",
+   "tests": [
+    {
+     "call": "Enemy(\"Goblin\", 30).describe()",
+     "expect": "Goblin (30 HP)"
+    },
+    {
+     "call": "[]{ Enemy e(\"Goblin\", 30); e.takeDamage(12); return e.describe(); }()",
+     "expect": "Goblin (18 HP)"
+    },
+    {
+     "call": "[]{ Enemy e(\"Orc\", 20); e.takeDamage(50); return e.isDead(); }()",
+     "expect": "true",
+     "hint_if_fail": "Health stops at 0, and 0 means dead."
+    },
+    {
+     "call": "[]{ Enemy e(\"Orc\", 20); e.takeDamage(50); e.heal(5); return e.describe(); }()",
+     "expect": "Orc (5 HP)"
+    },
+    {
+     "call": "[]{ Enemy e(\"Orc\", 20); e.takeDamage(5); e.heal(100); return e.describe(); }()",
+     "expect": "Orc (20 HP)",
+     "hint_if_fail": "Heal never goes above the starting health: keep that in its own field."
+    },
+    {
+     "call": "[]{ Enemy e(\"Rat\", 5); e.takeDamage(4); return e.isDead(); }()",
+     "expect": "false"
+    }
+   ],
+   "hints": [
+    "Fields: std::string name; int health; int maxHealth;",
+    "describe: return name + \" (\" + std::to_string(health) + \" HP)\";"
+   ],
+   "solution": "#include <string>\n\nclass Enemy\n{\npublic:\n    Enemy(std::string name, int health) : name(name), health(health), maxHealth(health) {}\n    void takeDamage(int amount)\n    {\n        health -= amount;\n        if (health < 0) health = 0;\n    }\n    void heal(int amount)\n    {\n        health += amount;\n        if (health > maxHealth) health = maxHealth;\n    }\n    bool isDead() const { return health == 0; }\n    std::string describe() const { return name + \" (\" + std::to_string(health) + \" HP)\"; }\nprivate:\n    std::string name;\n    int health;\n    int maxHealth;\n};\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Class members are ___ by default in C++.",
+   "choices": [
+    "public",
+    "private",
+    "protected",
+    "static"
+   ],
+   "answer": 1,
+   "why": "class defaults to private (struct defaults to public)."
+  },
+  {
+   "q": "What does const after a member function mean?",
+   "choices": [
+    "It returns a constant",
+    "It doesn't change the object",
+    "It runs once",
+    "It's private"
+   ],
+   "answer": 1,
+   "why": "A promise the compiler checks."
+  },
+  {
+   "q": "What does ': name(name), health(health)' do?",
+   "choices": [
+    "Inheritance",
+    "Sets the fields before the constructor body runs",
+    "Calls two functions",
+    "Declares a map"
+   ],
+   "answer": 1,
+   "why": "The initialiser list."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Constructor?",
+   "a": "A function with the class's name and no return type."
+  },
+  {
+   "q": "Number to text?",
+   "a": "std::to_string(n)"
+  },
+  {
+   "q": "Easy-to-forget end of a class?",
+   "a": "};"
+  }
+ ],
+ "explain": "Explain classes to someone who has never programmed, in your own words, with an example you make up."
+}

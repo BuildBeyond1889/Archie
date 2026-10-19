@@ -1,0 +1,233 @@
+{
+ "id": "py-2-02",
+ "level": 2,
+ "title": "Special methods",
+ "concepts": [
+  "classes",
+  "methods",
+  "sorting",
+  "comparators"
+ ],
+ "skills": [
+  "dunder methods",
+  "printing",
+  "sorting"
+ ],
+ "lesson": "Make a class and print one of its objects, and you get something like `<__main__.Harvest object at 0x7f3a...>`. Compare two objects with the same data using `==` and you get `False`. Try `sorted()` on a list of them and Python stops with a TypeError. Your objects don't yet know how to act like normal Python values.\n\n**Special methods** (also called dunder methods, for the double underscores) fix that. You never call them yourself: Python calls them when you use the normal syntax.\n\n- `__str__(self)`: what `print(obj)` and `str(obj)` show. Write it for people: `Amina: 40 kg maize`.\n- `__repr__(self)`: what you see in the shell, in a printed list and in error messages. Write it for programmers, ideally so it looks like the code that would rebuild the object: `Harvest('Amina', 'maize', 40)`. Use `{self.farmer!r}` in an f-string to get the quotes right.\n- `__eq__(self, other)`: what `==` means. Without it, `==` only checks \"is this the very same object\".\n- `__lt__(self, other)`: what `<` means. `sorted()`, `min()` and `max()` all use `<`, so defining it makes your objects sortable.\n\n```\ndef __eq__(self, other):\n    if not isinstance(other, Harvest):\n        return NotImplemented\n    return self.farmer == other.farmer and self.kg == other.kg\n\ndef __lt__(self, other):\n    if not isinstance(other, Harvest):\n        return NotImplemented\n    return self.kg < other.kg\n```\n\n`NotImplemented` is a special value that tells Python \"I don't know how to compare with that\". Python then tries the other side, and falls back to `False` for `==` or a clear TypeError for `<`. That's better than crashing with an AttributeError deep inside your method.\n\n**Common mistakes**\n- `__str__` must **return** a string. Printing inside it and returning nothing gives \"TypeError: __str__ returned non-string\".\n- Defining `__eq__` makes the object unhashable (you can't use it as a dict key or in a set) unless you also write `__hash__`. Next unit's dataclasses can handle that for you.\n- One class, many possible orders? Give `__lt__` the natural one, and use `sorted(items, key=lambda h: h.farmer)` for the others.\n\n**In real programs** a good `__repr__` makes debugging fast: when a list of 50 enemies prints as `[Slime(hp=4), Skeleton(hp=10), ...]` you see the problem at a glance. Leaderboards, task queues and \"closest enemy first\" targeting all rely on objects that compare.",
+ "example": {
+  "file": "example.py",
+  "code": "class Harvest:\n    def __init__(self, farmer, kg):\n        self.farmer = farmer\n        self.kg = kg\n\n    def __str__(self):\n        return f\"{self.farmer}: {self.kg} kg\"\n\n    def __repr__(self):\n        return f\"Harvest({self.farmer!r}, {self.kg!r})\"\n\n    def __eq__(self, other):\n        if not isinstance(other, Harvest):\n            return NotImplemented\n        return (self.farmer, self.kg) == (other.farmer, other.kg)\n\n    def __lt__(self, other):\n        if not isinstance(other, Harvest):\n            return NotImplemented\n        return self.kg < other.kg\n\n\nday = [Harvest(\"Amina\", 40), Harvest(\"Juma\", 12.5), Harvest(\"Wanjiru\", 55)]\nprint(day[0])\nprint(sorted(day))\nprint(max(day), Harvest(\"Juma\", 12.5) == day[1])\n",
+  "notes": [
+   "__str__ is the friendly text print() uses.",
+   "__repr__ looks like code; !r adds the quotes around text.",
+   "__eq__ compares the data, and says NotImplemented for other types.",
+   "__lt__ by kg is all sorted(), min() and max() need.",
+   "A printed list uses __repr__ for each item."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A printable harvest",
+   "file": "ex1_print.py",
+   "prompt": "Class Harvest(farmer, crop, kg) is started for you. Add:\n- __str__: returns like Amina: 40 kg maize\n- __repr__: returns like Harvest('Amina', 'maize', 40), so that it looks like the code that would build the same object (use !r in the f-string).",
+   "starter": "class Harvest:\n    def __init__(self, farmer, crop, kg):\n        self.farmer = farmer\n        self.crop = crop\n        self.kg = kg\n\n    def __str__(self):\n        pass\n\n    def __repr__(self):\n        pass\n",
+   "solution": "class Harvest:\n    def __init__(self, farmer, crop, kg):\n        self.farmer = farmer\n        self.crop = crop\n        self.kg = kg\n\n    def __str__(self):\n        return f\"{self.farmer}: {self.kg} kg {self.crop}\"\n\n    def __repr__(self):\n        return f\"Harvest({self.farmer!r}, {self.crop!r}, {self.kg!r})\"\n",
+   "tests": [
+    {
+     "call": "str(Harvest('Amina', 'maize', 40))",
+     "expect": "Amina: 40 kg maize"
+    },
+    {
+     "call": "repr(Harvest('Amina', 'maize', 40))",
+     "expect": "Harvest('Amina', 'maize', 40)"
+    },
+    {
+     "call": "str([Harvest('Juma', 'beans', 12)])",
+     "expect": "[Harvest('Juma', 'beans', 12)]",
+     "name": "a printed list uses __repr__"
+    },
+    {
+     "call": "str(Harvest('Juma', 'beans', 12.5))",
+     "expect": "Juma: 12.5 kg beans",
+     "hidden": true
+    },
+    {
+     "check": "h = Harvest(\"O'Neil\", 'maize', 3)\nback = eval(repr(h), {'Harvest': Harvest})\nassert (back.farmer, back.crop, back.kg) == (\"O'Neil\", 'maize', 3), 'repr should rebuild the same harvest, even with a quote in the name: use !r'",
+     "name": "repr rebuilds the object",
+     "hidden": true,
+     "hint_if_fail": "Write {self.farmer!r} instead of '{self.farmer}': !r picks the right quotes for you."
+    }
+   ],
+   "hints": [
+    "Both methods must return a string, not print it.",
+    "__str__: return f\"{self.farmer}: {self.kg} kg {self.crop}\"",
+    "__repr__: return f\"Harvest({self.farmer!r}, {self.crop!r}, {self.kg!r})\""
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "Equal and sortable",
+   "file": "ex2_compare.py",
+   "prompt": "Class Harvest(farmer, kg). Add:\n- __eq__: two harvests are equal when farmer AND kg are the same. Comparing with something that isn't a Harvest returns NotImplemented (so == gives False).\n- __lt__: a harvest is less than another when its kg is smaller (so sorted() goes from smallest to biggest). Non-Harvest: return NotImplemented.\n- __repr__ is given.",
+   "starter": "class Harvest:\n    def __init__(self, farmer, kg):\n        self.farmer = farmer\n        self.kg = kg\n\n    def __repr__(self):\n        return f\"Harvest({self.farmer!r}, {self.kg!r})\"\n\n    def __eq__(self, other):\n        pass\n\n    def __lt__(self, other):\n        pass\n",
+   "solution": "class Harvest:\n    def __init__(self, farmer, kg):\n        self.farmer = farmer\n        self.kg = kg\n\n    def __repr__(self):\n        return f\"Harvest({self.farmer!r}, {self.kg!r})\"\n\n    def __eq__(self, other):\n        if not isinstance(other, Harvest):\n            return NotImplemented\n        return self.farmer == other.farmer and self.kg == other.kg\n\n    def __lt__(self, other):\n        if not isinstance(other, Harvest):\n            return NotImplemented\n        return self.kg < other.kg\n",
+   "tests": [
+    {
+     "check": "assert Harvest('Amina', 40) == Harvest('Amina', 40), 'same farmer and kg should be equal'\nassert not (Harvest('Amina', 40) == Harvest('Amina', 41)), 'different kg: not equal'\nassert Harvest('Amina', 40) != Harvest('Juma', 40), 'different farmer: not equal'",
+     "name": "equality"
+    },
+    {
+     "check": "hs = [Harvest('Amina', 40), Harvest('Juma', 12), Harvest('Wanjiru', 55), Harvest('Otieno', 30)]\ngot = [h.farmer for h in sorted(hs)]\nassert got == ['Juma', 'Otieno', 'Amina', 'Wanjiru'], 'sorted order was %r' % got",
+     "name": "sorted by kg"
+    },
+    {
+     "call": "max([Harvest('Amina', 40), Harvest('Wanjiru', 55), Harvest('Juma', 12)]).farmer",
+     "expect": "Wanjiru",
+     "name": "max uses <"
+    },
+    {
+     "check": "h = Harvest('Amina', 40)\nassert (h == 'Amina') is False, 'comparing with a string should just be False'\nassert Harvest('Amina', 40) in [Harvest('Juma', 1), Harvest('Amina', 40)], '`in` uses ==: an equal harvest should be found'",
+     "name": "other types and `in`",
+     "hidden": true,
+     "hint_if_fail": "Start both methods with: if not isinstance(other, Harvest): return NotImplemented"
+    },
+    {
+     "check": "try:\n    Harvest('Amina', 40) < 5\n    raise AssertionError('Harvest < 5 should be a TypeError (return NotImplemented)')\nexcept TypeError:\n    pass",
+     "name": "< with a number",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Both methods return True or False (or NotImplemented).",
+    "First line of each: if not isinstance(other, Harvest): return NotImplemented",
+    "__eq__: return self.farmer == other.farmer and self.kg == other.kg. __lt__: return self.kg < other.kg"
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "A game leaderboard",
+   "file": "ex3_leaderboard.py",
+   "prompt": "Class Score(player, points, seconds) for a game. Add:\n- __str__: like Juma 120 (45s)\n- __lt__: a score comes BEFORE another (is \"less\") when it has MORE points; with equal points, the FASTER time (fewer seconds) comes first. So sorted() puts the best score first.\n- leaderboard(scores): a function (not a method) that returns a list of the str() of each score, best first. An empty list gives [].",
+   "starter": "class Score:\n    def __init__(self, player, points, seconds):\n        self.player = player\n        self.points = points\n        self.seconds = seconds\n\n    def __str__(self):\n        pass\n\n    def __lt__(self, other):\n        pass\n\n\ndef leaderboard(scores):\n    pass\n",
+   "solution": "class Score:\n    def __init__(self, player, points, seconds):\n        self.player = player\n        self.points = points\n        self.seconds = seconds\n\n    def __str__(self):\n        return f\"{self.player} {self.points} ({self.seconds}s)\"\n\n    def __lt__(self, other):\n        \"\"\"'Less' means 'ranks higher', so sorted() lists the best score first.\"\"\"\n        if not isinstance(other, Score):\n            return NotImplemented\n        if self.points != other.points:\n            return self.points > other.points\n        return self.seconds < other.seconds\n\n\ndef leaderboard(scores):\n    return [str(s) for s in sorted(scores)]\n",
+   "tests": [
+    {
+     "call": "str(Score('Juma', 120, 45))",
+     "expect": "Juma 120 (45s)"
+    },
+    {
+     "call": "leaderboard([Score('Juma', 120, 45), Score('Amina', 300, 90), Score('Otieno', 80, 20)])",
+     "expect": [
+      "Amina 300 (90s)",
+      "Juma 120 (45s)",
+      "Otieno 80 (20s)"
+     ],
+     "name": "most points first"
+    },
+    {
+     "call": "Score('Amina', 300, 90) < Score('Juma', 120, 45)",
+     "expect": true,
+     "name": "more points ranks first"
+    },
+    {
+     "call": "leaderboard([Score('Juma', 100, 60), Score('Wanjiru', 100, 41), Score('Amina', 100, 59)])",
+     "expect": [
+      "Wanjiru 100 (41s)",
+      "Amina 100 (59s)",
+      "Juma 100 (60s)"
+     ],
+     "name": "tie: faster first",
+     "hidden": true,
+     "hint_if_fail": "When the points are equal, compare seconds: fewer seconds comes first."
+    },
+    {
+     "call": "leaderboard([])",
+     "expect": [],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "sorted() puts the 'smallest' first. Here 'smallest' must mean 'best', so __lt__ returns True when self has MORE points.",
+    "if self.points != other.points: return self.points > other.points",
+    "Otherwise return self.seconds < other.seconds. leaderboard is [str(s) for s in sorted(scores)]."
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "You print an object whose class has no __str__ or __repr__. What do you see?",
+   "choices": [
+    "Its attributes",
+    "Something like <__main__.Harvest object at 0x...>",
+    "An error",
+    "Nothing"
+   ],
+   "answer": 1,
+   "why": "The default only shows the class and memory address."
+  },
+  {
+   "q": "Which special method does sorted() need on your objects?",
+   "choices": [
+    "__eq__",
+    "__str__",
+    "__lt__",
+    "__len__"
+   ],
+   "answer": 2,
+   "why": "Sorting only compares with <."
+  },
+  {
+   "q": "Your class has no __eq__. a = Harvest('A', 1); b = Harvest('A', 1). What is a == b?",
+   "choices": [
+    "True",
+    "False",
+    "TypeError",
+    "None"
+   ],
+   "answer": 1,
+   "why": "Without __eq__, == only checks if they are the very same object."
+  },
+  {
+   "q": "Why return NotImplemented instead of False from __lt__ when other isn't a Harvest?",
+   "choices": [
+    "It's faster",
+    "Python can try the other side, then give a clear TypeError",
+    "False would crash",
+    "It prints a warning"
+   ],
+   "answer": 1,
+   "why": "NotImplemented lets Python handle mixed types properly."
+  },
+  {
+   "q": "print([Harvest('Amina', 40)]) shows each item using...",
+   "choices": [
+    "__str__",
+    "__repr__",
+    "__eq__",
+    "__init__"
+   ],
+   "answer": 1,
+   "why": "Containers show their items with repr."
+  }
+ ],
+ "cards": [
+  {
+   "q": "__str__ vs __repr__?",
+   "a": "__str__ is friendly text for print; __repr__ is for programmers and looks like code."
+  },
+  {
+   "q": "What makes objects sortable?",
+   "a": "A __lt__ method (or a key= function)."
+  },
+  {
+   "q": "What does !r do in an f-string?",
+   "a": "Uses repr(), so text gets its quotes."
+  },
+  {
+   "q": "What should __eq__ return for an unrelated type?",
+   "a": "NotImplemented"
+  }
+ ],
+ "explain": "Explain what __repr__ is for and why it helps when you debug, with an example object you make up."
+}

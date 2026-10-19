@@ -1,0 +1,166 @@
+{
+ "id": "java-1-02",
+ "level": 1,
+ "title": "Variables and types",
+ "concepts": [
+  "variables",
+  "types"
+ ],
+ "skills": [
+  "variables",
+  "types"
+ ],
+ "bridge": "Java makes you say each variable's **type** when you create it (`int age = 14;`), and it can never change type afterwards. `int` is whole numbers, `double` decimals, `String` text (capital S), `boolean` true/false (lowercase). In return, the compiler catches type mistakes before the program runs.",
+ "lesson": "A variable is a named box for a value. In Java you declare the **type** of the box when you make it, and only that kind of value can go in:\n\n```\nint harvestKg = 40;\ndouble pricePerKg = 55.5;\nString crop = \"maize\";\nboolean sold = false;\n```\n\nThe main types:\n- `int`: whole numbers (up to about 2 billion). `long` for bigger.\n- `double`: numbers with a decimal point.\n- `char`: one character, in single quotes: `'A'`.\n- `boolean`: `true` or `false`.\n- `String`: text, in double quotes. Capital S, because it's a class, not a basic type.\n\nAssign a new value with `=`: `harvestKg = harvestKg + 10;` (or `harvestKg += 10;`). Names use **camelCase** in Java: `pricePerKg`, not `price_per_kg`.\n\nBecause types are fixed, `int x = \"five\";` doesn't compile. Converting is explicit: `Integer.parseInt(\"42\")` turns text into an int, `String.valueOf(42)` or `\"\" + 42` turns a number into text, and `(int) 3.9` chops a double down to 3. `final double RATE = 130.0;` makes a value that can't change: a **constant**.",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    public static void main(String[] args) {\n        String crop = \"maize\";\n        int kg = 40;\n        double price = 55.5;\n        boolean sold = false;\n        System.out.println(crop + \" \" + kg + \" \" + price + \" \" + sold);\n        kg += 10;\n        System.out.println(\"now \" + kg);\n        int fromText = Integer.parseInt(\"42\");\n        System.out.println(fromText + 1);\n        System.out.println((int) 3.9);\n    }\n}\n",
+  "notes": [
+   "Four types.",
+   "Joined into one line.",
+   "+= updates.",
+   "parseInt converts text to a number.",
+   "(int) chops off the decimals."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A record in variables",
+   "file": "Record.java",
+   "prompt": "Declare name = \"Juma\" (String), age = 14 (int), height = 1.62 (double), inSchool = true (boolean). Print them on one line separated by spaces: Juma 14 1.62 true",
+   "starter": "public class Record {\n    public static void main(String[] args) {\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Juma 14 1.62 true"
+     ],
+     "case": true,
+     "name": "prints the record"
+    },
+    {
+     "src_has": "int age",
+     "why": "age should be an int"
+    },
+    {
+     "src_has": "double height",
+     "why": "height should be a double"
+    },
+    {
+     "src_has": "boolean inSchool",
+     "why": "inSchool should be a boolean"
+    }
+   ],
+   "hints": [
+    "Four declarations, each with its type first.",
+    "System.out.println(name + \" \" + age + \" \" + height + \" \" + inSchool);"
+   ],
+   "solution": "public class Record {\n    public static void main(String[] args) {\n        String name = \"Juma\";\n        int age = 14;\n        double height = 1.62;\n        boolean inSchool = true;\n        System.out.println(name + \" \" + age + \" \" + height + \" \" + inSchool);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Converting",
+   "file": "Convert.java",
+   "prompt": "Write a static method total(String a, String b) that turns both texts into ints and returns their sum. total(\"12\", \"30\") gives 42.",
+   "starter": "public class Convert {\n    public static int total(String a, String b) {\n        return 0;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(total(\"12\", \"30\"));\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Convert.total(\"12\", \"30\")",
+     "expect": "42"
+    },
+    {
+     "call": "Convert.total(\"-5\", \"5\")",
+     "expect": "0"
+    },
+    {
+     "call": "Convert.total(\"100\", \"1\")",
+     "expect": "101",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Integer.parseInt(a) turns \"12\" into 12.",
+    "return Integer.parseInt(a) + Integer.parseInt(b);"
+   ],
+   "solution": "public class Convert {\n    public static int total(String a, String b) {\n        return Integer.parseInt(a) + Integer.parseInt(b);\n    }\n\n    public static void main(String[] args) {\n        System.out.println(total(\"12\", \"30\"));\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Whole bags",
+   "file": "Bags.java",
+   "prompt": "Write wholeBags(double kg, int bagSize) that returns how many FULL bags you can fill (an int: chop off any part bag). wholeBags(250.0, 90) gives 2.",
+   "starter": "public class Bags {\n    public static int wholeBags(double kg, int bagSize) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Bags.wholeBags(250.0, 90)",
+     "expect": "2"
+    },
+    {
+     "call": "Bags.wholeBags(89.9, 90)",
+     "expect": "0"
+    },
+    {
+     "call": "Bags.wholeBags(180.0, 90)",
+     "expect": "2",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "kg / bagSize is a double; turn it into an int.",
+    "return (int) (kg / bagSize);"
+   ],
+   "solution": "public class Bags {\n    public static int wholeBags(double kg, int bagSize) {\n        return (int) (kg / bagSize);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Which line doesn't compile?",
+   "choices": [
+    "int a = 5;",
+    "double b = 5;",
+    "int c = 5.5;",
+    "String d = \"5\";"
+   ],
+   "answer": 2,
+   "why": "5.5 doesn't fit in an int without an explicit cast."
+  },
+  {
+   "q": "What does (int) 7.99 give?",
+   "choices": [
+    "8",
+    "7",
+    "7.99",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "A cast to int chops off the decimals; it doesn't round."
+  },
+  {
+   "q": "Why is String capitalised but int isn't?",
+   "choices": [
+    "No reason",
+    "String is a class; int is a basic (primitive) type",
+    "Capitals are faster",
+    "It's a typo in Java"
+   ],
+   "answer": 1,
+   "why": "Primitive types are lowercase; classes start with a capital."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Text to int in Java?",
+   "a": "Integer.parseInt(\"42\")"
+  },
+  {
+   "q": "A value that can't change?",
+   "a": "final, e.g. final double RATE = 130.0;"
+  },
+  {
+   "q": "Java's naming style for variables?",
+   "a": "camelCase: pricePerKg"
+  }
+ ],
+ "explain": "Explain variables and types to someone who has never programmed, in your own words, with an example you make up."
+}

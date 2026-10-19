@@ -1,0 +1,164 @@
+{
+ "id": "py-1-06",
+ "level": 1,
+ "title": "Loops with while",
+ "skills": [
+  "loops",
+  "while"
+ ],
+ "lesson": "A **loop** repeats code. `while` repeats as long as its condition stays True:\n\n```\nn = 1\nwhile n <= 5:\n    print(n)\n    n += 1\n```\n\nSomething inside must eventually make the condition False, or the loop never ends (an **infinite loop**; stop it with Ctrl+C). Forgetting `n += 1` is the classic mistake.\n\n`while` is right when you don't know how many times you'll repeat: keep asking until the answer is valid, keep reading until the person types \"done\", keep a game going until someone wins.\n\n`break` leaves the loop at once; `continue` skips to the next round. A common pattern is `while True:` with a `break` inside when you're finished.\n\n**Accumulating**: start a total at 0 before the loop, add to it inside, use it after. This is how you sum, count and find the biggest.",
+ "example": {
+  "code": "total = 0\ncount = 0\nwhile True:\n    text = input(\"Kg harvested (or done): \")\n    if text == \"done\":\n        break\n    total += float(text)\n    count += 1\nprint(f\"{count} entries, {total} kg\")\n",
+  "notes": [
+   "Start the total and count at 0.",
+   "Loop until done.",
+   "break leaves.",
+   "Add each number.",
+   "Use the totals after."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Total until done",
+   "file": "ex1_total.py",
+   "prompt": "Keep asking for numbers until the person types done. Then print the count and the total, like: 3 numbers, total 17.5",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "5\n2.5\n10\ndone\n",
+     "out": [
+      "3 numbers, total 17.5"
+     ]
+    },
+    {
+     "stdin": "done\n",
+     "out": [
+      "0 numbers, total 0"
+     ],
+     "hidden": true,
+     "hint_if_fail": "If they type done straight away: 0 numbers, total 0 (print the total as a whole number when it is one, or start it at 0 and only add floats)."
+    }
+   ],
+   "hints": [
+    "total = 0 and count = 0 before the loop.",
+    "while True: read; if it's done, break; otherwise add float(text) and count += 1."
+   ],
+   "solution": "total = 0\ncount = 0\nwhile True:\n    t = input()\n    if t == \"done\":\n        break\n    total += float(t)\n    count += 1\nprint(f\"{count} numbers, total {total:g}\")\n"
+  },
+  {
+   "id": "e2",
+   "title": "Ask until it's right",
+   "file": "ex2_valid.py",
+   "prompt": "Ask for an age. If it isn't a whole number from 1 to 120, print \"Try again\" and ask again. When it's valid print: Thanks, AGE",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "abc\n-4\n200\n33\n",
+     "out": [
+      "Try again",
+      "Thanks, 33"
+     ]
+    },
+    {
+     "stdin": "7\n",
+     "out": [
+      "Thanks, 7"
+     ]
+    }
+   ],
+   "hints": [
+    "text.isdigit() tells you if it's all digits (no minus sign, no letters).",
+    "while True: read text; if text.isdigit() and 1 <= int(text) <= 120: break; else print Try again."
+   ],
+   "solution": "while True:\n    t = input(\"Age? \")\n    if t.isdigit() and 1 <= int(t) <= 120:\n        break\n    print(\"Try again\")\nprint(f\"Thanks, {t}\")\n"
+  },
+  {
+   "id": "e3",
+   "title": "Savings goal",
+   "file": "ex3_goal.py",
+   "prompt": "Write months_to_goal(goal, monthly): how many months of saving `monthly` shillings until you reach at least `goal`. If monthly is 0 or less, return -1 (it never happens). Use a while loop.",
+   "starter": "def months_to_goal(goal, monthly):\n    return 0\n",
+   "tests": [
+    {
+     "call": "months_to_goal(1000, 300)",
+     "expect": 4
+    },
+    {
+     "call": "months_to_goal(900, 300)",
+     "expect": 3
+    },
+    {
+     "call": "months_to_goal(500, 0)",
+     "expect": -1,
+     "hidden": true,
+     "hint_if_fail": "A loop that adds 0 each time never ends: check monthly <= 0 first."
+    },
+    {
+     "call": "months_to_goal(0, 50)",
+     "expect": 0,
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "saved = 0, months = 0, while saved < goal: add and count.",
+    "Guard against monthly <= 0 before the loop, or it runs forever."
+   ],
+   "solution": "def months_to_goal(goal, monthly):\n    if monthly <= 0:\n        return -1\n    saved = 0\n    months = 0\n    while saved < goal:\n        saved += monthly\n        months += 1\n    return months\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What's wrong?\nn = 0\nwhile n < 3:\n    print(n)",
+   "choices": [
+    "Nothing",
+    "It never ends: n never changes",
+    "It prints nothing",
+    "SyntaxError"
+   ],
+   "answer": 1,
+   "why": "Nothing increases n."
+  },
+  {
+   "q": "What does break do?",
+   "choices": [
+    "Stops the program",
+    "Leaves the loop",
+    "Skips one round",
+    "Restarts the loop"
+   ],
+   "answer": 1,
+   "why": "Leaves the loop straight away."
+  },
+  {
+   "q": "When is while better than for?",
+   "choices": [
+    "When you know the count",
+    "When you repeat until something happens",
+    "Never",
+    "For lists"
+   ],
+   "answer": 1,
+   "why": "Unknown number of repeats: until done, valid, won."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Stop an infinite loop in the terminal?",
+   "a": "Ctrl+C"
+  },
+  {
+   "q": "Pattern to total numbers?",
+   "a": "total = 0 before the loop, total += x inside, use it after."
+  },
+  {
+   "q": "break vs continue?",
+   "a": "break leaves the loop; continue skips to the next round."
+  }
+ ],
+ "concepts": [
+  "loops"
+ ],
+ "bridge": "`while condition:` with an indented block. No `i++`: write `i += 1`.",
+ "explain": "Explain loops with while to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

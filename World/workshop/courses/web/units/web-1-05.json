@@ -1,0 +1,138 @@
+{
+ "id": "web-1-05",
+ "level": 1,
+ "title": "The box model and spacing",
+ "concepts": [
+  "css"
+ ],
+ "skills": [
+  "css",
+  "box model",
+  "spacing"
+ ],
+ "lesson": "Every element is a **box**, from the inside out:\n1. **content** (the text or image),\n2. **padding** (space inside the border),\n3. **border**,\n4. **margin** (space outside, pushing other boxes away).\n\n`padding: 12px` sets all four sides; `padding: 8px 16px` is top/bottom then left/right; `margin: 0 auto` centres a block that has a width.\n\nBy default, `width` means the content only, so padding and border make a box *wider* than you said. Almost every site fixes that with one rule at the top:\n\n```\n* { box-sizing: border-box; }\n```\n\nNow `width: 100%` really is 100%, padding included. Use it.\n\n`max-width` keeps text from stretching across a wide screen (lines longer than about 75 characters are hard to read): `main { max-width: 760px; margin: 0 auto; padding: 0 16px; }` is a good page frame. Elements are either **block** (take the full width, start on a new line: div, p, h1) or **inline** (sit in the line of text: a, b, span).",
+ "example": {
+  "file": "example.html",
+  "code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<style>\n* { box-sizing: border-box; }\nbody { margin: 0; font-family: system-ui, sans-serif; }\nmain { max-width: 760px; margin: 0 auto; padding: 0 16px; }\n.card { border: 2px solid #2a6f97; padding: 12px 16px; margin: 12px 0; border-radius: 8px; }\n</style>\n</head>\n<body>\n<main>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</main>\n</body>\n</html>\n",
+  "notes": [
+   "border-box: padding counts inside the width.",
+   "A centred frame that never gets too wide.",
+   "Padding inside, margin between cards."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Frame the page",
+   "file": "ex1_frame.html",
+   "prompt": "Wrap the cards in <main>. Add CSS: * with box-sizing: border-box; main with a max-width and margin 0 auto; .card with padding and margin.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n</head>\n<body>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "main .card",
+       "min": 3
+      }
+     ],
+     "name": "cards inside main"
+    },
+    {
+     "html": [
+      {
+       "css": "*",
+       "prop": "box-sizing",
+       "value": "border-box"
+      }
+     ],
+     "name": "border-box"
+    },
+    {
+     "html": [
+      {
+       "css": "main",
+       "prop": "max-width"
+      },
+      {
+       "css": "main",
+       "prop": "margin"
+      }
+     ],
+     "name": "a centred frame"
+    },
+    {
+     "html": [
+      {
+       "css": ".card",
+       "prop": "padding"
+      },
+      {
+       "css": ".card",
+       "prop": "margin"
+      }
+     ],
+     "name": "card spacing"
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "<main> before the h1, </main> after the last card.",
+    "main { max-width: 760px; margin: 0 auto; }"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<style>\n* { box-sizing: border-box; }\nmain { max-width: 760px; margin: 0 auto; }\n.card { padding: 12px; margin: 12px 0; }\n</style>\n</head>\n<body>\n<main>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</main>\n</body>\n</html>\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "From inside out, a box is…",
+   "choices": [
+    "margin, border, padding, content",
+    "content, padding, border, margin",
+    "padding, content, margin, border",
+    "content, margin, padding, border"
+   ],
+   "answer": 1,
+   "why": "Content, padding, border, margin."
+  },
+  {
+   "q": "What does box-sizing: border-box change?",
+   "choices": [
+    "Colours",
+    "Width includes padding and border",
+    "Removes borders",
+    "Centres the box"
+   ],
+   "answer": 1,
+   "why": "The width you set is the width you get."
+  },
+  {
+   "q": "Why max-width on text?",
+   "choices": [
+    "Saves memory",
+    "Very long lines are hard to read",
+    "Required on phones",
+    "It's faster"
+   ],
+   "answer": 1,
+   "why": "About 75 characters a line is comfortable."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Padding vs margin?",
+   "a": "Padding is inside the border; margin is outside, between boxes."
+  },
+  {
+   "q": "Centre a block with a width?",
+   "a": "margin: 0 auto"
+  },
+  {
+   "q": "The rule almost every site starts with?",
+   "a": "* { box-sizing: border-box; }"
+  }
+ ],
+ "explain": "Explain the box model and spacing to someone who has never programmed, in your own words, with an example you make up."
+}

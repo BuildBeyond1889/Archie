@@ -1,0 +1,171 @@
+{
+ "id": "py-1-04",
+ "level": 1,
+ "title": "Working with text",
+ "skills": [
+  "strings",
+  "methods"
+ ],
+ "lesson": "A string is a row of characters, and each has a position called an **index**, starting at 0. In `word = \"Nairobi\"`, `word[0]` is \"N\", `word[1]` is \"a\", and `word[-1]` (counting from the end) is \"i\".\n\n**Slicing** takes a piece: `word[0:4]` is \"Nair\" (from 0 up to, but not including, 4). Leave a side out to go to the edge: `word[:3]` is \"Nai\", `word[3:]` is \"robi\".\n\nStrings have **methods**, actions you call with a dot:\n- `s.upper()`, `s.lower()`, `s.title()`: change capitals\n- `s.strip()`: remove spaces from both ends (people type extra spaces all the time)\n- `s.replace(\"a\", \"b\")`: swap text\n- `s.split(\",\")`: cut into a list of pieces; `\", \".join(pieces)` glues a list back\n- `s.startswith(\"07\")`, `\"ma\" in s`: check things\n- `s.count(\"a\")`, `s.find(\"x\")`\n\nStrings never change in place: methods give you a **new** string. `name.upper()` alone does nothing you can see; `name = name.upper()` keeps the result.",
+ "example": {
+  "code": "word = \"Nairobi\"\nprint(word[0], word[-1], word[:4], word[4:])\nname = \"  amina odhiambo \"\nclean = name.strip().title()\nprint(clean)\nprint(\"maize,beans,kale\".split(\",\"))\nprint(\" | \".join([\"a\", \"b\", \"c\"]))\nprint(\"07\" in \"0712345678\", \"Nairobi\".lower().count(\"i\"))\n",
+  "notes": [
+   "Index, last, first four, the rest.",
+   "strip then title: tidy names.",
+   "split makes a list.",
+   "join glues it back.",
+   "in checks; methods can chain."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Tidy a name",
+   "file": "ex1_tidy.py",
+   "prompt": "Write a function tidy(name) that removes spaces at the ends and makes each word start with a capital. tidy(\"  wANJIRU kamau \") gives \"Wanjiru Kamau\". (Functions come properly later: just fill in the line that says return.)",
+   "starter": "def tidy(name):\n    return name  # change this line\n",
+   "tests": [
+    {
+     "call": "tidy(\"  wANJIRU kamau \")",
+     "expect": "Wanjiru Kamau"
+    },
+    {
+     "call": "tidy(\"otieno\")",
+     "expect": "Otieno"
+    },
+    {
+     "call": "tidy(\"   \")",
+     "expect": "",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "strip() first, then title().",
+    "return name.strip().title()"
+   ],
+   "solution": "def tidy(name):\n    return name.strip().title()\n"
+  },
+  {
+   "id": "e2",
+   "title": "Initials",
+   "file": "ex2_initials.py",
+   "prompt": "Write initials(full_name): \"Amina Wanjiru Odhiambo\" gives \"A.W.O.\" Use split.",
+   "starter": "def initials(full_name):\n    parts = full_name.split()\n    return \"\"  # build the initials\n",
+   "tests": [
+    {
+     "call": "initials(\"Amina Wanjiru Odhiambo\")",
+     "expect": "A.W.O."
+    },
+    {
+     "call": "initials(\"juma\")",
+     "expect": "J."
+    },
+    {
+     "call": "initials(\"  baraka   otieno \")",
+     "expect": "B.O.",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Each part's first letter is part[0]; make it upper().",
+    "Loop over parts adding part[0].upper() + \".\" to a result string, or use \"\".join(p[0].upper() + \".\" for p in parts)."
+   ],
+   "solution": "def initials(full_name):\n    return \"\".join(p[0].upper() + \".\" for p in full_name.split())\n"
+  },
+  {
+   "id": "e3",
+   "title": "Safaricom number?",
+   "file": "ex3_phone.py",
+   "prompt": "Write is_kenyan_mobile(s): True if, after removing spaces, the number is 10 digits starting with 07 or 01, or 13 characters starting with +2547 or +2541. Otherwise False.",
+   "starter": "def is_kenyan_mobile(s):\n    s = s.replace(\" \", \"\")\n    return False\n",
+   "tests": [
+    {
+     "call": "is_kenyan_mobile(\"0712 345 678\")",
+     "expect": true
+    },
+    {
+     "call": "is_kenyan_mobile(\"+254 712 345678\")",
+     "expect": true
+    },
+    {
+     "call": "is_kenyan_mobile(\"0112345678\")",
+     "expect": true
+    },
+    {
+     "call": "is_kenyan_mobile(\"12345\")",
+     "expect": false
+    },
+    {
+     "call": "is_kenyan_mobile(\"07123abc78\")",
+     "expect": false,
+     "hidden": true,
+     "hint_if_fail": "Check that the rest are all digits: s[1:].isdigit()"
+    },
+    {
+     "call": "is_kenyan_mobile(\"0812345678\")",
+     "expect": false,
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "len(s), s.startswith((\"07\", \"01\")) and s.isdigit() are your tools.",
+    "Two cases joined with or: (len(s) == 10 and s.startswith((\"07\",\"01\")) and s.isdigit()) or (len(s) == 13 and s.startswith((\"+2547\",\"+2541\")) and s[1:].isdigit())"
+   ],
+   "solution": "def is_kenyan_mobile(s):\n    s = s.replace(\" \", \"\")\n    return (len(s) == 10 and s.startswith((\"07\", \"01\")) and s.isdigit()) or (len(s) == 13 and s.startswith((\"+2547\", \"+2541\")) and s[1:].isdigit())\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "\"Mombasa\"[1:4] is…",
+   "choices": [
+    "\"Mom\"",
+    "\"omb\"",
+    "\"omba\"",
+    "\"mba\""
+   ],
+   "answer": 1,
+   "why": "From index 1 up to (not including) 4: o, m, b."
+  },
+  {
+   "q": "name = \"juma\"; name.upper(); print(name) shows…",
+   "choices": [
+    "JUMA",
+    "juma",
+    "Juma",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "upper() returns a new string; it wasn't saved."
+  },
+  {
+   "q": "\"a,b,c\".split(\",\") gives…",
+   "choices": [
+    "\"abc\"",
+    "['a', 'b', 'c']",
+    "('a','b','c')",
+    "3"
+   ],
+   "answer": 1,
+   "why": "A list of the pieces."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Last character of s?",
+   "a": "s[-1]"
+  },
+  {
+   "q": "Remove spaces from both ends?",
+   "a": "s.strip()"
+  },
+  {
+   "q": "Do string methods change the string?",
+   "a": "No: they return a new one. Save it: s = s.strip()."
+  }
+ ],
+ "concepts": [
+  "strings"
+ ],
+ "bridge": "Strings use slicing: `s[0:4]`, `s[-1]`. Compare text with `==` (it compares the letters in Python). Methods: `.strip()`, `.upper()`, `.split()`, `\", \".join(...)`.",
+ "explain": "Explain working with text to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

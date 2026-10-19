@@ -1,0 +1,168 @@
+{
+ "id": "java-1-08",
+ "level": 1,
+ "title": "Methods",
+ "concepts": [
+  "functions"
+ ],
+ "skills": [
+  "functions",
+  "methods",
+  "design"
+ ],
+ "bridge": "Java's functions are **methods**, and they declare the type of every parameter and of what they return: `static double area(double w, double h) { return w * h; }`. `void` means it returns nothing. Two methods can share a name if their parameters differ (**overloading**).",
+ "lesson": "A method is a named, reusable piece of code:\n\n```\nstatic double area(double length, double width) {\n    return length * width;\n}\n```\n\nReading it left to right: `static` (belongs to the class; you'll meet non-static methods with objects), the **return type** (`double`; `void` if it returns nothing), the name, the **parameters** each with a type, and the body. `return` ends the method and hands back the value; the compiler checks that every path returns something of the right type.\n\nCall it as `area(40, 30)` from the same class, or `ClassName.area(40, 30)` from elsewhere. Everything from the Python course applies: one job per method, return instead of print, and small methods that call each other read like English.\n\n**Overloading**: two methods with the same name and different parameters are allowed: `area(double side)` for squares and `area(double w, double h)` for rectangles. Java picks the right one by the arguments.\n\nJava passes copies of simple values (int, double...), so a method can't change the caller's variable; for objects and arrays, it gets a reference, so changes to the array's contents *are* seen by the caller.",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    static double area(double w, double h) { return w * h; }\n    static double area(double side) { return area(side, side); }\n    static double acres(double m2) { return m2 / 4046.86; }\n    static String describe(String name, double w, double h) {\n        double a = area(w, h);\n        return String.format(\"%s: %.0f m2 = %.2f acres\", name, a, acres(a));\n    }\n\n    public static void main(String[] args) {\n        System.out.println(describe(\"North plot\", 60, 70));\n        System.out.println(area(10));\n    }\n}\n",
+  "notes": [
+   "Two area methods: overloading.",
+   "Small methods calling each other.",
+   "String.format builds formatted text."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Temperatures",
+   "file": "Temps.java",
+   "prompt": "Write cToF(double c) and fToC(double f) (F = C × 9/5 + 32), each rounded to 1 decimal: Math.round(x * 10) / 10.0.",
+   "starter": "public class Temps {\n    // write cToF and fToC here\n}\n",
+   "tests": [
+    {
+     "call": "Temps.cToF(100)",
+     "expect": "212.0"
+    },
+    {
+     "call": "Temps.cToF(-40)",
+     "expect": "-40.0"
+    },
+    {
+     "call": "Temps.fToC(98.6)",
+     "expect": "37.0"
+    },
+    {
+     "call": "Temps.fToC(Temps.cToF(23.4))",
+     "expect": "23.4",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "public static double cToF(double c) { ... }",
+    "return Math.round((c * 9 / 5 + 32) * 10) / 10.0;"
+   ],
+   "solution": "public class Temps {\n    public static double cToF(double c) {\n        return Math.round((c * 9 / 5 + 32) * 10) / 10.0;\n    }\n\n    public static double fToC(double f) {\n        return Math.round((f - 32) * 5 / 9 * 10) / 10.0;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Overloading",
+   "file": "Price.java",
+   "prompt": "Write two methods called total: total(int qty, double unitPrice) returns qty × price, and total(int qty, double unitPrice, double discountPercent) applies the discount. Round both to 2 decimals.",
+   "starter": "public class Price {\n}\n",
+   "tests": [
+    {
+     "call": "Price.total(3, 50)",
+     "expect": "150.0"
+    },
+    {
+     "call": "Price.total(4, 25.5, 10)",
+     "expect": "91.8"
+    },
+    {
+     "call": "Price.total(1, 9.999)",
+     "expect": "10.0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Two methods with the same name and different parameters.",
+    "The 2-argument one can call the 3-argument one with discount 0."
+   ],
+   "solution": "public class Price {\n    public static double total(int qty, double unitPrice) {\n        return total(qty, unitPrice, 0);\n    }\n\n    public static double total(int qty, double unitPrice, double discountPercent) {\n        return Math.round(qty * unitPrice * (100 - discountPercent)) / 100.0;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "One job each",
+   "file": "Line.java",
+   "prompt": "Write clean(String name) (trim + capitalise first letter, rest lower), fmtKg(double kg) giving \"40.0 kg\", and line(String name, double kg) that uses both: \"Amina: 40.0 kg\".",
+   "starter": "public class Line {\n}\n",
+   "tests": [
+    {
+     "call": "Line.line(\"  amina \", 40)",
+     "expect": "Amina: 40.0 kg"
+    },
+    {
+     "call": "Line.fmtKg(12.345)",
+     "expect": "12.3 kg"
+    },
+    {
+     "call": "Line.clean(\"JUMA\")",
+     "expect": "Juma"
+    },
+    {
+     "src_has": "clean(name)",
+     "why": "line() should call clean(name)."
+    },
+    {
+     "src_has": "fmtKg(kg)",
+     "why": "line() should call fmtKg(kg)."
+    }
+   ],
+   "hints": [
+    "fmtKg: return String.format(\"%.1f kg\", kg);",
+    "line: return clean(name) + \": \" + fmtKg(kg);"
+   ],
+   "solution": "public class Line {\n    public static String clean(String name) {\n        String s = name.trim();\n        return s.isEmpty() ? \"\" : s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();\n    }\n\n    public static String fmtKg(double kg) {\n        return String.format(\"%.1f kg\", kg);\n    }\n\n    public static String line(String name, double kg) {\n        return clean(name) + \": \" + fmtKg(kg);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does void mean?",
+   "choices": [
+    "The method returns nothing",
+    "The method is empty",
+    "It returns null",
+    "It can't be called"
+   ],
+   "answer": 0,
+   "why": "No return value."
+  },
+  {
+   "q": "Two methods named area with different parameters is…",
+   "choices": [
+    "an error",
+    "overloading: allowed",
+    "overriding",
+    "only allowed in Python"
+   ],
+   "answer": 1,
+   "why": "Overloading."
+  },
+  {
+   "q": "A method changes its int parameter. Does the caller's variable change?",
+   "choices": [
+    "Yes",
+    "No: Java passes a copy of simple values",
+    "Only if static",
+    "Sometimes"
+   ],
+   "answer": 1,
+   "why": "Primitives are passed by value."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Parts of a Java method header?",
+   "a": "modifiers, return type, name, (typed parameters)"
+  },
+  {
+   "q": "Overloading?",
+   "a": "Same name, different parameters."
+  },
+  {
+   "q": "Format a double to 1 decimal as text?",
+   "a": "String.format(\"%.1f\", x)"
+  }
+ ],
+ "explain": "Explain methods to someone who has never programmed, in your own words, with an example you make up."
+}

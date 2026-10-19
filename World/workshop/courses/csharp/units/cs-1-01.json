@@ -1,0 +1,145 @@
+{
+ "id": "cs-1-01",
+ "level": 1,
+ "title": "Hello, C#",
+ "concepts": [
+  "output"
+ ],
+ "skills": [
+  "running code",
+  "output"
+ ],
+ "bridge": "C# programs start in `static void Main()` inside a class, and `Console.WriteLine(...)` prints a line. Statements end with `;` and blocks use `{ }`. It's very close to Java, and it's the language Unity games are written in.",
+ "lesson": "C# (said \"C sharp\") is Microsoft's main language: Windows apps, web servers, and above all **Unity**, the engine behind a huge share of indie and mobile games. If you know a little Java, C# will feel familiar.\n\n```\nusing System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"Hello, world!\");\n        Console.Write(\"Same line... \");\n        Console.WriteLine(2 + 3);\n    }\n}\n```\n\n- `using System;` lets you write `Console` instead of `System.Console`.\n- The program starts in `Main`. `Console.WriteLine` prints a line; `Console.Write` doesn't end it.\n- Statements end with `;`; braces `{ }` group code. C# style puts each brace on its own line.\n- **String interpolation** mixes text and values: `Console.WriteLine($\"Total: {40 + 2}\");` (note the `$`).\n\nC# is compiled: `dotnet build` checks the whole program first, and `dotnet run` builds and runs it. Archie builds your exercises in a scratch project, so you only write the `.cs` file. (Newer C# can skip the class and Main for tiny programs; this course writes them out, because Unity scripts and real projects look like this.)",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"Hello, world!\");\n        Console.Write(\"Same line... \");\n        Console.WriteLine(\"now a new one.\");\n        Console.WriteLine($\"Total: {40 + 2}\");\n        Console.WriteLine(\"4\" + \"2\");\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Hello from C#",
+   "file": "Hello.cs",
+   "prompt": "Print exactly: Hello, Archie!",
+   "starter": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // your line here\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Hello, Archie!"
+     ],
+     "case": true,
+     "name": "prints the greeting"
+    }
+   ],
+   "hints": [
+    "Console.WriteLine(\"...\");",
+    "Don't forget the semicolon."
+   ],
+   "solution": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"Hello, Archie!\");\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Fix it (compiler drill)",
+   "file": "Fix.cs",
+   "prompt": "Three mistakes stop this compiling. Fix them until it prints:\nC# is strict\nand that helps\n10",
+   "starter": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"C# is strict\")\n        console.WriteLine(\"and that helps\");\n        Console.WriteLine(5 + 5;\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "C# is strict",
+      "and that helps",
+      "10"
+     ],
+     "case": true,
+     "name": "all three lines"
+    }
+   ],
+   "hints": [
+    "Read the first error: which line, and what did it expect?",
+    "A missing ;, a lowercase c in Console, and a missing )."
+   ],
+   "solution": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"C# is strict\");\n        Console.WriteLine(\"and that helps\");\n        Console.WriteLine(5 + 5);\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Interpolation",
+   "file": "Join.cs",
+   "prompt": "Print Total: 42 using string interpolation ($\"...{40 + 2}\"), then print the text \"4\" joined to \"2\".",
+   "starter": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Total: 42",
+      "42"
+     ]
+    },
+    {
+     "src_has": "$\"",
+     "why": "Use string interpolation: $\"...\""
+    },
+    {
+     "src_has": "\"4\"+\"2\"",
+     "why": "Join the two texts: \"4\" + \"2\""
+    }
+   ],
+   "hints": [
+    "Console.WriteLine($\"Total: {40 + 2}\");",
+    "Console.WriteLine(\"4\" + \"2\");"
+   ],
+   "solution": "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine($\"Total: {40 + 2}\");\n        Console.WriteLine(\"4\" + \"2\");\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Where does a C# program start?",
+   "choices": [
+    "The first line",
+    "static void Main()",
+    "The class name",
+    "Program.cs"
+   ],
+   "answer": 1,
+   "why": "Main is the entry point."
+  },
+  {
+   "q": "What does $\"Sum: {2 + 3}\" give?",
+   "choices": [
+    "Sum: {2 + 3}",
+    "Sum: 5",
+    "Sum: 23",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "The $ makes the braces hold code."
+  },
+  {
+   "q": "Which engine is scripted in C#?",
+   "choices": [
+    "Unreal",
+    "Unity",
+    "Godot only",
+    "None"
+   ],
+   "answer": 1,
+   "why": "Unity (Godot also supports C#)."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Print a line in C#?",
+   "a": "Console.WriteLine(\"...\");"
+  },
+  {
+   "q": "String interpolation?",
+   "a": "$\"Total: {x}\""
+  },
+  {
+   "q": "Build and run?",
+   "a": "dotnet run"
+  }
+ ],
+ "explain": "Explain hello, c# to someone who has never programmed, in your own words, with an example you make up."
+}

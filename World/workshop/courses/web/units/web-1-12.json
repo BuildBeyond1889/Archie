@@ -1,0 +1,198 @@
+{
+ "id": "web-1-12",
+ "level": 1,
+ "title": "Level 1 project: a tip and split calculator",
+ "concepts": [
+  "functions",
+  "dom",
+  "html",
+  "css"
+ ],
+ "skills": [
+  "design",
+  "html",
+  "css",
+  "javascript"
+ ],
+ "project": true,
+ "lesson": "Put HTML, CSS and JavaScript together into a small app people actually use: a **bill splitter** for a group eating out or sharing costs.\n\nTwo files:\n1. **ex1_split.html**: a page with labelled inputs `bill` (number), `tip` (a select with 0, 5, 10 and 15 percent), `people` (number, min 1), and an output `<p id=\"each\">`. Style it so it's comfortable on a phone (viewport, max-width, inputs full width, a big readable result). Link `ex2_split.js` at the end of the body.\n2. **ex2_split.js**: a pure function `split(bill, tipPercent, people)` returning the amount each person pays, as a number rounded UP to the nearest whole shilling (nobody wants to be 0.33 short), or `null` if the inputs make no sense (empty, negative, zero people). Then wire it: whenever any input changes, show `Each pays 1,234 KSh` (use `toLocaleString()` for the comma) or `Fill in the bill and people` if `split` gives null.\n\nPlan first: the HTML ids, then the function (test it in your head with 1000 KSh, 10%, 3 people: 1100 / 3 = 366.67, so 367), then the wiring.",
+ "example": {
+  "file": "example.js",
+  "code": "console.log(Math.ceil(1100 / 3), (1234).toLocaleString(\"en-US\"));\n",
+  "notes": [
+   "Math.ceil rounds up; toLocaleString adds thousands separators."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "The page",
+   "file": "ex1_split.html",
+   "prompt": "Build the page as the lesson describes: inputs bill, tip (select), people, output each, labels for all, the viewport tag, some CSS (at least a max-width), and the script link to ex2_split.js.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Split the bill</title>\n</head>\n<body>\n<h1>Split the bill</h1>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "input#bill"
+      },
+      {
+       "has": "select#tip"
+      },
+      {
+       "has": "input#people"
+      },
+      {
+       "has": "#each"
+      }
+     ],
+     "name": "the inputs and output"
+    },
+    {
+     "html": [
+      {
+       "has": "select#tip option",
+       "min": 4
+      }
+     ],
+     "name": "four tip choices"
+    },
+    {
+     "html": [
+      {
+       "has": "label",
+       "min": 3
+      },
+      {
+       "attr": "label",
+       "needs": "for"
+      }
+     ],
+     "name": "labels"
+    },
+    {
+     "html": [
+      {
+       "has": "script[src=ex2_split.js]"
+      }
+     ],
+     "name": "links the script"
+    },
+    {
+     "html": [
+      {
+       "has": "meta[name=viewport]"
+      }
+     ],
+     "name": "phone-ready"
+    },
+    {
+     "clean": true,
+     "name": "no errors (and the script file is found)"
+    }
+   ],
+   "hints": [
+    "<label for=\"bill\">Bill (KSh)</label><input id=\"bill\" type=\"number\" min=\"0\">",
+    "<script src=\"ex2_split.js\"></script> just before </body>"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Split the bill</title>\n<style>\n* { box-sizing: border-box; }\nmain { max-width: 420px; margin: 0 auto; padding: 16px; font-family: system-ui, sans-serif; }\nlabel, input, select { display: block; width: 100%; margin: 6px 0; font-size: 1.1rem; }\n#each { font-size: 1.6rem; font-weight: bold; }\n</style>\n</head>\n<body>\n<main>\n<h1>Split the bill</h1>\n<label for=\"bill\">Bill (KSh)</label>\n<input id=\"bill\" type=\"number\" min=\"0\">\n<label for=\"tip\">Tip</label>\n<select id=\"tip\"><option value=\"0\">0%</option><option value=\"5\">5%</option><option value=\"10\">10%</option><option value=\"15\">15%</option></select>\n<label for=\"people\">People</label>\n<input id=\"people\" type=\"number\" min=\"1\" value=\"1\">\n<p id=\"each\">Fill in the bill and people</p>\n</main>\n<script src=\"ex2_split.js\"></script>\n</body>\n</html>\n",
+   "extra_files": {
+    "ex2_split.js": "// write split() here (next exercise)\n"
+   }
+  },
+  {
+   "id": "e2",
+   "title": "The calculator",
+   "file": "ex2_split.js",
+   "prompt": "Write split(bill, tipPercent, people) and the wiring, as the lesson describes.",
+   "starter": "function split(bill, tipPercent, people) {\n  return null;\n}\n",
+   "tests": [
+    {
+     "call": "split(1000, 10, 3)",
+     "expect": 367,
+     "name": "1000 + 10% between 3"
+    },
+    {
+     "call": "split(\"2000\", \"0\", \"4\")",
+     "expect": 500,
+     "name": "works with text from inputs"
+    },
+    {
+     "call": "split(1000, 10, 0)",
+     "expect": null,
+     "name": "zero people"
+    },
+    {
+     "call": "split(\"\", 10, 2)",
+     "expect": null,
+     "hidden": true
+    },
+    {
+     "call": "split(-50, 10, 2)",
+     "expect": null,
+     "hidden": true
+    },
+    {
+     "check": "const b = document.getElementById(\"bill\"), t = document.getElementById(\"tip\"), p = document.getElementById(\"people\"); b.value = \"1000\"; t.value = \"10\"; p.value = \"3\"; for (const el of [b, t, p]) { el.dispatch(\"input\"); el.dispatch(\"change\"); } const txt = document.getElementById(\"each\").textContent; if (!/367/.test(txt)) throw new Error(\"with 1000, 10% and 3 people the page should show 367; it shows: \" + txt);",
+     "name": "the page updates"
+    }
+   ],
+   "hints": [
+    "Convert all three with Number(); return null if any is not finite, bill < 0, tip < 0 or people < 1 (and treat \"\" as missing).",
+    "return Math.ceil(bill * (1 + tip / 100) / people);",
+    "Wire it: one function update() that reads the three values and sets each.textContent; add it as the \"input\" and \"change\" listener on all three."
+   ],
+   "solution": "function split(bill, tipPercent, people) {\n  if ([bill, tipPercent, people].some((x) => String(x).trim() === \"\")) return null;\n  const b = Number(bill), t = Number(tipPercent), p = Number(people);\n  if (![b, t, p].every(Number.isFinite) || b < 0 || t < 0 || p < 1) return null;\n  return Math.ceil((b * (1 + t / 100)) / p);\n}\n\nconst ids = [\"bill\", \"tip\", \"people\"];\nfunction update() {\n  const [b, t, p] = ids.map((id) => document.getElementById(id).value);\n  const each = split(b, t, p);\n  document.getElementById(\"each\").textContent = each === null ? \"Fill in the bill and people\" : `Each pays ${each.toLocaleString()} KSh`;\n}\nfor (const id of ids) {\n  document.getElementById(id).addEventListener(\"input\", update);\n  document.getElementById(id).addEventListener(\"change\", update);\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why keep split() separate from the DOM code?",
+   "choices": [
+    "It's required",
+    "A pure function can be tested on its own and reused anywhere",
+    "It's faster",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Logic separate from display."
+  },
+  {
+   "q": "Why Math.ceil for each person's share?",
+   "choices": [
+    "It's more accurate",
+    "So the total collected is never short",
+    "Math.round doesn't exist",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Rounding up covers the bill."
+  },
+  {
+   "q": "Why listen to both input and change?",
+   "choices": [
+    "Typing fires input; choosing in a select fires change",
+    "Required by browsers",
+    "To run it twice",
+    "No reason"
+   ],
+   "answer": 0,
+   "why": "Different controls fire different events."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Round up in JS?",
+   "a": "Math.ceil(x)"
+  },
+  {
+   "q": "1,234 formatting?",
+   "a": "n.toLocaleString()"
+  },
+  {
+   "q": "Logic vs display?",
+   "a": "Pure functions for the logic; thin DOM code for display."
+  }
+ ],
+ "explain": "Explain level 1 project: a tip and split calculator to someone who has never programmed, in your own words, with an example you make up."
+}

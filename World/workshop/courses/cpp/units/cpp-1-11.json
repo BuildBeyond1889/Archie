@@ -1,0 +1,147 @@
+{
+ "id": "cpp-1-11",
+ "level": 1,
+ "title": "Project: turret logic",
+ "concepts": [
+  "classes",
+  "lists",
+  "functions"
+ ],
+ "skills": [
+  "putting it together",
+  "game logic"
+ ],
+ "lesson": "Time to build the brain of a tower-defence turret: the logic that runs every frame, separate from graphics. This is how real game code is organised: pure logic you can test, with the engine drawing it.\n\nA turret sits at `(x, y)` with a `range`. Each frame it must:\n\n1. find enemies **in range** (distance <= range);\n2. **pick a target**: the closest one in range;\n3. **fire** only when its cooldown has passed.\n\nDistance between two points is Pythagoras:\n\n```\ndouble dx = t.x - x, dy = t.y - y;\ndouble dist = std::sqrt(dx * dx + dy * dy);\n```\n\n(Comparing `dx*dx + dy*dy <= range*range` skips the square root and is what games usually do.)\n\n**Cooldowns.** A turret that fires 2 shots a second has a cooldown of 0.5 s. Store the time of the last shot; `tryFire(now)` fires (returns true and remembers `now`) only if `now - lastShot >= cooldown`. The very first shot is always allowed.\n\n**In Unreal** this becomes `ATurret::Tick(float DeltaTime)`: get the enemies (`TArray<AActor*>`), measure with `FVector::Dist`, pick the closest, and check a `FireCooldown` you add `DeltaTime` to. Same logic, engine types. Archie's dev coach can help you move it across, with advice only: it never touches your Unreal project.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <cmath>\n\nint main()\n{\n    double tx = 0, ty = 0, range = 5;\n    double ex = 3, ey = 4;\n    double dist = std::sqrt((ex - tx) * (ex - tx) + (ey - ty) * (ey - ty));\n    std::cout << \"distance \" << dist << (dist <= range ? \" in range\" : \" out of range\") << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Targeting",
+   "file": "turret.cpp",
+   "prompt": "Finish class Turret(double x, double y, double range): bool inRange(const Target& t) const (distance <= range), and int pickTarget(const std::vector<Target>& targets) const, which returns the index of the closest target in range, or -1 if none are.",
+   "starter": "#include <string>\n#include <vector>\n#include <cmath>\n\nstruct Target\n{\n    std::string name;\n    double x;\n    double y;\n};\n\nclass Turret\n{\npublic:\n    Turret(double x, double y, double range) {}\n    bool inRange(const Target& t) const { return false; }\n    int pickTarget(const std::vector<Target>& targets) const { return -1; }\nprivate:\n};\n",
+   "tests": [
+    {
+     "call": "Turret(0, 0, 5).inRange({\"a\", 3, 4})",
+     "expect": "true",
+     "hint_if_fail": "3, 4 is exactly 5 away: in range counts the edge (<=)."
+    },
+    {
+     "call": "Turret(0, 0, 5).inRange({\"a\", 4, 4})",
+     "expect": "false"
+    },
+    {
+     "call": "Turret(10, 10, 3).inRange({\"a\", 11, 12})",
+     "expect": "true",
+     "hint_if_fail": "Measure from the turret's position, not from 0, 0."
+    },
+    {
+     "call": "Turret(0, 0, 10).pickTarget({{\"far\", 9, 0}, {\"near\", 2, 1}, {\"out\", 20, 0}})",
+     "expect": "1"
+    },
+    {
+     "call": "Turret(0, 0, 1).pickTarget({{\"out\", 5, 5}})",
+     "expect": "-1"
+    },
+    {
+     "call": "Turret(0, 0, 10).pickTarget({})",
+     "expect": "-1"
+    }
+   ],
+   "hints": [
+    "Store x, y and range in private fields.",
+    "Loop with an index: for (int i = 0; i < (int)targets.size(); i++), keep the best distance so far."
+   ],
+   "solution": "#include <string>\n#include <vector>\n#include <cmath>\n\nstruct Target\n{\n    std::string name;\n    double x;\n    double y;\n};\n\nclass Turret\n{\npublic:\n    Turret(double x, double y, double range) : x(x), y(y), range(range) {}\n    double distanceTo(const Target& t) const\n    {\n        double dx = t.x - x, dy = t.y - y;\n        return std::sqrt(dx * dx + dy * dy);\n    }\n    bool inRange(const Target& t) const { return distanceTo(t) <= range; }\n    int pickTarget(const std::vector<Target>& targets) const\n    {\n        int best = -1;\n        double bestDist = 0;\n        for (int i = 0; i < (int)targets.size(); i++) {\n            double d = distanceTo(targets[i]);\n            if (d <= range && (best == -1 || d < bestDist)) { best = i; bestDist = d; }\n        }\n        return best;\n    }\nprivate:\n    double x, y, range;\n};\n"
+  },
+  {
+   "id": "e2",
+   "title": "Cooldown",
+   "file": "cooldown.cpp",
+   "prompt": "Write class Gun with Gun(double shotsPerSecond) and bool tryFire(double now): it fires (returns true) if this is the first shot or at least 1 / shotsPerSecond seconds have passed since the last shot that fired.",
+   "starter": "class Gun\n{\npublic:\n    Gun(double shotsPerSecond) {}\n    bool tryFire(double now) { return true; }\n};\n",
+   "tests": [
+    {
+     "call": "Gun(2).tryFire(0)",
+     "expect": "true"
+    },
+    {
+     "call": "[]{ Gun g(2); g.tryFire(0); return g.tryFire(0.3); }()",
+     "expect": "false",
+     "hint_if_fail": "2 shots a second means 0.5 s between shots."
+    },
+    {
+     "call": "[]{ Gun g(2); g.tryFire(0); return g.tryFire(0.5); }()",
+     "expect": "true"
+    },
+    {
+     "call": "[]{ Gun g(2); g.tryFire(1); g.tryFire(1.2); return g.tryFire(1.5); }()",
+     "expect": "true",
+     "hint_if_fail": "Only shots that actually fired reset the timer."
+    },
+    {
+     "call": "[]{ Gun g(1); g.tryFire(5); return g.tryFire(5.9); }()",
+     "expect": "false"
+    }
+   ],
+   "hints": [
+    "cooldown = 1.0 / shotsPerSecond. Keep a bool for 'has fired yet' and the time of the last shot.",
+    "if (!fired || now - lastShot >= cooldown) { fired = true; lastShot = now; return true; } return false;"
+   ],
+   "solution": "class Gun\n{\npublic:\n    Gun(double shotsPerSecond) : cooldown(1.0 / shotsPerSecond) {}\n    bool tryFire(double now)\n    {\n        if (!fired || now - lastShot >= cooldown) {\n            fired = true;\n            lastShot = now;\n            return true;\n        }\n        return false;\n    }\nprivate:\n    double cooldown;\n    double lastShot = 0;\n    bool fired = false;\n};\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why compare dx*dx + dy*dy with range*range?",
+   "choices": [
+    "It's more accurate",
+    "It skips the slow square root and gives the same answer",
+    "Unreal requires it",
+    "It handles negatives"
+   ],
+   "answer": 1,
+   "why": "Both sides squared keeps the comparison the same."
+  },
+  {
+   "q": "2 shots a second means a cooldown of...",
+   "choices": [
+    "2 s",
+    "0.5 s",
+    "0.2 s",
+    "1 s"
+   ],
+   "answer": 1,
+   "why": "1 / 2."
+  },
+  {
+   "q": "Why keep turret logic separate from the graphics?",
+   "choices": [
+    "It's required by C++",
+    "You can test it on its own and move it between engines",
+    "It runs faster",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Testable, portable logic."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Distance between two points?",
+   "a": "sqrt(dx*dx + dy*dy)"
+  },
+  {
+   "q": "Unreal's per-frame function?",
+   "a": "Tick(float DeltaTime)"
+  },
+  {
+   "q": "Unreal's distance helper?",
+   "a": "FVector::Dist(A, B)"
+  }
+ ],
+ "explain": "Explain project: turret logic to someone who has never programmed, in your own words, with an example you make up."
+}

@@ -1,0 +1,253 @@
+{
+ "id": "cs-2-09",
+ "level": 2,
+ "title": "Testing your own code",
+ "concepts": [
+  "testing",
+  "assertions",
+  "delegates",
+  "exceptions"
+ ],
+ "skills": [
+  "testing",
+  "edge cases",
+  "assertions"
+ ],
+ "lesson": "Every exercise so far, Archie's tests told you whether your code worked. Real programs have no Archie. Professionals write **tests**: small pieces of code that call your code and check the answer. Then, every time you change something, you run them all in a second and know you didn't break anything.\n\n**Why it matters for you:** a game has hundreds of rules (damage, armor, prices, spawns). Change the armor formula and maybe the boss becomes unkillable. You won't notice by playing for five minutes. A test notices instantly.\n\nA test is three steps, often called **Arrange, Act, Assert**:\n\n```\nvar w = new Wallet();            // arrange: set things up\nw.Earn(5);                       // act: do the one thing\nCheck.Equal(5, w.Coins, \"earn\"); // assert: was the result right?\n```\n\nThe `Check.Equal` helper throws a `TestFailedException` with a clear message (\"earn: expected 5, got 0\") when the answer is wrong. A **runner** calls every test, catches the failures, and prints a summary like `3 passed, 1 failed: overspend`. In real projects you'd use a test framework (xUnit or NUnit, and Unity has its Test Runner), but they do exactly this: you'll build a small one yourself so nothing is magic.\n\n**What to test.** Not just the happy path:\n- one **normal** case (30 damage, 10 armor gives 20);\n- the **edges**: 0, exactly equal, one more than the limit, empty lists;\n- **bad input**: negative numbers, null, and that the right exception is thrown;\n- every **rule** in the spec gets at least one check.\n\n**How to tell your tests are any good?** Break the code on purpose and see if a test fails. If you can change `Math.Max(1, ...)` to `Math.Max(0, ...)` and every test still passes, your tests don't really check that rule. Professionals call this **mutation testing**, and Archie's hidden tests in this unit do exactly that to *your* tests: they hand your checks some broken versions of the code and expect your checks to catch every one.\n\n**Common mistakes:**\n- Tests that never fail (checking `x == x`, or catching every exception).\n- One giant test that checks twenty things: when it fails you don't know which.\n- Only testing the case you just wrote the code for.\n\nDelegates make tests flexible: a test method that takes a `Func<int, int, int>` can check *any* damage formula, the real one or a broken one. That's the trick this unit uses.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\n\npublic class TestFailedException : Exception\n{\n    public TestFailedException(string message) : base(message) { }\n}\n\npublic static class Check\n{\n    public static void Equal<T>(T expected, T actual, string what)\n    {\n        if (!EqualityComparer<T>.Default.Equals(expected, actual))\n            throw new TestFailedException($\"{what}: expected {expected}, got {actual}\");\n    }\n}\n\nclass Program\n{\n    static int Damage(int raw, int armor) => Math.Max(1, raw - armor);\n\n    static void Main()\n    {\n        var tests = new Dictionary<string, Action>\n        {\n            [\"normal hit\"] = () => Check.Equal(20, Damage(30, 10), \"normal hit\"),\n            [\"armor bigger than hit\"] = () => Check.Equal(1, Damage(5, 9), \"small hit\"),\n            [\"no hit\"] = () => Check.Equal(0, Damage(0, 5), \"no hit\"),\n        };\n        foreach (var (name, test) in tests)\n        {\n            try { test(); Console.WriteLine($\"PASS {name}\"); }\n            catch (TestFailedException ex) { Console.WriteLine($\"FAIL {ex.Message}\"); }\n        }\n    }\n}\n",
+  "notes": [
+   "Check.Equal works for any type T and throws with a clear message.",
+   "Each test is an Action (a small function with no result) stored under its name.",
+   "The runner catches failures so one failing test doesn't stop the others.",
+   "The 'no hit' test fails: Damage(0, 5) gives 1. The test found a real bug in the formula."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A Check helper",
+   "file": "Check.cs",
+   "prompt": "TestFailedException is given. In static class Check write:\n- Equal<T>(T expected, T actual, string what): if they differ (use EqualityComparer<T>.Default), throw TestFailedException(\"{what}: expected {expected}, got {actual}\").\n- True(bool condition, string what): if false, throw TestFailedException(\"{what}: expected true\").\n- Throws<TException>(Action action, string what) where TException : Exception: runs action. Passes if it throws a TException. If it throws something else: \"{what}: expected {TException name}, got {other name}\". If nothing is thrown: \"{what}: expected {TException name}, nothing was thrown\". (Names like ArgumentException: typeof(TException).Name.)",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class TestFailedException : Exception\n{\n    public TestFailedException(string message) : base(message) { }\n}\n\npublic static class Check\n{\n    public static void Equal<T>(T expected, T actual, string what)\n    {\n    }\n\n    public static void True(bool condition, string what)\n    {\n    }\n\n    public static void Throws<TException>(Action action, string what) where TException : Exception\n    {\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { try { Check.Equal(4, 2 + 2, \"sum\"); return \"passed\"; } catch (TestFailedException e) { return e.Message; } }))()",
+     "expect": "passed",
+     "name": "equal passes"
+    },
+    {
+     "call": "((Func<string>)(() => { try { Check.Equal(\"maize\", \"beans\", \"crop\"); return \"passed\"; } catch (TestFailedException e) { return e.Message; } }))()",
+     "expect": "crop: expected maize, got beans",
+     "name": "equal fails clearly"
+    },
+    {
+     "call": "((Func<string>)(() => { try { Check.True(5 > 9, \"big\"); return \"passed\"; } catch (TestFailedException e) { return e.Message; } }))()",
+     "expect": "big: expected true",
+     "name": "true fails"
+    },
+    {
+     "call": "((Func<string>)(() => { try { Check.Throws<ArgumentException>(() => throw new ArgumentException(), \"guard\"); return \"passed\"; } catch (TestFailedException e) { return e.Message; } }))()",
+     "expect": "passed",
+     "name": "throws passes"
+    },
+    {
+     "call": "((Func<string>)(() => { try { Check.Throws<ArgumentException>(() => { }, \"guard\"); return \"passed\"; } catch (TestFailedException e) { return e.Message; } }))()",
+     "expect": "guard: expected ArgumentException, nothing was thrown",
+     "hidden": true,
+     "name": "nothing thrown"
+    },
+    {
+     "call": "((Func<string>)(() => { try { Check.Throws<ArgumentException>(() => throw new InvalidOperationException(), \"guard\"); return \"passed\"; } catch (TestFailedException e) { return e.Message; } }))()",
+     "expect": "guard: expected ArgumentException, got InvalidOperationException",
+     "hidden": true,
+     "name": "wrong exception"
+    },
+    {
+     "call": "((Func<string>)(() => { try { Check.Equal<string>(null, null, \"nulls\"); return \"passed\"; } catch (TestFailedException e) { return e.Message; } }))()",
+     "expect": "passed",
+     "hidden": true,
+     "name": "null equals null",
+     "hint_if_fail": "expected.Equals(actual) crashes on null: use EqualityComparer<T>.Default.Equals(expected, actual)."
+    }
+   ],
+   "hints": [
+    "Equal: if (!EqualityComparer<T>.Default.Equals(expected, actual)) throw new TestFailedException($\"{what}: expected {expected}, got {actual}\");",
+    "Throws: try { action(); } catch (TException) { return; } catch (Exception e) { throw new TestFailedException(...e.GetType().Name...); }",
+    "After the try/catch (nothing was thrown), throw the 'nothing was thrown' failure."
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class TestFailedException : Exception\n{\n    public TestFailedException(string message) : base(message) { }\n}\n\npublic static class Check\n{\n    public static void Equal<T>(T expected, T actual, string what)\n    {\n        // EqualityComparer handles null safely, unlike expected.Equals(actual).\n        if (!EqualityComparer<T>.Default.Equals(expected, actual))\n            throw new TestFailedException($\"{what}: expected {expected}, got {actual}\");\n    }\n\n    public static void True(bool condition, string what)\n    {\n        if (!condition) throw new TestFailedException($\"{what}: expected true\");\n    }\n\n    public static void Throws<TException>(Action action, string what) where TException : Exception\n    {\n        string want = typeof(TException).Name;\n        try\n        {\n            action();\n        }\n        catch (TException)\n        {\n            return;   // exactly what we hoped for\n        }\n        catch (Exception e)\n        {\n            throw new TestFailedException($\"{what}: expected {want}, got {e.GetType().Name}\");\n        }\n        throw new TestFailedException($\"{what}: expected {want}, nothing was thrown\");\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Tests that catch bugs",
+   "file": "Armor.cs",
+   "prompt": "The armor rules: Damage(raw, armor)\n  1. raw of 0 or less does 0 damage.\n  2. negative armor counts as 0.\n  3. otherwise the damage is raw - armor, but always at least 1.\nWrite ArmorMath.Damage(int raw, int armor) to follow them. Then write ArmorTests.AllPass(Func<int, int, int> damage): run your own checks on the function you are GIVEN and return true only if it follows every rule. Archie will hand it your Damage (must give true) and several broken versions (each must give false). Cover a normal case and every rule's edge.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class ArmorMath\n{\n    public static int Damage(int raw, int armor)\n    {\n        return raw - armor;\n    }\n}\n\npublic static class ArmorTests\n{\n    public static bool AllPass(Func<int, int, int> damage)\n    {\n        // call damage(raw, armor) with cases you choose, compare with what the rules say\n        return true;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "ArmorMath.Damage(30, 10) + \" \" + ArmorMath.Damage(5, 9) + \" \" + ArmorMath.Damage(0, 5) + \" \" + ArmorMath.Damage(10, -5)",
+     "expect": "20 1 0 10",
+     "name": "your Damage follows the rules"
+    },
+    {
+     "call": "ArmorTests.AllPass(ArmorMath.Damage).ToString()",
+     "expect": "True",
+     "name": "your tests pass your Damage"
+    },
+    {
+     "call": "ArmorTests.AllPass((r, a) => r - a).ToString()",
+     "expect": "False",
+     "name": "catches: no rules at all"
+    },
+    {
+     "call": "ArmorTests.AllPass((r, a) => r <= 0 ? 0 : Math.Max(1, r - a)).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "catches: negative armor not handled",
+     "hint_if_fail": "Add a check with negative armor, e.g. (10, -5) should be 10."
+    },
+    {
+     "call": "ArmorTests.AllPass((r, a) => Math.Max(1, r - Math.Max(0, a))).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "catches: zero raw still hurts",
+     "hint_if_fail": "Add a check that raw 0 gives 0."
+    },
+    {
+     "call": "ArmorTests.AllPass((r, a) => r <= 0 ? 0 : Math.Max(0, r - Math.Max(0, a))).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "catches: minimum of 0 instead of 1",
+     "hint_if_fail": "Add a check where the armor is bigger than the hit: it should still do 1."
+    },
+    {
+     "call": "ArmorTests.AllPass((r, a) => r <= 0 ? 0 : Math.Max(1, r - Math.Max(0, a) / 2)).ToString()",
+     "expect": "False",
+     "hidden": true,
+     "name": "catches: armor only half counted",
+     "hint_if_fail": "Add a plain normal case, like (30, 10) gives 20."
+    }
+   ],
+   "hints": [
+    "Damage: if (raw <= 0) return 0; armor = Math.Max(0, armor); return Math.Max(1, raw - armor);",
+    "In AllPass, list cases as (raw, armor, expected): (30, 10, 20), (5, 9, 1), (10, 10, 1), (0, 5, 0), (-4, 0, 0), (10, -5, 10)...",
+    "foreach (var c in cases) if (damage(c.Raw, c.Armor) != c.Expected) return false; return true;"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class ArmorMath\n{\n    public static int Damage(int raw, int armor)\n    {\n        if (raw <= 0) return 0;          // rule 1\n        armor = Math.Max(0, armor);      // rule 2\n        return Math.Max(1, raw - armor); // rule 3\n    }\n}\n\npublic static class ArmorTests\n{\n    public static bool AllPass(Func<int, int, int> damage)\n    {\n        // (raw, armor, expected): one normal case, then the edge of every rule.\n        var cases = new (int Raw, int Armor, int Expected)[]\n        {\n            (30, 10, 20),   // normal hit\n            (10, 0, 10),    // no armor at all\n            (5, 9, 1),      // armor bigger than the hit: still 1\n            (10, 10, 1),    // exactly equal: still 1\n            (0, 5, 0),      // no hit, no damage\n            (-4, 0, 0),     // negative raw counts as no hit\n            (10, -5, 10),   // negative armor counts as 0\n        };\n        foreach (var c in cases)\n            if (damage(c.Raw, c.Armor) != c.Expected) return false;\n        return true;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "A tiny test runner",
+   "file": "Runner.cs",
+   "prompt": "1. TestRunner.Run(Dictionary<string, Action> tests): run every test in order. A test fails if it throws (any exception); a failure must not stop the others. Return \"{passed} passed, {failed} failed\", and if any failed add \": \" and the failed names in order, joined by \", \".\n2. WalletTests.All(): return at least 3 named tests for the given Wallet class (they must all pass on it). Cover earning, overspending, and that Earn(0) throws.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\n// The code under test: don't change it.\npublic class Wallet\n{\n    public int Coins { get; private set; }\n\n    public void Earn(int n)\n    {\n        if (n <= 0) throw new ArgumentOutOfRangeException(nameof(n));\n        Coins += n;\n    }\n\n    public bool Spend(int n)\n    {\n        if (n > Coins) return false;\n        Coins -= n;\n        return true;\n    }\n}\n\npublic static class TestRunner\n{\n    public static string Run(Dictionary<string, Action> tests)\n    {\n        return \"\";\n    }\n}\n\npublic static class WalletTests\n{\n    public static Dictionary<string, Action> All()\n    {\n        return new Dictionary<string, Action>();\n    }\n}\n",
+   "tests": [
+    {
+     "call": "TestRunner.Run(new Dictionary<string, Action> { [\"adds\"] = () => { }, [\"heals\"] = () => { } })",
+     "expect": "2 passed, 0 failed",
+     "name": "all pass"
+    },
+    {
+     "call": "TestRunner.Run(new Dictionary<string, Action> { [\"a\"] = () => { }, [\"b\"] = () => throw new Exception(\"boom\"), [\"c\"] = () => { }, [\"d\"] = () => throw new InvalidOperationException() })",
+     "expect": "2 passed, 2 failed: b, d",
+     "name": "failures are listed"
+    },
+    {
+     "call": "((Func<string>)(() => { var t = WalletTests.All(); return (t.Count >= 3) + \" \" + TestRunner.Run(t).StartsWith(t.Count + \" passed, 0 failed\"); }))()",
+     "expect": "True True",
+     "name": "your wallet tests pass"
+    },
+    {
+     "call": "TestRunner.Run(new Dictionary<string, Action>())",
+     "expect": "0 passed, 0 failed",
+     "hidden": true,
+     "name": "no tests"
+    }
+   ],
+   "hints": [
+    "foreach (var (name, test) in tests) { try { test(); } catch (Exception) { failed.Add(name); } }",
+    "string summary = $\"{tests.Count - failed.Count} passed, {failed.Count} failed\"; add \": \" + string.Join(\", \", failed) when there are failures.",
+    "A wallet test: [\"earning adds coins\"] = () => { var w = new Wallet(); w.Earn(5); if (w.Coins != 5) throw new Exception(\"expected 5\"); }"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\n// The code under test: don't change it.\npublic class Wallet\n{\n    public int Coins { get; private set; }\n\n    public void Earn(int n)\n    {\n        if (n <= 0) throw new ArgumentOutOfRangeException(nameof(n));\n        Coins += n;\n    }\n\n    public bool Spend(int n)\n    {\n        if (n > Coins) return false;\n        Coins -= n;\n        return true;\n    }\n}\n\npublic static class TestRunner\n{\n    public static string Run(Dictionary<string, Action> tests)\n    {\n        var failed = new List<string>();\n        foreach (var (name, test) in tests)\n        {\n            try\n            {\n                test();\n            }\n            catch (Exception)\n            {\n                failed.Add(name);   // note it and carry on with the next test\n            }\n        }\n        string summary = $\"{tests.Count - failed.Count} passed, {failed.Count} failed\";\n        return failed.Count == 0 ? summary : summary + \": \" + string.Join(\", \", failed);\n    }\n}\n\npublic static class WalletTests\n{\n    public static Dictionary<string, Action> All() => new()\n    {\n        [\"earning adds coins\"] = () =>\n        {\n            var w = new Wallet();\n            w.Earn(5);\n            w.Earn(3);\n            if (w.Coins != 8) throw new Exception($\"expected 8, got {w.Coins}\");\n        },\n        [\"can't overspend\"] = () =>\n        {\n            var w = new Wallet();\n            w.Earn(3);\n            if (w.Spend(10)) throw new Exception(\"spending 10 of 3 should fail\");\n            if (w.Coins != 3) throw new Exception(\"a failed spend must not change the coins\");\n        },\n        [\"spending exactly everything works\"] = () =>\n        {\n            var w = new Wallet();\n            w.Earn(4);\n            if (!w.Spend(4) || w.Coins != 0) throw new Exception(\"should spend down to 0\");\n        },\n        [\"earning zero throws\"] = () =>\n        {\n            try { new Wallet().Earn(0); }\n            catch (ArgumentOutOfRangeException) { return; }\n            throw new Exception(\"Earn(0) should throw\");\n        },\n    };\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What are the three steps of a typical test?",
+   "choices": [
+    "Build, run, ship",
+    "Arrange, act, assert",
+    "Read, write, delete",
+    "Try, catch, finally"
+   ],
+   "answer": 1,
+   "why": "Set up, do one thing, check the result."
+  },
+  {
+   "q": "Your Damage tests all still pass after you change Math.Max(1, ...) to Math.Max(0, ...). What does that tell you?",
+   "choices": [
+    "The change is safe",
+    "No test checks the 'at least 1' rule: add one",
+    "Tests are useless",
+    "The compiler is wrong"
+   ],
+   "answer": 1,
+   "why": "That's the idea behind mutation testing."
+  },
+  {
+   "q": "Which is the best set of cases for 'armor reduces damage, minimum 1'?",
+   "choices": [
+    "Only (30, 10)",
+    "(30, 10), (10, 10), (5, 9), plus zero and negative inputs",
+    "Random numbers",
+    "(1, 1) only"
+   ],
+   "answer": 1,
+   "why": "A normal case plus every edge."
+  },
+  {
+   "q": "Why should a runner catch each test's exception separately?",
+   "choices": [
+    "To hide bugs",
+    "So one failing test doesn't stop the rest from running",
+    "C# requires it",
+    "To run faster"
+   ],
+   "answer": 1,
+   "why": "You want the full report."
+  },
+  {
+   "q": "What's wrong with a test that wraps everything in catch (Exception) { }?",
+   "choices": [
+    "Nothing",
+    "It can never fail, so it checks nothing",
+    "It's too slow",
+    "It won't compile"
+   ],
+   "answer": 1,
+   "why": "A test that can't fail isn't a test."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Arrange, act, assert?",
+   "a": "Set up, do one thing, check the result"
+  },
+  {
+   "q": "What makes a good set of tests?",
+   "a": "A normal case, the edges (0, equal, limit, empty) and bad input"
+  },
+  {
+   "q": "Mutation testing?",
+   "a": "Break the code on purpose; a good test suite notices"
+  },
+  {
+   "q": "Test frameworks for C#?",
+   "a": "xUnit, NUnit; in Unity, the Unity Test Runner"
+  }
+ ],
+ "explain": "Explain why you'd write tests for a game you're building, and pick one rule from your game and list the cases you'd test."
+}

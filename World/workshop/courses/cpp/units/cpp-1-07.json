@@ -1,0 +1,125 @@
+{
+ "id": "cpp-1-07",
+ "level": 1,
+ "title": "Vectors",
+ "concepts": [
+  "lists"
+ ],
+ "skills": [
+  "std::vector",
+  "loops over lists"
+ ],
+ "bridge": "C++'s growable list is `std::vector<T>` from `<vector>`: `std::vector<int> v = {4, 5, 6}; v.push_back(7); v.size(); v[0];`. Loop with `for (int x : v)`. Pass vectors to functions as `const std::vector<int>& v` so they aren't copied.",
+ "lesson": "```\n#include <vector>\n\nstd::vector<int> scores = {72, 85, 90};\nscores.push_back(64);        // add to the end -> 4 items\nscores.size();               // 4\nscores[0];                   // 72\nscores.back();               // 64\nscores.pop_back();           // remove the last\nscores.empty();              // false\n\nint total = 0;\nfor (int s : scores) total += s;\n```\n\n**Passing to functions.** Written as `std::vector<int> v`, the whole vector is *copied* every call, which is slow for big ones. Write `const std::vector<int>& v` instead: the `&` means \"use the original\", and `const` promises not to change it. You'll see this pattern everywhere in C++ and in Unreal (`const TArray<AActor*>& Targets`).\n\n`v[i]` doesn't check `i` is valid: reading `v[10]` of a 3-item vector is **undefined behaviour** (garbage, or a crash). `v.at(10)` checks and throws an error instead.\n\nUnreal's version is `TArray` (`Add`, `Num`, `[i]`); Unity's C# version is `List<T>`. Same idea everywhere.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <vector>\n\nint main()\n{\n    std::vector<int> scores = {72, 85, 90};\n    scores.push_back(64);\n    int total = 0;\n    for (int s : scores) total += s;\n    std::cout << scores.size() << \" scores, total \" << total << \"\\n\";\n    std::cout << \"first \" << scores[0] << \", last \" << scores.back() << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Average of a vector",
+   "file": "average.cpp",
+   "prompt": "Write double average(const std::vector<int>& v): the average, or 0 for an empty vector.",
+   "starter": "#include <vector>\n\ndouble average(const std::vector<int>& v)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "average({4, 5, 6})",
+     "expect": "5"
+    },
+    {
+     "call": "average({1, 2})",
+     "expect": "1.5",
+     "hint_if_fail": "Divide as a double, not as ints."
+    },
+    {
+     "call": "average({})",
+     "expect": "0",
+     "hint_if_fail": "An empty vector has size 0: don't divide by it."
+    }
+   ],
+   "hints": [
+    "Add them up in a loop, then divide by v.size().",
+    "if (v.empty()) return 0; ... return static_cast<double>(total) / v.size();"
+   ],
+   "solution": "#include <vector>\n\ndouble average(const std::vector<int>& v)\n{\n    if (v.empty()) return 0;\n    int total = 0;\n    for (int x : v) total += x;\n    return static_cast<double>(total) / v.size();\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Count above a limit",
+   "file": "above.cpp",
+   "prompt": "Write int countAbove(const std::vector<int>& v, int limit): how many items are greater than limit.",
+   "starter": "#include <vector>\n\nint countAbove(const std::vector<int>& v, int limit)\n{\n    return v.size();\n}\n",
+   "tests": [
+    {
+     "call": "countAbove({10, 40, 35, 20}, 30)",
+     "expect": "2"
+    },
+    {
+     "call": "countAbove({1, 2}, 5)",
+     "expect": "0"
+    },
+    {
+     "call": "countAbove({5, 5, 6}, 5)",
+     "expect": "1",
+     "hint_if_fail": "Greater than, not greater-or-equal."
+    }
+   ],
+   "hints": [
+    "Start a counter at 0.",
+    "for (int x : v) if (x > limit) n++;"
+   ],
+   "solution": "#include <vector>\n\nint countAbove(const std::vector<int>& v, int limit)\n{\n    int n = 0;\n    for (int x : v) if (x > limit) n++;\n    return n;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Add to the end of a vector?",
+   "choices": [
+    "v.add(x)",
+    "v.push_back(x)",
+    "v.append(x)",
+    "v += x"
+   ],
+   "answer": 1,
+   "why": "push_back."
+  },
+  {
+   "q": "Why const std::vector<int>& in a parameter?",
+   "choices": [
+    "It's required",
+    "No copy, and the function promises not to change it",
+    "It makes it faster to type",
+    "It sorts it"
+   ],
+   "answer": 1,
+   "why": "& avoids the copy, const prevents changes."
+  },
+  {
+   "q": "v[10] on a 3-item vector?",
+   "choices": [
+    "0",
+    "An error message",
+    "Undefined behaviour: garbage or a crash",
+    "It grows"
+   ],
+   "answer": 2,
+   "why": "[] doesn't check. .at() does."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Make a vector of ints?",
+   "a": "std::vector<int> v = {1, 2, 3};"
+  },
+  {
+   "q": "How many items?",
+   "a": "v.size()"
+  },
+  {
+   "q": "Checked access?",
+   "a": "v.at(i)"
+  }
+ ],
+ "explain": "Explain vectors to someone who has never programmed, in your own words, with an example you make up."
+}

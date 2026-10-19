@@ -1,0 +1,70 @@
+{
+ "name": "C",
+ "lang": "C",
+ "grader": "C",
+ "version": "1.1.0",
+ "summary": "C the way CS50 and embedded-systems courses teach it: printf and scanf, types, decisions, loops, arrays, functions, strings, pointers and structs, ending with a sensor-log report like the ones Arduino projects need. Graded by real tests.",
+ "levels": [
+  {
+   "n": 1,
+   "name": "Basics: printf/scanf, types, decisions, loops, arrays, functions, strings, pointers, structs",
+   "ready": true
+  },
+  {
+   "n": 2,
+   "name": "Memory: malloc/free, dynamic arrays, linked lists",
+   "ready": true
+  },
+  {
+   "n": 3,
+   "name": "Files, the command line, and multi-file programs with headers and make",
+   "ready": false
+  },
+  {
+   "n": 4,
+   "name": "Embedded: registers, interrupts, timers, Arduino without the Arduino library",
+   "ready": false
+  },
+  {
+   "n": 5,
+   "name": "Algorithms and data structures in C",
+   "ready": false
+  },
+  {
+   "n": 6,
+   "name": "Professional craft: debugging (gdb), sanitizers, testing, security",
+   "ready": false
+  },
+  {
+   "n": 7,
+   "name": "Capstone: firmware or a tool for a real need, then a defense",
+   "ready": false
+  }
+ ],
+ "units": [
+  "c-1-01",
+  "c-1-02",
+  "c-1-03",
+  "c-1-04",
+  "c-1-05",
+  "c-1-06",
+  "c-1-07",
+  "c-1-08",
+  "c-1-09",
+  "c-1-10",
+  "c-1-11",
+  "c-2-01",
+  "c-2-02",
+  "c-2-03",
+  "c-2-04",
+  "c-2-05",
+  "c-2-06",
+  "c-2-07",
+  "c-2-08",
+  "c-2-09"
+ ],
+ "certs": [
+  "Harvard CS50x (free) uses C for its first half",
+  "C Programming Institute CLA (entry level) covers Levels 1-2"
+ ]
+}

@@ -1,0 +1,107 @@
+{
+ "name": "Desk clock with reminders",
+ "lang": "Python",
+ "summary": "A big clock window with the date and your reminders: add one for a time (once, daily, weekly or monthly), and it pops up and beeps when it's due. A first real Python app.",
+ "for": "anyone; a good first project",
+ "cheap": "Any computer with Python, including a Raspberry Pi on an old screen.",
+ "tags": [
+  "clock",
+  "reminder",
+  "time",
+  "python",
+  "tkinter",
+  "beginner"
+ ],
+ "shell": "py-window",
+ "blocks": [
+  "py-store",
+  "py-reminders"
+ ],
+ "files": {
+  "main.py": "main.py"
+ },
+ "version": "1.1.0",
+ "guide": {
+  "main": "main.py",
+  "order": [
+   "main.py",
+   "lib/reminders.py",
+   "lib/store.py"
+  ],
+  "overview": "A window with a big clock, the date, and reminders. The clock redraws itself every second with tkinter's after() (never a sleep, which would freeze the window). Reminders are kept in a file by the Reminders block, so they survive restarting the computer; every second the app asks which are due and pops them up with a beep.",
+  "files": [
+   {
+    "file": "main.py",
+    "why": "The window: the clock labels, the reminder form and list, and tick(), which runs every second.",
+    "points": [
+     {
+      "find": "def tick(self):",
+      "note": "The heartbeat: update the clock, check due reminders, then ask tkinter to call tick again in (just under) a second."
+     },
+     {
+      "find": "self.after(1000 - now.microsecond // 1000, self.tick)",
+      "note": "Waits until the next whole second, so the clock never drifts or skips."
+     },
+     {
+      "find": "self.rem.due(now)",
+      "note": "Reminders whose time has come; repeating ones move on to their next time automatically."
+     }
+    ]
+   }
+  ],
+  "starter": "\"\"\"Desk clock with reminders: you build it step by step.\"\"\"\nimport datetime as dt\nimport os\nimport tkinter as tk\nfrom tkinter import messagebox, ttk\n# archie:imports\nfrom lib.reminders import Reminders\n\nHERE = os.path.dirname(os.path.abspath(__file__))\n",
+  "lessons": [
+   {
+    "title": "A ticking clock",
+    "concept": "event loops and after()",
+    "explain": "A window program spends its life in mainloop(), waiting for things to happen. To do something every second you don't loop or sleep (that freezes the window); you ask tkinter to call a function again later with after(ms, function).",
+    "task": "Make a Tk window with a big Label (font size 64). Write tick() that sets the label to the time as HH:MM:SS (datetime.now().strftime) and then calls root.after(1000, tick). Call tick() once and then root.mainloop().",
+    "check": "Running it opens a window whose clock ticks every second.",
+    "must": [
+     "after(",
+     "strftime(",
+     "mainloop()"
+    ],
+    "code": "root = tk.Tk()\nclock = tk.Label(root, font=(\"Segoe UI\", 64, \"bold\"))\nclock.pack(padx=30, pady=20)\n\ndef tick():\n    clock.config(text=dt.datetime.now().strftime(\"%H:%M:%S\"))\n    root.after(1000, tick)\n\ntick()\nroot.mainloop()"
+   },
+   {
+    "title": "The date",
+    "concept": "formatting dates",
+    "explain": "strftime turns a date into text: %A is the weekday, %d the day, %B the month name, %Y the year.",
+    "task": "Add a second, smaller label under the clock showing the date like Friday 02 October 2026, updated in tick().",
+    "check": "The date shows under the time.",
+    "must": [
+     "%A",
+     "%B"
+    ],
+    "code": "date = tk.Label(root, font=(\"Segoe UI\", 16))\ndate.pack()\n# in tick():\ndate.config(text=dt.datetime.now().strftime(\"%A %d %B %Y\"))"
+   },
+   {
+    "title": "Add reminders",
+    "concept": "saving to a file",
+    "explain": "The Reminders block stores reminders in a JSON file, so they're still there tomorrow. You add one with a time like 2026-04-01 08:00 and an optional repeat.",
+    "task": "Make rem = Reminders(os.path.join(HERE, \"data\", \"reminders.json\")). Add an Entry for the time, an Entry for the text and a button that calls rem.add(time, text). Show a messagebox error if the time isn't in the right format (rem.add raises ValueError).",
+    "check": "Adding a reminder works; a badly written time shows an error instead of crashing.",
+    "must": [
+     "Reminders(",
+     "rem.add(",
+     "except ValueError"
+    ],
+    "code": "rem = Reminders(os.path.join(HERE, \"data\", \"reminders.json\"))\nwhen, what = ttk.Entry(root), ttk.Entry(root)\nwhen.pack(); what.pack()\n\ndef add():\n    try:\n        rem.add(when.get().strip(), what.get().strip())\n    except ValueError:\n        messagebox.showerror(\"Reminder\", \"Write the time like 2026-04-01 08:00\")\n\nttk.Button(root, text=\"Add reminder\", command=add).pack()"
+   },
+   {
+    "title": "Pop up when due",
+    "concept": "checking state over time",
+    "explain": "Every tick, ask the Reminders block which reminders are due. Show each one and beep. Repeating ones move on to their next time by themselves.",
+    "task": "In tick(), loop over rem.due(): root.bell() and messagebox.showinfo(\"Reminder\", r[\"text\"]). Add a Listbox showing rem.upcoming() and refresh it after adding.",
+    "check": "A reminder set a minute ahead pops up when its time comes.",
+    "must": [
+     "rem.due(",
+     "showinfo(",
+     "rem.upcoming("
+    ],
+    "code": "for r in rem.due():\n    root.bell()\n    messagebox.showinfo(\"Reminder\", r[\"text\"])"
+   }
+  ]
+ }
+}

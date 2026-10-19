@@ -1,0 +1,8 @@
+{"name": "Logs and crash reports", "kind": "toolkit", "lang": "Python", "version": "1.0.0",
+ "summary": "Keeps a log file of what the app did and saves a crash report if it ever crashes, so problems in the field can be found and fixed later.",
+ "tags": ["log", "logging", "crash", "errors", "debug", "maintenance"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/applog.py": "applog.py"},
+ "imports": {"py": ["from lib.applog import setup as setup_log"]},
+ "use": "log = setup_log('my-app'); log.info('started')",
+ "test": {"run": ["python", "test_applog.py"], "files": ["test_applog.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

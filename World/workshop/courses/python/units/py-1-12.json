@@ -1,0 +1,117 @@
+{
+ "id": "py-1-12",
+ "level": 1,
+ "title": "Level 1 project: a record keeper",
+ "skills": [
+  "design",
+  "functions",
+  "lists",
+  "dictionaries",
+  "files"
+ ],
+ "project": true,
+ "lesson": "Time to put Level 1 together, the way CS50 ends each part with a problem set that's a real program. You'll build the **core of a record keeper** for harvests (or anything: attendance, sales, stock), as functions, so it's testable and could later get a window or a phone screen on top (that's what the Library's Farm log is).\n\nWhat it needs:\n1. `add(records, crop, kg)` adds a record dict `{\"crop\": ..., \"kg\": ...}` to the list, tidying the crop name (strip, lowercase) and refusing bad data: raise `ValueError` if kg isn't a positive number or the crop is empty.\n2. `totals(records)` gives kg per crop as a dict.\n3. `top(records, n)` gives the n crops with the most kg, as a list of (crop, kg) pairs, biggest first.\n4. `save(records, path)` and `load(path)` write and read the records as lines like `maize,40` (load of a missing file gives an empty list).\n\nPlan before you type: write the four function headers with a comment each, then do them one at a time, checking as you go. When it passes, write a few lines in `if __name__ == \"__main__\":` that use it as a little menu program. That's your first real program, with tests.\n\nAfter this: **Level 2** (data and structure: classes, modules, testing your own code) when it's ready.",
+ "example": {
+  "code": "def top(records, n):\n    t = totals(records)\n    return sorted(t.items(), key=lambda pair: pair[1], reverse=True)[:n]\n",
+  "notes": [
+   "One hint for the hardest part: sorted with a key sorts the pairs by their kg, biggest first, then [:n] keeps n of them."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "The record keeper",
+   "file": "records.py",
+   "prompt": "Write add, totals, top, save and load as described in the lesson. All the tests must pass, including hidden ones about bad input and missing files.",
+   "starter": "\"\"\"Record keeper: Level 1 project.\"\"\"\n\n\ndef add(records, crop, kg):\n    # tidy crop, check kg, append a dict\n    pass\n\n\ndef totals(records):\n    pass\n\n\ndef top(records, n):\n    pass\n\n\ndef save(records, path):\n    pass\n\n\ndef load(path):\n    pass\n\n\nif __name__ == \"__main__\":\n    records = load(\"records.txt\")\n    # a small menu here: add / show totals / quit, then save\n",
+   "tests": [
+    {
+     "check": "r = []\nadd(r, \" Maize \", 40)\nadd(r, \"beans\", 12)\nadd(r, \"maize\", 25)\nassert r[0] == {\"crop\": \"maize\", \"kg\": 40}, r[0]\nassert totals(r) == {\"maize\": 65, \"beans\": 12}, totals(r)",
+     "name": "add and totals"
+    },
+    {
+     "check": "r = []\nfor c, k in [(\"a\", 5), (\"b\", 50), (\"c\", 20), (\"b\", 1)]:\n    add(r, c, k)\nassert top(r, 2) == [(\"b\", 51), (\"c\", 20)], top(r, 2)",
+     "name": "top"
+    },
+    {
+     "check": "import os, tempfile\np = os.path.join(tempfile.mkdtemp(), \"r.txt\")\nr = []\nadd(r, \"maize\", 40)\nadd(r, \"beans\", 12.5)\nsave(r, p)\nassert load(p) == r, load(p)",
+     "name": "save and load give back the same records"
+    },
+    {
+     "check": "import os, tempfile\nassert load(os.path.join(tempfile.mkdtemp(), \"nope.txt\")) == []",
+     "name": "missing file",
+     "hidden": true,
+     "hint_if_fail": "load() of a file that doesn't exist should return [] (try/except FileNotFoundError)."
+    },
+    {
+     "check": "r = []\nfor bad in [(\"\", 5), (\"maize\", -3), (\"maize\", \"lots\"), (\"   \", 1)]:\n    try:\n        add(r, *bad)\n        raise AssertionError(\"add%r should raise ValueError\" % (bad,))\n    except ValueError:\n        pass\nassert r == []",
+     "name": "refuses bad data",
+     "hidden": true,
+     "hint_if_fail": "Empty crop, negative kg or kg that isn't a number must raise ValueError and add nothing."
+    },
+    {
+     "check": "import os, tempfile\np = os.path.join(tempfile.mkdtemp(), \"r.txt\")\nsave([{\"crop\": \"maize\", \"kg\": 40}], p)\nassert type(load(p)[0][\"kg\"]) in (int, float), \"kg should load back as a number\"",
+     "name": "numbers come back as numbers",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Do add first: crop = crop.strip().lower(); check isinstance(kg, (int, float)) and kg > 0 and crop; else raise ValueError.",
+    "save: one line per record, f\"{r['crop']},{r['kg']}\\n\". load: split each line on the comma and convert kg with float (int if it's whole).",
+    "top: sorted(totals(records).items(), key=lambda p: p[1], reverse=True)[:n]"
+   ],
+   "solution": "def add(records, crop, kg):\n    crop = str(crop).strip().lower()\n    if not crop or isinstance(kg, bool) or not isinstance(kg, (int, float)) or kg <= 0:\n        raise ValueError(\"bad record\")\n    records.append({\"crop\": crop, \"kg\": kg})\n\n\ndef totals(records):\n    t = {}\n    for r in records:\n        t[r[\"crop\"]] = t.get(r[\"crop\"], 0) + r[\"kg\"]\n    return t\n\n\ndef top(records, n):\n    return sorted(totals(records).items(), key=lambda p: p[1], reverse=True)[:n]\n\n\ndef save(records, path):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        for r in records:\n            f.write(f\"{r['crop']},{r['kg']}\\n\")\n\n\ndef load(path):\n    try:\n        with open(path, encoding=\"utf-8\") as f:\n            out = []\n            for line in f:\n                if line.strip():\n                    crop, kg = line.strip().rsplit(\",\", 1)\n                    kg = float(kg)\n                    out.append({\"crop\": crop, \"kg\": int(kg) if kg.is_integer() else kg})\n            return out\n    except FileNotFoundError:\n        return []\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why build the record keeper as functions instead of one long script?",
+   "choices": [
+    "It runs faster",
+    "Each part can be tested and reused (a window or phone app can sit on top)",
+    "Python requires it",
+    "It uses less memory"
+   ],
+   "answer": 1,
+   "why": "Testable, reusable pieces."
+  },
+  {
+   "q": "What does if __name__ == \"__main__\": do?",
+   "choices": [
+    "Nothing",
+    "Runs that part only when you run this file directly, not when another file imports it",
+    "Makes it faster",
+    "Starts a web server"
+   ],
+   "answer": 1,
+   "why": "It's how a file can be both a tool and a library."
+  },
+  {
+   "q": "Before typing a bigger program, you should…",
+   "choices": [
+    "Start at the top and keep going",
+    "Plan the parts (function headers and what each does), then build and check one at a time",
+    "Copy one from the internet",
+    "Write all the tests last"
+   ],
+   "answer": 1,
+   "why": "Plan, then one piece at a time."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Sort pairs by their second value, biggest first?",
+   "a": "sorted(pairs, key=lambda p: p[1], reverse=True)"
+  },
+  {
+   "q": "Missing file when loading?",
+   "a": "try/except FileNotFoundError: return an empty result."
+  },
+  {
+   "q": "if __name__ == \"__main__\"?",
+   "a": "Code that runs only when the file is run directly."
+  }
+ ],
+ "concepts": [],
+ "explain": "Explain level 1 project: a record keeper to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

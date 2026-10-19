@@ -1,0 +1,164 @@
+{
+ "id": "py-1-09",
+ "level": 1,
+ "title": "Functions",
+ "skills": [
+  "functions",
+  "return",
+  "design"
+ ],
+ "lesson": "A **function** is a named piece of code you can use again: you've been using them (print, len, input) and writing small ones. Now properly:\n\n```\ndef area(length, width):\n    return length * width\n```\n\n`def` starts it, `length` and `width` are **parameters** (the inputs), and `return` sends the answer back to whoever called it: `a = area(40, 30)`. A function without `return` gives back `None`.\n\nWhy functions matter more than anything else in this level:\n- **Reuse**: write it once, use it everywhere.\n- **Naming**: `if is_leap(year):` reads like English.\n- **Testing**: a function that takes inputs and returns an output can be checked automatically. That's exactly how these exercises are graded, and how professionals test code.\n\n**Return, don't print**, inside functions that compute things. Printing shows a value to a person; returning hands it to the rest of the program. A function can call other functions, and parameters can have defaults: `def greet(name, lang=\"en\"):`.\n\nVariables made inside a function are **local**: they exist only while it runs. Pass things in as parameters and get them out with return; don't reach outside.",
+ "example": {
+  "code": "def area(length, width):\n    \"\"\"Area of a rectangle.\"\"\"\n    return length * width\n\ndef acres(m2):\n    return m2 / 4046.86\n\ndef describe(name, length, width, unit=\"m\"):\n    a = area(length, width)\n    return f\"{name}: {a} {unit}2 = {acres(a):.2f} acres\"\n\nprint(describe(\"North plot\", 60, 70))\n",
+  "notes": [
+   "A function with two parameters and a return.",
+   "Small functions do one thing.",
+   "Functions call functions; unit has a default.",
+   "Use the result."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Celsius and Fahrenheit",
+   "file": "ex1_temp.py",
+   "prompt": "Write c_to_f(c) and f_to_c(f) (F = C × 9/5 + 32), each rounded to 1 decimal.",
+   "starter": "def c_to_f(c):\n    pass\n\n\ndef f_to_c(f):\n    pass\n",
+   "tests": [
+    {
+     "call": "c_to_f(100)",
+     "expect": 212
+    },
+    {
+     "call": "c_to_f(-40)",
+     "expect": -40
+    },
+    {
+     "call": "f_to_c(98.6)",
+     "expect": 37
+    },
+    {
+     "call": "f_to_c(c_to_f(23.4))",
+     "expect": 23.4,
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Return, don't print.",
+    "return round(c * 9 / 5 + 32, 1) and return round((f - 32) * 5 / 9, 1)"
+   ],
+   "solution": "def c_to_f(c):\n    return round(c * 9 / 5 + 32, 1)\n\n\ndef f_to_c(f):\n    return round((f - 32) * 5 / 9, 1)\n"
+  },
+  {
+   "id": "e2",
+   "title": "Price with discount",
+   "file": "ex2_price.py",
+   "prompt": "Write total_price(qty, unit_price, discount=0) where discount is a percentage (10 means 10% off). Return the total rounded to 2 decimals. A discount outside 0-100 should raise a ValueError: raise ValueError(\"bad discount\").",
+   "starter": "def total_price(qty, unit_price, discount=0):\n    pass\n",
+   "tests": [
+    {
+     "call": "total_price(3, 50)",
+     "expect": 150
+    },
+    {
+     "call": "total_price(4, 25.5, 10)",
+     "expect": 91.8
+    },
+    {
+     "check": "try:\n    total_price(1, 10, 150)\n    raise AssertionError('discount 150 should raise ValueError')\nexcept ValueError:\n    pass",
+     "name": "rejects a bad discount",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "total = qty * unit_price * (100 - discount) / 100",
+    "if not 0 <= discount <= 100: raise ValueError(\"bad discount\")"
+   ],
+   "solution": "def total_price(qty, unit_price, discount=0):\n    if not 0 <= discount <= 100:\n        raise ValueError(\"bad discount\")\n    return round(qty * unit_price * (100 - discount) / 100, 2)\n"
+  },
+  {
+   "id": "e3",
+   "title": "Small functions, one job each",
+   "file": "ex3_report.py",
+   "prompt": "Write three functions: clean(name) tidies a name (strip + title); fmt_kg(kg) gives \"40.0 kg\" (1 decimal); line(name, kg) uses BOTH to give \"Amina: 40.0 kg\".",
+   "starter": "def clean(name):\n    pass\n\n\ndef fmt_kg(kg):\n    pass\n\n\ndef line(name, kg):\n    pass\n",
+   "tests": [
+    {
+     "call": "line(\"  amina \", 40)",
+     "expect": "Amina: 40.0 kg"
+    },
+    {
+     "call": "fmt_kg(12.345)",
+     "expect": "12.3 kg"
+    },
+    {
+     "call": "clean(\"JUMA\")",
+     "expect": "Juma"
+    },
+    {
+     "check": "import inspect\nsrc = inspect.getsource(line)\nassert 'clean(' in src and 'fmt_kg(' in src, 'line() should call clean() and fmt_kg()'",
+     "name": "line uses the other two"
+    }
+   ],
+   "hints": [
+    "fmt_kg: return f\"{kg:.1f} kg\"",
+    "line: return f\"{clean(name)}: {fmt_kg(kg)}\""
+   ],
+   "solution": "def clean(name):\n    return name.strip().title()\n\n\ndef fmt_kg(kg):\n    return f\"{kg:.1f} kg\"\n\n\ndef line(name, kg):\n    return f\"{clean(name)}: {fmt_kg(kg)}\"\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does a function return if it has no return line?",
+   "choices": [
+    "0",
+    "None",
+    "The last value",
+    "An error"
+   ],
+   "answer": 1,
+   "why": "None."
+  },
+  {
+   "q": "Why return instead of print in a function that calculates?",
+   "choices": [
+    "print is slower",
+    "The rest of the program (and tests) can use a returned value",
+    "return is shorter",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Printing only shows it; returning hands it on."
+  },
+  {
+   "q": "def f(x, y=2): return x * y. f(5) is…",
+   "choices": [
+    "5",
+    "10",
+    "7",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "y defaults to 2."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Parameter vs argument?",
+   "a": "Parameter: the name in def. Argument: the value you pass in the call."
+  },
+  {
+   "q": "Local variable?",
+   "a": "Made inside a function; gone when it returns."
+  },
+  {
+   "q": "Why are functions easy to test?",
+   "a": "Same inputs, same output: a test can call it and compare."
+  }
+ ],
+ "concepts": [
+  "functions"
+ ],
+ "bridge": "`def area(length, width):` with an indented body and `return`. No types needed; default values: `def greet(name, lang=\"en\"):`.",
+ "explain": "Explain functions to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

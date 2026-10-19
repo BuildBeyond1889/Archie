@@ -1,0 +1,234 @@
+{
+ "id": "py-2-08",
+ "level": 2,
+ "title": "Testing your own code",
+ "concepts": [
+  "testing",
+  "assertions"
+ ],
+ "skills": [
+  "testing",
+  "assert",
+  "edge cases"
+ ],
+ "lesson": "Every exercise so far was checked by tests someone else wrote. Real programmers write their own, and that's what lets them change code without fear: change something, run the tests, and know in a second whether you broke anything. In a game with 40 enemy types, you can't play through by hand after every change. Tests can.\n\nThe simplest tool is **assert**. `assert condition, \"message\"` does nothing when the condition is true, and raises AssertionError with your message when it's false.\n\nA **test** is a small function whose name starts with `test_`. It sets something up, does one thing, and asserts the result (arrange, act, assert):\n\n```\ndef test_part_bag_needs_a_whole_bag():\n    assert bags_needed(100) == 2\n\ndef test_tank_never_overflows():\n    t = WaterTank(100)          # arrange\n    added = t.fill(150)         # act\n    assert added == 100         # assert\n    assert t.level == 100\n```\n\nTest tools like **pytest** find every `test_` function and run them (and Python's built-in `unittest` does the same job). You can also run them yourself with a tiny loop. The name should say what behaviour is being checked, so a failing test tells you what broke.\n\n**Testing that errors happen** is part of the job too. If bad input must raise ValueError, test it:\n\n```\ndef test_negative_fill_is_refused():\n    t = WaterTank(100)\n    try:\n        t.fill(-5)\n    except ValueError:\n        return                      # good: that's what should happen\n    raise AssertionError(\"fill(-5) should raise ValueError\")\n```\n\n**What to test: edge cases.** The middle of the range usually works. Bugs live at the edges:\n- zero, empty lists, empty text\n- exactly on a boundary (exactly full, exactly 90 kg) and just past it (91 kg)\n- negative numbers, wrong types, duplicates, upper and lower case\n\n**A good test fails when the code is wrong.** That sounds obvious, but `assert bags_needed(180) == 2` passes for a correct version AND for a buggy one that rounds down. Ask: \"what mistake could someone make here, and would one of my tests catch it?\" The tests in this unit are graded exactly that way: they must pass on correct code and fail on broken versions.\n\n**Common mistakes**\n- Tests that only check the happy path.\n- One giant test that checks everything: when it fails, you don't know which part broke. Keep tests small and named.\n- Writing `assert (x == 5, \"msg\")` with brackets: that's a tuple, which is always true, so it never fails.\n- Changing the test until it passes instead of fixing the code.\n\n**Test-driven development** flips it round: write the test first, watch it fail, then write just enough code to pass. It forces you to decide exactly what the code should do before you write it.",
+ "example": {
+  "file": "example.py",
+  "code": "import math\n\n\ndef bags_needed(kg, bag_size=90):\n    if kg < 0:\n        raise ValueError(\"kg can't be negative\")\n    return math.ceil(kg / bag_size)\n\n\ndef test_whole_bags():\n    assert bags_needed(180) == 2\n\n\ndef test_part_bag_rounds_up():\n    assert bags_needed(181) == 3, \"one kg over still needs another bag\"\n\n\ndef test_zero_needs_no_bags():\n    assert bags_needed(0) == 0\n\n\ndef test_negative_is_refused():\n    try:\n        bags_needed(-1)\n    except ValueError:\n        return\n    raise AssertionError(\"bags_needed(-1) should raise ValueError\")\n\n\nif __name__ == \"__main__\":\n    tests = [f for name, f in sorted(globals().items()) if name.startswith(\"test_\")]\n    for t in tests:\n        t()\n        print(\"ok\", t.__name__)\n",
+  "notes": [
+   "The code under test sits at the top (often it's imported from another module instead).",
+   "Each test checks one behaviour and its name says which.",
+   "181 kg is just past a boundary: the edge where rounding bugs live.",
+   "Zero is the classic forgotten case.",
+   "Testing an error: the test passes only if ValueError is raised.",
+   "A tiny runner: find every test_ function and call it."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Tests that catch bugs",
+   "file": "ex1_test_bags.py",
+   "prompt": "bags_needed(kg, bag_size=90) is written for you and is CORRECT. Write at least 4 test functions (names start with test_) using assert. They must all PASS on this code, and between them FAIL on broken versions. Archie will swap in versions that: round down, round to the nearest, ignore bag_size, return 1 bag for 0 kg, and accept negative kg. Cover: whole bags, a part bag, a different bag_size, 0 kg, and negative kg raising ValueError.",
+   "starter": "import math\n\n\ndef bags_needed(kg, bag_size=90):\n    \"\"\"Bags needed for kg. A part-full bag still needs a bag. Negative kg raises ValueError.\"\"\"\n    if kg < 0:\n        raise ValueError(\"kg can't be negative\")\n    return math.ceil(kg / bag_size)\n\n\ndef test_whole_bags():\n    pass\n\n\ndef test_part_bag():\n    pass\n\n\ndef test_other_bag_size():\n    pass\n\n\ndef test_zero():\n    pass\n",
+   "solution": "import math\n\n\ndef bags_needed(kg, bag_size=90):\n    \"\"\"Bags needed for kg. A part-full bag still needs a bag. Negative kg raises ValueError.\"\"\"\n    if kg < 0:\n        raise ValueError(\"kg can't be negative\")\n    return math.ceil(kg / bag_size)\n\n\ndef test_whole_bags():\n    assert bags_needed(180) == 2\n\n\ndef test_part_bag():\n    assert bags_needed(100) == 2     # 1.1 bags: rounding to nearest would say 1\n    assert bags_needed(250) == 3\n\n\ndef test_other_bag_size():\n    assert bags_needed(101, bag_size=50) == 3\n\n\ndef test_zero():\n    assert bags_needed(0) == 0\n\n\ndef test_negative_is_refused():\n    try:\n        bags_needed(-5)\n    except ValueError:\n        return\n    raise AssertionError(\"bags_needed(-5) should raise ValueError\")\n",
+   "tests": [
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nassert len(_tests()) >= 4, 'write at least 4 test_ functions (found %d)' % len(_tests())\nf = _fails()\nassert not f, 'these tests fail on the CORRECT bags_needed, so the test is wrong: ' + '; '.join(f)",
+     "name": "your tests pass on correct code"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nimport math\ndef bad(kg, bag_size=90):\n    if kg < 0:\n        raise ValueError\n    return kg // bag_size\nassert _caught('bags_needed', bad), 'your tests all pass on a version that rounds DOWN (250 kg -> 2 bags): test a part-full bag'",
+     "name": "catches rounding down"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nimport math\ndef bad(kg, bag_size=90):\n    if kg < 0:\n        raise ValueError\n    return round(kg / bag_size)\nassert _caught('bags_needed', bad), 'your tests pass on a version that rounds to the NEAREST bag: try a bag that is only a little bit over (like 100 kg)'",
+     "name": "catches rounding to nearest"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nimport math\ndef bad(kg, bag_size=90):\n    if kg < 0:\n        raise ValueError\n    return math.ceil(kg / 90)\nassert _caught('bags_needed', bad), 'your tests pass on a version that ignores bag_size: test with a different bag_size'",
+     "name": "catches ignored bag_size",
+     "hidden": true
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nimport math\ndef bad(kg, bag_size=90):\n    if kg < 0:\n        raise ValueError\n    return max(1, math.ceil(kg / bag_size))\nassert _caught('bags_needed', bad), 'your tests pass on a version that says 0 kg needs 1 bag: test zero'",
+     "name": "catches the zero bug",
+     "hidden": true
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nimport math\ndef bad(kg, bag_size=90):\n    return math.ceil(kg / bag_size)\nassert _caught('bags_needed', bad), 'your tests pass on a version that accepts negative kg: test that bags_needed(-5) raises ValueError'",
+     "name": "catches missing ValueError",
+     "hidden": true,
+     "hint_if_fail": "try: bags_needed(-5) / except ValueError: return / then raise AssertionError(...)."
+    }
+   ],
+   "hints": [
+    "Each test is a function with one or two asserts, like assert bags_needed(180) == 2.",
+    "Rounding bugs only show on a part bag. 100 kg is 1.1 bags: rounding down OR to the nearest gives 1, the right answer is 2.",
+    "For the error: try: bags_needed(-5) except ValueError: return, and after that raise AssertionError(\"should raise\")."
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "Test a class",
+   "file": "ex2_test_tank.py",
+   "prompt": "WaterTank is written for you and is CORRECT. Write at least 4 test_ functions that each make their own WaterTank and check it. They must pass on this class and catch broken versions that: let fill go over capacity, let use go below 0, make fill return the litres ASKED instead of the litres added, and accept a negative fill without ValueError.",
+   "starter": "class WaterTank:\n    \"\"\"The code under test. It is correct: your tests should all pass on it.\"\"\"\n\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.level = 0\n\n    def fill(self, litres):\n        \"\"\"Add water, never above capacity. Returns litres actually added. Negative litres: ValueError.\"\"\"\n        if litres < 0:\n            raise ValueError(\"can't fill a negative amount\")\n        added = min(litres, self.capacity - self.level)\n        self.level += added\n        return added\n\n    def use(self, litres):\n        \"\"\"Take water out, never below 0. Returns litres actually given. Negative litres: ValueError.\"\"\"\n        if litres < 0:\n            raise ValueError(\"can't use a negative amount\")\n        given = min(litres, self.level)\n        self.level -= given\n        return given\n\n\ndef test_fill_and_level():\n    pass\n\n\ndef test_no_overflow():\n    pass\n\n\ndef test_never_below_empty():\n    pass\n\n\ndef test_negative_fill_refused():\n    pass\n",
+   "solution": "class WaterTank:\n    \"\"\"The code under test. It is correct: your tests should all pass on it.\"\"\"\n\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.level = 0\n\n    def fill(self, litres):\n        \"\"\"Add water, never above capacity. Returns litres actually added. Negative litres: ValueError.\"\"\"\n        if litres < 0:\n            raise ValueError(\"can't fill a negative amount\")\n        added = min(litres, self.capacity - self.level)\n        self.level += added\n        return added\n\n    def use(self, litres):\n        \"\"\"Take water out, never below 0. Returns litres actually given. Negative litres: ValueError.\"\"\"\n        if litres < 0:\n            raise ValueError(\"can't use a negative amount\")\n        given = min(litres, self.level)\n        self.level -= given\n        return given\n\n\ndef test_fill_and_level():\n    t = WaterTank(500)\n    assert t.fill(200) == 200\n    assert t.level == 200\n\n\ndef test_no_overflow():\n    t = WaterTank(100)\n    t.fill(80)\n    assert t.fill(50) == 20, \"only 20 fits\"\n    assert t.level == 100\n\n\ndef test_never_below_empty():\n    t = WaterTank(100)\n    t.fill(30)\n    assert t.use(50) == 30\n    assert t.level == 0\n\n\ndef test_negative_fill_refused():\n    t = WaterTank(100)\n    try:\n        t.fill(-5)\n    except ValueError:\n        assert t.level == 0\n        return\n    raise AssertionError(\"fill(-5) should raise ValueError\")\n",
+   "tests": [
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nassert len(_tests()) >= 4, 'write at least 4 test_ functions (found %d)' % len(_tests())\nf = _fails()\nassert not f, 'these tests fail on the CORRECT WaterTank: ' + '; '.join(f)",
+     "name": "your tests pass on correct code"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(WaterTank):\n    def fill(self, litres):\n        if litres < 0:\n            raise ValueError\n        self.level += litres\n        return litres\nassert _caught('WaterTank', Bad), 'your tests pass on a tank that overflows: fill past capacity and check the level'",
+     "name": "catches overflow"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(WaterTank):\n    def use(self, litres):\n        if litres < 0:\n            raise ValueError\n        self.level -= litres\n        return litres\nassert _caught('WaterTank', Bad), 'your tests pass on a tank that goes below 0: use more than is there'",
+     "name": "catches going negative"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(WaterTank):\n    def fill(self, litres):\n        WaterTank.fill(self, litres)\n        return litres\nassert _caught('WaterTank', Bad), 'your tests pass when fill returns the litres ASKED for: check the return value when it overflows'",
+     "name": "catches the wrong return value",
+     "hidden": true
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nclass Bad(WaterTank):\n    def fill(self, litres):\n        added = min(litres, self.capacity - self.level)\n        self.level += added\n        return added\nassert _caught('WaterTank', Bad), 'your tests pass on a tank that accepts fill(-5): test that it raises ValueError'",
+     "name": "catches a missing ValueError",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Make a new tank in each test: t = WaterTank(100). Tests shouldn't share state.",
+    "Check both the return value AND t.level after an overflow: t.fill(80); assert t.fill(50) == 20; assert t.level == 100.",
+    "For the error: try: t.fill(-5) except ValueError: return, then raise AssertionError(...)."
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "Test first, then code",
+   "file": "ex3_names.py",
+   "prompt": "The tests are already at the bottom of the file. Write the code to pass them:\n- clean_name(text): strip the ends, squash runs of spaces to one, and make each word start with a capital and the rest lowercase (\"  juma   OTIENO \" -> \"Juma Otieno\"). Empty or blank text gives \"\".\n- initials(text): the first letter of each word of the cleaned name, like \"AW\".\nThen add at least one more test_ function of your own (5 or more in total).",
+   "starter": "def clean_name(text):\n    pass\n\n\ndef initials(text):\n    pass\n\n\n# ---- the tests (given). Make them pass, then add one more test of your own. ----\n\ndef test_strips_and_capitalises():\n    assert clean_name(\"  amina  \") == \"Amina\"\n\n\ndef test_collapses_spaces():\n    assert clean_name(\"amina    wanjiru\") == \"Amina Wanjiru\"\n\n\ndef test_rest_lowercase():\n    assert clean_name(\"JUMA oTIENO\") == \"Juma Otieno\"\n\n\ndef test_initials():\n    assert initials(\" amina   wanjiru \") == \"AW\"\n",
+   "solution": "def clean_name(text):\n    words = text.split()        # split() with no argument drops all extra spaces\n    return \" \".join(w.capitalize() for w in words)\n\n\ndef initials(text):\n    return \"\".join(w[0] for w in clean_name(text).split())\n\n\n# ---- the tests (given). Make them pass, then add one more test of your own. ----\n\ndef test_strips_and_capitalises():\n    assert clean_name(\"  amina  \") == \"Amina\"\n\n\ndef test_collapses_spaces():\n    assert clean_name(\"amina    wanjiru\") == \"Amina Wanjiru\"\n\n\ndef test_rest_lowercase():\n    assert clean_name(\"JUMA oTIENO\") == \"Juma Otieno\"\n\n\ndef test_initials():\n    assert initials(\" amina   wanjiru \") == \"AW\"\n\n\ndef test_blank_gives_empty():\n    assert clean_name(\"   \") == \"\"\n    assert initials(\"\") == \"\"\n",
+   "tests": [
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nf = _fails()\nassert not f, 'these tests fail: ' + '; '.join(f)",
+     "name": "the given tests pass"
+    },
+    {
+     "call": "clean_name('  juma   OTIENO ')",
+     "expect": "Juma Otieno"
+    },
+    {
+     "call": "initials('wanjiru  kamau')",
+     "expect": "WK"
+    },
+    {
+     "check": "\ndef _tests():\n    return [getattr(m, n) for n in sorted(vars(m)) if n.startswith(\"test_\") and callable(getattr(m, n))]\n\ndef _fails():\n    bad = []\n    for t in _tests():\n        try:\n            t()\n        except Exception as e:\n            bad.append(\"%s (%s: %s)\" % (t.__name__, type(e).__name__, e))\n    return bad\n\ndef _caught(name, replacement):\n    \"\"\"Swap m.<name> for a buggy version, run the learner's tests, put the real one back. True if a test failed.\"\"\"\n    real = getattr(m, name)\n    setattr(m, name, replacement)\n    try:\n        return bool(_fails())\n    finally:\n        setattr(m, name, real)\n\nassert len(_tests()) >= 5, 'add at least one test_ function of your own (found %d)' % len(_tests())",
+     "name": "you added a test",
+     "hidden": true
+    },
+    {
+     "call": "[clean_name(''), clean_name('   '), initials('  ')]",
+     "expect": [
+      "",
+      "",
+      ""
+     ],
+     "name": "blank text",
+     "hidden": true
+    },
+    {
+     "call": "clean_name(\"o'NEIL\")",
+     "expect": "O'neil",
+     "name": "capitalize, not title",
+     "hidden": true,
+     "hint_if_fail": "str.title() also capitalises after an apostrophe; str.capitalize() on each word doesn't."
+    }
+   ],
+   "hints": [
+    "text.split() with no argument splits on any run of spaces and drops the ends.",
+    "\" \".join(w.capitalize() for w in words) puts it back together.",
+    "initials: \"\".join(w[0] for w in clean_name(text).split()). Then copy a test, rename it test_something_new, and check another case."
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "assert total == 10, \"total wrong\" runs when total is 10. What happens?",
+   "choices": [
+    "It prints total wrong",
+    "Nothing: the program carries on",
+    "AssertionError",
+    "It returns True"
+   ],
+   "answer": 1,
+   "why": "assert only acts when the condition is false."
+  },
+  {
+   "q": "Which single test best catches a bags_needed bug that rounds DOWN?",
+   "choices": [
+    "bags_needed(180) == 2",
+    "bags_needed(0) == 0",
+    "bags_needed(181) == 3",
+    "bags_needed(90) == 1"
+   ],
+   "answer": 2,
+   "why": "Only a part bag shows the difference between rounding down and up."
+  },
+  {
+   "q": "assert (x == 5, \"x should be 5\") with brackets. What's wrong?",
+   "choices": [
+    "Nothing",
+    "It asserts a tuple, which is always true, so it never fails",
+    "SyntaxError",
+    "It only checks the message"
+   ],
+   "answer": 1,
+   "why": "A non-empty tuple is truthy."
+  },
+  {
+   "q": "Your test passes on the correct code AND on a clearly broken version. What does that tell you?",
+   "choices": [
+    "The code is fine",
+    "The test doesn't check the behaviour that broke",
+    "Tests are useless",
+    "The broken version is fine too"
+   ],
+   "answer": 1,
+   "why": "A useful test fails when the code is wrong."
+  },
+  {
+   "q": "Where do bugs usually hide?",
+   "choices": [
+    "In the middle of normal input",
+    "At the edges: zero, empty, exactly on a limit, negatives",
+    "Only in big programs",
+    "In comments"
+   ],
+   "answer": 1,
+   "why": "Edge cases are what beginners (and pros) forget."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What does assert do?",
+   "a": "Nothing if the condition is true; raises AssertionError with your message if it's false."
+  },
+  {
+   "q": "How do test tools find tests?",
+   "a": "Functions whose names start with test_"
+  },
+  {
+   "q": "Arrange, act, assert?",
+   "a": "Set up the objects, do one thing, check the result."
+  },
+  {
+   "q": "How do you test that something raises ValueError?",
+   "a": "try the call; except ValueError: return; after it raise AssertionError."
+  }
+ ],
+ "explain": "Explain in your own words what makes a test good, using an example function and one bug your test would catch."
+}

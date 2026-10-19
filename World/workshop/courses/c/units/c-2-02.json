@@ -1,0 +1,219 @@
+{
+ "id": "c-2-02",
+ "level": 2,
+ "title": "Pointer arithmetic and arrays",
+ "concepts": [
+  "pointers",
+  "memory"
+ ],
+ "skills": [
+  "pointer arithmetic",
+  "arrays",
+  "const"
+ ],
+ "lesson": "An array is a row of values side by side in memory. When you pass an array to a function, C doesn't copy it: it passes the address of the first item. We say the array **decays** to a pointer. That's why these two headers mean exactly the same thing:\n\n```\nint total(const int a[], int n);\nint total(const int *a, int n);\n```\n\n**Pointer arithmetic.** If `p` points at an `int`, then `p + 1` points at the *next int*, not the next byte. C moves by the size of the type for you. So `a[i]` is just a shorter way to write `*(a + i)`.\n\n```\nint levels[4] = {50, 20, 70, 35};\nint *p = levels;      /* points at levels[0] */\np++;                  /* now at levels[1] */\nprintf(\"%d\\n\", *p);   /* 20 */\n```\n\n**Walking with a pointer.** Instead of an index, you can move a pointer along the array and stop at the **end pointer**, which points one past the last item (allowed, as long as you never read it):\n\n```\nint sum = 0;\nfor (const int *q = levels; q < levels + 4; q++)\n    sum += *q;\n```\n\nMany C libraries take a `start` and an `end` pointer like this, and so does C++'s whole standard library.\n\n**Always pass the length.** Inside a function, the array is only a pointer, so it has no idea how long it is. `sizeof(a)` there gives the size of a *pointer* (4 or 8 bytes), not the array. This is the number one beginner bug with arrays in C. The habit: every function that takes an array also takes its length.\n\n**const promises \"I won't change it\".** `const int *a` means the function may read the values but not write them. The compiler stops you if you try, and the caller knows their data is safe. Use `const` for every input array.\n\n**Common mistakes:**\n- Walking past the end: `q <= levels + 4` reads one item too many. Stop at `<` the end pointer.\n- Using `sizeof` on a parameter to get the length.\n- Mixing up `*p++` (read, then move the pointer) with `(*p)++` (add 1 to the value).\n\nOn a microcontroller, a serial buffer, an image's pixels or an audio sample block are all \"a pointer and a length\". Being fluent with them is what C is really about.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\ndouble average(const double *start, const double *end)\n{\n    double total = 0;\n    int count = 0;\n    for (const double *p = start; p < end; p++) {\n        total += *p;\n        count++;\n    }\n    return count ? total / count : 0;\n}\n\nvoid show_size(const double a[])\n{\n    printf(\"inside the function, sizeof(a) is %zu (just a pointer)\\n\", sizeof(a));\n}\n\nint main(void)\n{\n    double temps[5] = {18.5, 22.0, 31.0, 25.5, 40.0};\n    printf(\"the array is %zu bytes\\n\", sizeof(temps));\n    show_size(temps);\n    printf(\"average of all: %.1f\\n\", average(temps, temps + 5));\n    printf(\"average of the middle three: %.1f\\n\", average(temps + 1, temps + 4));\n    double *p = temps;\n    printf(\"*(p + 2) is %.1f, same as temps[2]\\n\", *(p + 2));\n    return 0;\n}\n",
+  "notes": [
+   "average takes a start and an end pointer: it reads from start up to, but not including, end.",
+   "p++ moves to the next double, 8 bytes along, because C knows the type.",
+   "const double * means average promises not to change the readings.",
+   "show_size proves that inside a function an array is only a pointer: sizeof gives 8, not 40.",
+   "temps + 1 to temps + 4 is a slice of the array without copying anything."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Sum with a walking pointer",
+   "file": "sumwalk.c",
+   "prompt": "Write int sum_readings(const int *p, int n): the total of the n readings starting at p. Walk with the pointer itself (p++ or an end pointer); don't use square brackets anywhere in your code. With n of 0, return 0.",
+   "starter": "int sum_readings(const int *p, int n)\n{\n    int total = 0;\n    /* walk p along the readings */\n    return total;\n}\n",
+   "tests": [
+    {
+     "call": "sum_readings((int[]){4, 9, 1}, 3)",
+     "expect": "14",
+     "name": "three readings"
+    },
+    {
+     "call": "sum_readings((int[]){-5, 20, -5, 10}, 4)",
+     "expect": "20",
+     "name": "with negatives"
+    },
+    {
+     "call": "sum_readings((int[]){4, 9, 1}, 2)",
+     "expect": "13",
+     "name": "only the first n",
+     "hint_if_fail": "Stop after n readings: const int *end = p + n;"
+    },
+    {
+     "call": "sum_readings((int[]){7}, 0)",
+     "expect": "0",
+     "hidden": true,
+     "name": "zero readings"
+    },
+    {
+     "src_not": "[",
+     "why": "Walk with the pointer (*p, p++) instead of indexing with [ ]."
+    }
+   ],
+   "hints": [
+    "const int *end = p + n; marks the stopping point.",
+    "while (p < end) { total += *p; p++; }",
+    "Or in one line: while (p < end) total += *p++;"
+   ],
+   "solution": "int sum_readings(const int *p, int n)\n{\n    int total = 0;\n    const int *end = p + n;       /* one past the last reading */\n    while (p < end)\n        total += *p++;            /* read, then move to the next */\n    return total;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Count in a range",
+   "file": "between.c",
+   "prompt": "Write int count_between(const double *start, const double *end, double lo, double hi): how many readings from start up to (not including) end are between lo and hi, inclusive. If start equals end there are no readings.",
+   "starter": "int count_between(const double *start, const double *end, double lo, double hi)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "({ double a[] = {18.5, 22.0, 31.0, 25.5, 40.0}; count_between(a, a + 5, 20.0, 30.0); })",
+     "expect": "2",
+     "name": "whole array"
+    },
+    {
+     "call": "({ double a[] = {18.5, 22.0, 31.0, 25.5, 40.0}; count_between(a + 1, a + 3, 20.0, 35.0); })",
+     "expect": "2",
+     "name": "part of the array",
+     "hint_if_fail": "Only look from start up to end, not the whole array."
+    },
+    {
+     "call": "({ double a[] = {20.0, 30.0, 30.5}; count_between(a, a + 3, 20.0, 30.0); })",
+     "expect": "2",
+     "hidden": true,
+     "name": "limits are inclusive"
+    },
+    {
+     "call": "({ double a[] = {25.0}; count_between(a, a, 0.0, 100.0); })",
+     "expect": "0",
+     "hidden": true,
+     "name": "empty range"
+    }
+   ],
+   "hints": [
+    "for (const double *p = start; p < end; p++)",
+    "if (*p >= lo && *p <= hi) count++;"
+   ],
+   "solution": "int count_between(const double *start, const double *end, double lo, double hi)\n{\n    int count = 0;\n    for (const double *p = start; p < end; p++)\n        if (*p >= lo && *p <= hi) count++;\n    return count;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Reverse in place",
+   "file": "reverse.c",
+   "prompt": "Write void reverse(int *a, int n) that reverses the n values in place (no second array), using two pointers that walk toward each other. n may be 0 (then a may be NULL).",
+   "starter": "void reverse(int *a, int n)\n{\n    /* one pointer at the front, one at the back */\n}\n",
+   "tests": [
+    {
+     "call": "({ int a[] = {1, 2, 3, 4, 5}; reverse(a, 5); a[0] * 10000 + a[1] * 1000 + a[2] * 100 + a[3] * 10 + a[4]; })",
+     "expect": "54321",
+     "name": "odd length"
+    },
+    {
+     "call": "({ int a[] = {1, 2, 3, 4}; reverse(a, 4); a[0] * 1000 + a[1] * 100 + a[2] * 10 + a[3]; })",
+     "expect": "4321",
+     "name": "even length"
+    },
+    {
+     "call": "({ int a[] = {7, 8, 9}; reverse(a, 2); a[0] * 100 + a[1] * 10 + a[2]; })",
+     "expect": "879",
+     "hidden": true,
+     "name": "only the first n"
+    },
+    {
+     "call": "({ reverse(NULL, 0); int a[] = {6}; reverse(a, 1); a[0]; })",
+     "expect": "6",
+     "hidden": true,
+     "name": "empty and single"
+    }
+   ],
+   "hints": [
+    "int *lo = a; int *hi = a + n - 1;",
+    "while (lo < hi) swap *lo and *hi, then lo++ and hi--.",
+    "Check n < 2 first and return: nothing to do."
+   ],
+   "solution": "void reverse(int *a, int n)\n{\n    if (n < 2) return;            /* nothing to swap */\n    int *lo = a;\n    int *hi = a + n - 1;\n    while (lo < hi) {\n        int t = *lo;\n        *lo = *hi;\n        *hi = t;\n        lo++;\n        hi--;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "p points at an int in an array. Where does p + 1 point?",
+   "choices": [
+    "One byte further",
+    "At the next int",
+    "At address 1",
+    "Nowhere, it's not allowed"
+   ],
+   "answer": 1,
+   "why": "Pointer arithmetic moves by the size of the type."
+  },
+  {
+   "q": "Inside void f(int a[]), what does sizeof(a) give?",
+   "choices": [
+    "The array's size in bytes",
+    "The number of items",
+    "The size of a pointer",
+    "0"
+   ],
+   "answer": 2,
+   "why": "The array decayed to a pointer, so pass the length separately."
+  },
+  {
+   "q": "What does const int *a promise?",
+   "choices": [
+    "a never moves",
+    "The function won't change the values a points to",
+    "The values are all the same",
+    "a is never NULL"
+   ],
+   "answer": 1,
+   "why": "const before the type protects the data."
+  },
+  {
+   "q": "Walking with for (q = a; q <= a + n; q++) is...",
+   "choices": [
+    "Correct",
+    "One step too far: it reads past the end",
+    "One step too short",
+    "Not allowed in C"
+   ],
+   "answer": 1,
+   "why": "a + n is one past the end; stop with <."
+  },
+  {
+   "q": "Why do C libraries often take start and end pointers?",
+   "choices": [
+    "They're faster to type",
+    "A pair of pointers describes any slice of an array without copying it",
+    "Arrays can't be passed any other way",
+    "To save the length"
+   ],
+   "answer": 1,
+   "why": "You can pass any piece of an array."
+  }
+ ],
+ "cards": [
+  {
+   "q": "a[i] is the same as?",
+   "a": "*(a + i)"
+  },
+  {
+   "q": "Why always pass the length with an array?",
+   "a": "In a function, the array is just a pointer; it doesn't know its length."
+  },
+  {
+   "q": "*p++ does?",
+   "a": "Reads *p, then moves p to the next item."
+  },
+  {
+   "q": "The end pointer of int a[n]?",
+   "a": "a + n: one past the last item, never read it."
+  }
+ ],
+ "explain": "Explain in your own words why sizeof gives a different answer inside a function, with a small array example you make up."
+}

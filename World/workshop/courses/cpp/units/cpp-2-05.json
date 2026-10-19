@@ -1,0 +1,249 @@
+{
+ "id": "cpp-2-05",
+ "level": 2,
+ "title": "unique_ptr",
+ "concepts": [
+  "smart-pointers",
+  "raii",
+  "memory"
+ ],
+ "skills": [
+  "unique_ptr",
+  "ownership",
+  "std::move"
+ ],
+ "lesson": "Unit 3 ended with a question: **who owns this object?** `std::unique_ptr` (from `<memory>`) answers it in code. A `unique_ptr` is a small RAII object that holds a pointer and **deletes the object in its destructor**. There is exactly one owner at a time.\n\n```\n#include <memory>\n\nauto boss = std::make_unique<Enemy>(\"Troll\", 200);   // new, but owned\nboss->hp -= 50;                                      // use it like a pointer\nif (boss) { ... }                                    // empty or not?\n// no delete anywhere: the Troll is deleted when boss goes out of scope\n```\n\nAlways make them with `std::make_unique<T>(args...)`, never `new`. One line, no way to leak.\n\n**Exactly one owner.** You can't copy a `unique_ptr` (two owners would delete twice), so the compiler stops you:\n\n```\nauto a = std::make_unique<Pickup>(\"gem\", 50);\nauto b = a;              // error: can't copy\nauto c = std::move(a);   // fine: ownership moves to c, a is now empty (nullptr)\n```\n\n`std::move` doesn't move any memory; it says \"I'm handing this over\". After it, the old variable is empty.\n\n**Functions say who owns what** just by their types:\n\n- `void add(std::unique_ptr<Pickup> p)`: the function **takes ownership**. Callers write `add(std::move(p))` or `add(std::make_unique<Pickup>(...))`.\n- `std::unique_ptr<Pickup> take()`: the caller **receives ownership**.\n- `void inspect(const Pickup& p)` or `Pickup* find()`: just **using** it, no ownership. A raw pointer from `.get()` is fine for looking, as long as the owner outlives your use.\n\n**Vectors of unique_ptr** are the classic game entity list:\n\n```\nstd::vector<std::unique_ptr<Entity>> entities;\nentities.push_back(std::make_unique<Entity>(\"Goblin\", 30));\nfor (auto& e : entities) e->hp -= 5;     // & : you can't copy them\nentities.erase(entities.begin());        // that Entity is deleted right here\nentities.clear();                        // all of them deleted\n```\n\nRemoving from the vector deletes the object. Destroying the vector deletes them all. No destructor to write, no leaks.\n\n**The common mistake:** keeping a raw pointer (from `.get()` or `&*e`) to an entity, then erasing it from the vector. The pointer now dangles. Decide clearly which code owns, and look things up again by name or id instead of holding pointers for a long time.\n\nUnreal's version is `TUniquePtr<T>` with `MakeUnique<T>()` and `MoveTemp()`. Same idea, engine spelling.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <memory>\n#include <string>\n#include <vector>\n\nstruct Entity\n{\n    std::string name;\n    int hp;\n    Entity(std::string name, int hp) : name(name), hp(hp) {}\n    ~Entity() { std::cout << \"  (\" << name << \" deleted)\\n\"; }\n};\n\nvoid adopt(std::vector<std::unique_ptr<Entity>>& world, std::unique_ptr<Entity> e)\n{\n    world.push_back(std::move(e));          // ownership: caller -> function -> vector\n}\n\nint main()\n{\n    std::vector<std::unique_ptr<Entity>> world;\n    world.push_back(std::make_unique<Entity>(\"Goblin\", 30));\n\n    auto boss = std::make_unique<Entity>(\"Troll\", 200);\n    adopt(world, std::move(boss));\n    std::cout << \"boss is \" << (boss ? \"still here\" : \"empty now\") << \"\\n\";\n\n    for (auto& e : world) e->hp -= 10;\n    std::cout << world[1]->name << \" \" << world[1]->hp << \"\\n\";\n\n    std::cout << \"erasing the goblin\\n\";\n    world.erase(world.begin());\n    std::cout << \"end of main\\n\";\n    return 0;                                // the Troll is deleted here\n}\n",
+  "notes": [
+   "make_unique builds the object and wraps it in its owner in one step.",
+   "adopt takes a unique_ptr by value, so callers must hand ownership over with std::move.",
+   "After std::move(boss), boss is empty; checking it with if/? shows that.",
+   "Loop with auto& because unique_ptrs can't be copied.",
+   "erase deletes that entity on the spot, and the vector deletes the rest when main ends: no delete written anywhere."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Make and choose pickups",
+   "file": "pickups.cpp",
+   "prompt": "Pickup is given. Write std::unique_ptr<Pickup> makePickup(const std::string& name, int value): a new Pickup made with std::make_unique, or nullptr if value is 0 or less.\nWrite std::unique_ptr<Pickup> better(std::unique_ptr<Pickup> a, std::unique_ptr<Pickup> b): it takes ownership of both and returns the one with the higher value (a on a tie). The other one is destroyed. If one of them is null, return the other.",
+   "starter": "#include <memory>\n#include <string>\n\nstruct Pickup\n{\n    inline static int alive = 0;\n    std::string name;\n    int value;\n    Pickup(std::string name, int value) : name(name), value(value) { alive++; }\n    ~Pickup() { alive--; }\n};\n\nstd::unique_ptr<Pickup> makePickup(const std::string& name, int value)\n{\n    return nullptr;\n}\n\nstd::unique_ptr<Pickup> better(std::unique_ptr<Pickup> a, std::unique_ptr<Pickup> b)\n{\n    return nullptr;\n}\n",
+   "tests": [
+    {
+     "call": "[]{ auto p = makePickup(\"gem\", 50); return p ? p->name : std::string(\"null\"); }()",
+     "expect": "gem"
+    },
+    {
+     "call": "makePickup(\"junk\", 0) == nullptr",
+     "expect": "true"
+    },
+    {
+     "call": "[]{ int before = Pickup::alive; auto p = makePickup(\"gem\", 50); auto q = makePickup(\"coin\", 5); return Pickup::alive - before; }()",
+     "expect": "2"
+    },
+    {
+     "call": "[]{ auto r = better(std::make_unique<Pickup>(\"gem\", 50), std::make_unique<Pickup>(\"coin\", 5)); return r ? r->name : std::string(\"null\"); }()",
+     "expect": "gem"
+    },
+    {
+     "call": "[]{ auto r = better(std::make_unique<Pickup>(\"coin\", 5), std::make_unique<Pickup>(\"gem\", 50)); return r ? r->name : std::string(\"null\"); }()",
+     "expect": "gem"
+    },
+    {
+     "call": "[]{ int before = Pickup::alive; auto r = better(std::make_unique<Pickup>(\"a\", 1), std::make_unique<Pickup>(\"b\", 2)); return Pickup::alive - before; }()",
+     "expect": "1",
+     "hint_if_fail": "The winner survives (owned by the caller); the loser is destroyed when better returns."
+    },
+    {
+     "call": "[]{ auto r = better(nullptr, std::make_unique<Pickup>(\"b\", 2)); return r ? r->name : std::string(\"null\"); }()",
+     "expect": "b",
+     "hidden": true
+    },
+    {
+     "call": "[]{ auto r = better(std::make_unique<Pickup>(\"x\", 3), std::make_unique<Pickup>(\"y\", 3)); return r ? r->name : std::string(\"null\"); }()",
+     "expect": "x",
+     "hidden": true
+    },
+    {
+     "src_has": "make_unique",
+     "why": "Create the Pickup with std::make_unique<Pickup>(...)."
+    }
+   ],
+   "hints": [
+    "makePickup: if (value <= 0) return nullptr; return std::make_unique<Pickup>(name, value);",
+    "better: if (!a) return b; if (!b) return a; then compare a->value and b->value.",
+    "Returning a parameter by name moves it out automatically; the one you don't return is destroyed at the closing brace."
+   ],
+   "solution": "#include <memory>\n#include <string>\n\nstruct Pickup\n{\n    inline static int alive = 0;\n    std::string name;\n    int value;\n    Pickup(std::string name, int value) : name(name), value(value) { alive++; }\n    ~Pickup() { alive--; }\n};\n\nstd::unique_ptr<Pickup> makePickup(const std::string& name, int value)\n{\n    if (value <= 0) return nullptr;\n    return std::make_unique<Pickup>(name, value);\n}\n\n// takes ownership of both; the loser is destroyed when this function ends\nstd::unique_ptr<Pickup> better(std::unique_ptr<Pickup> a, std::unique_ptr<Pickup> b)\n{\n    if (!a) return b;\n    if (!b) return a;\n    if (b->value > a->value) return b;\n    return a;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "An inventory that owns its items",
+   "file": "inventory.cpp",
+   "prompt": "Write class Inventory, which owns its items in a std::vector<std::unique_ptr<Pickup>>:\n- void add(std::unique_ptr<Pickup> item): takes ownership; a null item is ignored.\n- int size() const and int totalValue() const.\n- std::unique_ptr<Pickup> take(const std::string& name): removes the first item with that name from the inventory and gives ownership to the caller; nullptr if there is none.",
+   "starter": "#include <memory>\n#include <string>\n\nstruct Pickup\n{\n    inline static int alive = 0;\n    std::string name;\n    int value;\n    Pickup(std::string name, int value) : name(name), value(value) { alive++; }\n    ~Pickup() { alive--; }\n};\n#include <vector>\n\nclass Inventory\n{\npublic:\n    void add(std::unique_ptr<Pickup> item) {}\n    int size() const { return 0; }\n    int totalValue() const { return 0; }\n    std::unique_ptr<Pickup> take(const std::string& name) { return nullptr; }\nprivate:\n    std::vector<std::unique_ptr<Pickup>> items;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ Inventory inv; inv.add(std::make_unique<Pickup>(\"gem\", 50)); auto c = std::make_unique<Pickup>(\"coin\", 5); inv.add(std::move(c)); return inv.size(); }()",
+     "expect": "2"
+    },
+    {
+     "call": "[]{ Inventory inv; inv.add(std::make_unique<Pickup>(\"gem\", 50)); inv.add(std::make_unique<Pickup>(\"coin\", 5)); return inv.totalValue(); }()",
+     "expect": "55"
+    },
+    {
+     "call": "[]{ Inventory inv; inv.add(std::make_unique<Pickup>(\"gem\", 50)); inv.add(std::make_unique<Pickup>(\"coin\", 5)); auto p = inv.take(\"gem\"); return (p ? p->value : -1) * 10 + inv.size(); }()",
+     "expect": "501"
+    },
+    {
+     "call": "[]{ Inventory inv; inv.add(std::make_unique<Pickup>(\"gem\", 50)); auto p = inv.take(\"ruby\"); return std::to_string(p == nullptr) + std::to_string(inv.size()); }()",
+     "expect": "11",
+     "hidden": true
+    },
+    {
+     "call": "[]{ Inventory inv; inv.add(nullptr); return inv.size(); }()",
+     "expect": "0",
+     "hidden": true,
+     "hint_if_fail": "Ignore a null item."
+    },
+    {
+     "call": "[]{ int before = Pickup::alive; { Inventory inv; inv.add(std::make_unique<Pickup>(\"a\", 1)); inv.add(std::make_unique<Pickup>(\"b\", 2)); auto t = inv.take(\"a\"); if (Pickup::alive - before != 2) return -1; } return Pickup::alive - before; }()",
+     "expect": "0"
+    }
+   ],
+   "hints": [
+    "add: if (item) items.push_back(std::move(item));",
+    "take: loop with an index; when items[i]->name == name, auto out = std::move(items[i]); items.erase(items.begin() + i); return out;"
+   ],
+   "solution": "#include <memory>\n#include <string>\n\nstruct Pickup\n{\n    inline static int alive = 0;\n    std::string name;\n    int value;\n    Pickup(std::string name, int value) : name(name), value(value) { alive++; }\n    ~Pickup() { alive--; }\n};\n#include <vector>\n\nclass Inventory\n{\npublic:\n    void add(std::unique_ptr<Pickup> item)\n    {\n        if (item) items.push_back(std::move(item));   // the vector owns it now\n    }\n    int size() const { return items.size(); }\n    int totalValue() const\n    {\n        int total = 0;\n        for (const auto& p : items) total += p->value;\n        return total;\n    }\n    std::unique_ptr<Pickup> take(const std::string& name)\n    {\n        for (size_t i = 0; i < items.size(); i++) {\n            if (items[i]->name == name) {\n                auto out = std::move(items[i]);   // ownership leaves the vector\n                items.erase(items.begin() + i);   // remove the now-empty slot\n                return out;\n            }\n        }\n        return nullptr;\n    }\nprivate:\n    std::vector<std::unique_ptr<Pickup>> items;\n};\n"
+  },
+  {
+   "id": "e3",
+   "title": "A world of entities",
+   "file": "world.cpp",
+   "prompt": "Write class World, which owns its entities in a std::vector<std::unique_ptr<Entity>>:\n- Entity* spawn(const std::string& name, int hp): creates the entity, keeps ownership, and returns a plain (non-owning) pointer to it.\n- void damageAll(int amount): lowers every entity's hp by amount.\n- int removeDead(): deletes every entity whose hp is 0 or less and returns how many were removed.\n- int count() const, and Entity* find(const std::string& name): the first entity with that name, or nullptr.",
+   "starter": "#include <memory>\n#include <string>\n#include <vector>\n\nstruct Entity\n{\n    inline static int alive = 0;\n    std::string name;\n    int hp;\n    Entity(std::string name, int hp) : name(name), hp(hp) { alive++; }\n    ~Entity() { alive--; }\n};\n\nclass World\n{\npublic:\n    Entity* spawn(const std::string& name, int hp) { return nullptr; }\n    void damageAll(int amount) {}\n    int removeDead() { return 0; }\n    int count() const { return 0; }\n    Entity* find(const std::string& name) { return nullptr; }\nprivate:\n    std::vector<std::unique_ptr<Entity>> entities;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ World w; Entity* e = w.spawn(\"Goblin\", 30); return e ? e->hp : -1; }()",
+     "expect": "30"
+    },
+    {
+     "call": "[]{ World w; Entity* e = w.spawn(\"Orc\", 20); if (!e) return -1; e->hp = 7; Entity* f = w.find(\"Orc\"); return f ? f->hp : -1; }()",
+     "expect": "7",
+     "hint_if_fail": "spawn returns .get() of the unique_ptr the world keeps, so both point at the same Orc."
+    },
+    {
+     "call": "[]{ World w; w.spawn(\"Goblin\", 30); w.spawn(\"Rat\", 5); w.damageAll(10); int removed = w.removeDead(); return removed * 10 + w.count(); }()",
+     "expect": "11"
+    },
+    {
+     "call": "[]{ int before = Entity::alive; World w; w.spawn(\"Rat\", 5); w.spawn(\"Bat\", 3); w.spawn(\"Ogre\", 90); w.damageAll(5); w.removeDead(); return Entity::alive - before; }()",
+     "expect": "1",
+     "hint_if_fail": "Removing the unique_ptr from the vector is what deletes the entity."
+    },
+    {
+     "call": "[]{ World w; w.spawn(\"Rat\", 5); return w.find(\"Dragon\") == nullptr; }()",
+     "expect": "true",
+     "hidden": true
+    },
+    {
+     "call": "[]{ World w; w.spawn(\"A\", 1); w.spawn(\"B\", 1); w.spawn(\"C\", 1); w.damageAll(1); return w.removeDead() * 10 + w.count(); }()",
+     "expect": "30",
+     "hidden": true,
+     "hint_if_fail": "Exactly 0 hp counts as dead, and erasing while looping by index skips items: use remove_if or only move on when you don't erase."
+    },
+    {
+     "call": "World().removeDead()",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "spawn: entities.push_back(std::make_unique<Entity>(name, hp)); return entities.back().get();",
+    "removeDead: loop with an index i; if entities[i]->hp <= 0, erase it and don't do i++ that time.",
+    "Or use #include <algorithm> and the erase-remove_if idiom."
+   ],
+   "solution": "#include <memory>\n#include <string>\n#include <vector>\n\nstruct Entity\n{\n    inline static int alive = 0;\n    std::string name;\n    int hp;\n    Entity(std::string name, int hp) : name(name), hp(hp) { alive++; }\n    ~Entity() { alive--; }\n};\n#include <algorithm>\n\nclass World\n{\npublic:\n    Entity* spawn(const std::string& name, int hp)\n    {\n        entities.push_back(std::make_unique<Entity>(name, hp));\n        return entities.back().get();      // a look-only pointer; the world still owns it\n    }\n    void damageAll(int amount)\n    {\n        for (auto& e : entities) e->hp -= amount;\n    }\n    int removeDead()\n    {\n        auto firstDead = std::remove_if(entities.begin(), entities.end(),\n                                        [](const std::unique_ptr<Entity>& e) { return e->hp <= 0; });\n        int removed = entities.end() - firstDead;\n        entities.erase(firstDead, entities.end());   // the dead Entities are deleted here\n        return removed;\n    }\n    int count() const { return entities.size(); }\n    Entity* find(const std::string& name)\n    {\n        for (auto& e : entities)\n            if (e->name == name) return e.get();\n        return nullptr;\n    }\nprivate:\n    std::vector<std::unique_ptr<Entity>> entities;\n};\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "auto a = std::make_unique<Enemy>(); auto b = a; What happens?",
+   "choices": [
+    "Both point at the enemy",
+    "Compile error: a unique_ptr can't be copied",
+    "b is a deep copy",
+    "a is deleted"
+   ],
+   "answer": 1,
+   "why": "One owner only: copying is forbidden."
+  },
+  {
+   "q": "After auto c = std::move(a); what is a?",
+   "choices": [
+    "Still the owner",
+    "Empty (nullptr)",
+    "A copy",
+    "Deleted memory"
+   ],
+   "answer": 1,
+   "why": "Ownership moved to c."
+  },
+  {
+   "q": "What does void add(std::unique_ptr<Item> item) tell you?",
+   "choices": [
+    "It just looks at the item",
+    "It takes ownership of the item",
+    "It copies the item",
+    "It deletes the item straight away"
+   ],
+   "answer": 1,
+   "why": "A unique_ptr by value means the function receives ownership."
+  },
+  {
+   "q": "entities.erase(entities.begin()) on a vector<unique_ptr<Entity>>...",
+   "choices": [
+    "leaks that entity",
+    "deletes that entity",
+    "only hides it",
+    "doesn't compile"
+   ],
+   "answer": 1,
+   "why": "The unique_ptr is destroyed, so it deletes what it owns."
+  },
+  {
+   "q": "You keep Entity* raw = e.get(); and later the entity is erased. Using raw now is...",
+   "choices": [
+    "safe",
+    "a dangling pointer",
+    "automatically nullptr",
+    "a copy"
+   ],
+   "answer": 1,
+   "why": ".get() doesn't own anything; the owner deleted the entity."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Create a unique_ptr?",
+   "a": "auto p = std::make_unique<T>(args);"
+  },
+  {
+   "q": "Hand ownership over?",
+   "a": "std::move(p): p becomes empty."
+  },
+  {
+   "q": "A look-only pointer from a unique_ptr?",
+   "a": "p.get() (doesn't own; mustn't outlive the owner)"
+  },
+  {
+   "q": "Unreal's unique_ptr?",
+   "a": "TUniquePtr with MakeUnique and MoveTemp."
+  }
+ ],
+ "explain": "Explain what 'ownership' means for a unique_ptr, and how a vector of unique_ptrs makes a game's entity list leak-free."
+}

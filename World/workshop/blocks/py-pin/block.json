@@ -1,0 +1,8 @@
+{"name": "PIN lock", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Ask for a PIN before showing private records. Only a salted hash is stored, and wrong guesses lock it for a few minutes. For children's data, health or money records.",
+ "tags": ["pin", "lock", "privacy", "security", "children", "password"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/pin.py": "pin.py"},
+ "imports": {"py": ["from lib.pin import PinLock"]},
+ "use": "lock = PinLock('data/pin.json'); ok, msg = lock.check(entered)",
+ "test": {"run": ["python", "test_pin.py"], "files": ["test_pin.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

@@ -1,0 +1,266 @@
+{
+ "id": "java-2-08",
+ "level": 2,
+ "title": "Enums, records and custom exceptions",
+ "concepts": [
+  "enums",
+  "records",
+  "exceptions",
+  "custom-exceptions",
+  "data-modeling"
+ ],
+ "skills": [
+  "enums",
+  "records",
+  "exceptions"
+ ],
+ "lesson": "Three tools that make your data say exactly what it means.\n\n**Enums: a fixed set of choices.** If a crop can only be maize, beans, rice or sorghum, don't use Strings (someone will type \"Maize \" or \"maze\"). Use an enum:\n\n```\nenum Crop {\n    MAIZE(\"Maize\", 55), BEANS(\"Beans\", 120);\n    private final String label;\n    private final int pricePerKg;\n    Crop(String label, int pricePerKg) { this.label = label; this.pricePerKg = pricePerKg; }\n    double value(double kg) { return kg * pricePerKg; }\n}\n```\n\nEach constant is a real object with fields and methods. `Crop.values()` lists them all, `Crop.valueOf(\"BEANS\")` turns text into a constant (and throws IllegalArgumentException for unknown text), and `switch` on an enum lets the compiler warn you if you forget a case. Game states (MENU, PLAYING, PAUSED), directions, rarities and traffic lights are all enums.\n\n**Records: data with no boilerplate.** Many classes are just \"these few values together\". A record writes the constructor, getters, `equals`, `hashCode` and `toString` for you:\n\n```\nrecord Reading(String sensor, double litres, int hour) {\n    Reading {   // compact constructor: just the checks\n        if (litres < 0) throw new IllegalArgumentException(\"litres < 0\");\n    }\n    boolean isNight() { return hour < 6 || hour >= 20; }\n}\n```\n\nFields are final, getters are named like the fields (`r.litres()`, not `getLitres()`), two records with the same values are `equals`, and it prints as `Reading[sensor=tank1, litres=40.5, hour=7]`. Use records for values (a reading, a score, a position); use a normal class when the object has changing state (a tank, an account).\n\n**Custom exceptions: errors that explain themselves.** `IllegalArgumentException(\"bad\")` is fine for bad input. But when a *normal business situation* goes wrong, a named exception is clearer, and it can carry details:\n\n```\nclass OutOfStockException extends Exception {\n    private final int available;\n    OutOfStockException(String item, int wanted, int available) {\n        super(\"Only \" + available + \" \" + item + \" left, wanted \" + wanted);\n        this.available = available;\n    }\n    int getAvailable() { return available; }\n}\n```\n\n**Checked or unchecked?**\n- `extends Exception` is **checked**: every method that can throw it must say `throws OutOfStockException`, and callers must catch it or pass it on. Use it for things a caller *should plan for*: stock running out, a file missing.\n- `extends RuntimeException` is **unchecked**: no `throws` needed. Use it for programming mistakes: a negative quantity, a null that shouldn't be.\n\nThe common mistakes: catching an exception and doing nothing (the problem vanishes and returns as a weirder bug); catching `Exception` everywhere; using Strings where an enum belongs; writing 40 lines of getters when a record would do.",
+ "example": {
+  "file": "Example.java",
+  "code": "enum Light {\n    RED(30), GREEN(25), AMBER(5);\n    private final int seconds;\n    Light(int seconds) { this.seconds = seconds; }\n    int seconds() { return seconds; }\n    Light next() {\n        return switch (this) {\n            case RED -> GREEN;\n            case GREEN -> AMBER;\n            case AMBER -> RED;\n        };\n    }\n}\n\nrecord Visit(String patient, int day) {\n    Visit {\n        if (day < 1 || day > 31) throw new IllegalArgumentException(\"day 1-31\");\n    }\n}\n\nclass NoSlotException extends Exception {\n    NoSlotException(int day) { super(\"No free slot on day \" + day); }\n}\n\npublic class Example {\n    static Visit book(String patient, int day) throws NoSlotException {\n        if (day == 13) throw new NoSlotException(day);\n        return new Visit(patient, day);\n    }\n\n    public static void main(String[] args) {\n        Light l = Light.RED;\n        for (int i = 0; i < 4; i++) { System.out.println(l + \" for \" + l.seconds() + \"s\"); l = l.next(); }\n\n        try {\n            System.out.println(book(\"Amina\", 12));\n            System.out.println(book(\"Juma\", 13));\n        } catch (NoSlotException e) {\n            System.out.println(\"Sorry: \" + e.getMessage());\n        }\n    }\n}\n",
+  "notes": [
+   "Each Light constant carries its own seconds.",
+   "The switch covers every constant; add a new one and the compiler complains.",
+   "Visit is a record; the compact constructor only checks the day.",
+   "NoSlotException extends Exception, so it is checked.",
+   "book() must declare `throws NoSlotException`, and main must catch it."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Crop enum",
+   "file": "Crop.java",
+   "prompt": "Finish enum Crop with constants MAIZE(\"Maize\", 55), BEANS(\"Beans\", 120), RICE(\"Rice\", 140), SORGHUM(\"Sorghum\", 45) (label, price per kg in KSh). getLabel(), getPricePerKg(), value(double kg) = kg × price. static fromName(String name) turns \" rice \" or \"Rice\" into RICE and throws IllegalArgumentException for unknown names. isGrain() is true for maize, rice and sorghum (use a switch).",
+   "starter": "public enum Crop {\n    MAIZE, BEANS, RICE, SORGHUM;\n\n    public String getLabel() { return \"\"; }\n    public int getPricePerKg() { return 0; }\n\n    public double value(double kg) {\n        return 0;\n    }\n\n    public static Crop fromName(String name) {\n        return null;\n    }\n\n    public boolean isGrain() {\n        return false;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Crop.MAIZE.value(10)",
+     "expect": "550.0"
+    },
+    {
+     "call": "Crop.BEANS.getLabel() + \" \" + Crop.BEANS.getPricePerKg()",
+     "expect": "Beans 120"
+    },
+    {
+     "call": "Crop.fromName(\" rice \")",
+     "expect": "RICE"
+    },
+    {
+     "call": "Crop.SORGHUM.isGrain() + \" \" + Crop.BEANS.isGrain()",
+     "expect": "true false"
+    },
+    {
+     "call": "Crop.values().length",
+     "expect": "4"
+    },
+    {
+     "call": "Crop.fromName(\"yam\")",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "unknown crop",
+     "hint_if_fail": "Crop.valueOf already throws IllegalArgumentException for unknown names."
+    },
+    {
+     "call": "Crop.fromName(\"SoRgHuM\").getLabel()",
+     "expect": "Sorghum",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Constants with arguments: MAIZE(\"Maize\", 55), ... ; then private final fields and a constructor Crop(String label, int pricePerKg).",
+    "fromName: return Crop.valueOf(name.trim().toUpperCase());",
+    "isGrain: return switch (this) { case BEANS -> false; default -> true; };"
+   ],
+   "solution": "public enum Crop {\n    MAIZE(\"Maize\", 55), BEANS(\"Beans\", 120), RICE(\"Rice\", 140), SORGHUM(\"Sorghum\", 45);\n\n    private final String label;\n    private final int pricePerKg;\n\n    Crop(String label, int pricePerKg) {\n        this.label = label;\n        this.pricePerKg = pricePerKg;\n    }\n\n    public String getLabel() { return label; }\n    public int getPricePerKg() { return pricePerKg; }\n\n    public double value(double kg) {\n        return kg * pricePerKg;\n    }\n\n    // valueOf throws IllegalArgumentException for names that aren't constants.\n    public static Crop fromName(String name) {\n        return Crop.valueOf(name.trim().toUpperCase());\n    }\n\n    public boolean isGrain() {\n        return switch (this) {\n            case MAIZE, RICE, SORGHUM -> true;\n            case BEANS -> false;\n        };\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Sensor readings as records",
+   "file": "Readings.java",
+   "prompt": "Give record Reading(String sensor, double litres, int hour) a compact constructor that throws IllegalArgumentException for a blank sensor name, negative litres, or an hour outside 0-23, and a method isNight() (hour before 6 or from 20 on). In Readings write static double totalFor(List<Reading> rs, String sensor) and static int nightCount(List<Reading> rs).",
+   "starter": "import java.util.List;\n\nrecord Reading(String sensor, double litres, int hour) {\n    boolean isNight() { return false; }\n}\n\npublic class Readings {\n    public static double totalFor(List<Reading> rs, String sensor) {\n        return 0;\n    }\n\n    public static int nightCount(List<Reading> rs) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "new Reading(\"tank1\", 40.5, 7)",
+     "expect": "Reading[sensor=tank1, litres=40.5, hour=7]",
+     "name": "records print themselves"
+    },
+    {
+     "call": "new Reading(\"tank1\", 40.5, 7).equals(new Reading(\"tank1\", 40.5, 7))",
+     "expect": "true",
+     "name": "records compare by value"
+    },
+    {
+     "call": "new Reading(\"tank1\", -1, 7)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "name": "negative litres"
+    },
+    {
+     "call": "new Reading(\"tank1\", 1, 22).isNight() + \" \" + new Reading(\"tank1\", 1, 12).isNight()",
+     "expect": "true false"
+    },
+    {
+     "call": "Readings.totalFor(java.util.List.of(new Reading(\"a\", 10, 1), new Reading(\"b\", 5, 2), new Reading(\"a\", 2.5, 3)), \"a\")",
+     "expect": "12.5"
+    },
+    {
+     "call": "Readings.nightCount(java.util.List.of(new Reading(\"a\", 10, 1), new Reading(\"b\", 5, 12), new Reading(\"a\", 2.5, 20)))",
+     "expect": "2"
+    },
+    {
+     "call": "new Reading(\"tank1\", 5, 24)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "hour 24"
+    },
+    {
+     "call": "new Reading(\" \", 5, 3)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "name": "blank sensor"
+    },
+    {
+     "call": "new Reading(\"tank1\", 1, 6).isNight()",
+     "expect": "false",
+     "hidden": true,
+     "name": "6 o'clock is morning"
+    }
+   ],
+   "hints": [
+    "Compact constructor: record Reading(...) { Reading { if (...) throw ...; } ... }",
+    "Use the record's accessors: r.sensor(), r.litres(), r.hour().",
+    "if (sensor == null || sensor.isBlank() || litres < 0 || hour < 0 || hour > 23) throw new IllegalArgumentException(...);"
+   ],
+   "solution": "import java.util.List;\n\nrecord Reading(String sensor, double litres, int hour) {\n    Reading {\n        if (sensor == null || sensor.isBlank()) throw new IllegalArgumentException(\"sensor name needed\");\n        if (litres < 0) throw new IllegalArgumentException(\"litres can't be negative\");\n        if (hour < 0 || hour > 23) throw new IllegalArgumentException(\"hour must be 0-23\");\n    }\n\n    boolean isNight() { return hour < 6 || hour >= 20; }\n}\n\npublic class Readings {\n    public static double totalFor(List<Reading> rs, String sensor) {\n        double total = 0;\n        for (Reading r : rs) if (r.sensor().equals(sensor)) total += r.litres();\n        return total;\n    }\n\n    public static int nightCount(List<Reading> rs) {\n        int n = 0;\n        for (Reading r : rs) if (r.isNight()) n++;\n        return n;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Pharmacy exceptions",
+   "file": "Pharmacy.java",
+   "prompt": "OutOfStockException is CHECKED (extends Exception): its message is \"Only 3 Amoxicillin left, wanted 5\" and getWanted()/getAvailable() return the numbers. InvalidQuantityException is UNCHECKED (extends RuntimeException). In Pharmacy: addStock(item, qty) throws InvalidQuantityException if qty <= 0; stockOf(item) (0 if unknown); dispense(item, qty) throws InvalidQuantityException if qty <= 0, OutOfStockException if there isn't enough, otherwise takes the stock and returns what is left. static tryDispense(Pharmacy p, String item, int qty) returns \"OK, 6 left\" or the OutOfStockException's message.",
+   "starter": "import java.util.*;\n\nclass OutOfStockException extends Exception {\n    OutOfStockException(String item, int wanted, int available) {\n        super(\"\");\n    }\n    int getWanted() { return 0; }\n    int getAvailable() { return 0; }\n}\n\nclass InvalidQuantityException extends RuntimeException {\n    InvalidQuantityException(int qty) {\n        super(\"\");\n    }\n}\n\npublic class Pharmacy {\n    private final Map<String, Integer> stock = new HashMap<>();\n\n    public void addStock(String item, int qty) {\n    }\n\n    public int stockOf(String item) {\n        return 0;\n    }\n\n    public int dispense(String item, int qty) throws OutOfStockException {\n        return 0;\n    }\n\n    public static String tryDispense(Pharmacy p, String item, int qty) {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Pharmacy p = new Pharmacy(); p.addStock(\"ORS\", 10); return Pharmacy.tryDispense(p, \"ORS\", 4); }).get()",
+     "expect": "OK, 6 left"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Pharmacy p = new Pharmacy(); p.addStock(\"Amoxicillin\", 3); return Pharmacy.tryDispense(p, \"Amoxicillin\", 5) + \" / \" + p.stockOf(\"Amoxicillin\"); }).get()",
+     "expect": "Only 3 Amoxicillin left, wanted 5 / 3",
+     "name": "not enough: nothing taken"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Pharmacy p = new Pharmacy(); p.addStock(\"ORS\", 0); return \"no error\"; }).get()",
+     "expect": "!ERR InvalidQuantityException",
+     "name": "adding 0"
+    },
+    {
+     "call": "Exception.class.isAssignableFrom(OutOfStockException.class) && !RuntimeException.class.isAssignableFrom(OutOfStockException.class)",
+     "expect": "true",
+     "name": "OutOfStock is checked"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Pharmacy p = new Pharmacy(); p.addStock(\"ORS\", 10); try { p.dispense(\"ORS\", 99); return \"no error\"; } catch (OutOfStockException e) { return e.getWanted() + \" \" + e.getAvailable(); } }).get()",
+     "expect": "99 10",
+     "hidden": true,
+     "name": "exception carries the numbers"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Pharmacy p = new Pharmacy(); p.addStock(\"ORS\", 10); try { p.dispense(\"ORS\", -1); return \"no error\"; } catch (OutOfStockException e) { return \"wrong exception\"; } }).get()",
+     "expect": "!ERR InvalidQuantityException",
+     "hidden": true,
+     "name": "negative dispense"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Pharmacy p = new Pharmacy(); return Pharmacy.tryDispense(p, \"Zinc\", 1); }).get()",
+     "expect": "Only 0 Zinc left, wanted 1",
+     "hidden": true,
+     "name": "never stocked"
+    }
+   ],
+   "hints": [
+    "OutOfStockException: store wanted and available in fields; call super(\"Only \" + available + \" \" + item + \" left, wanted \" + wanted);",
+    "dispense: int have = stockOf(item); if (qty > have) throw new OutOfStockException(item, qty, have);",
+    "tryDispense: try { return \"OK, \" + p.dispense(item, qty) + \" left\"; } catch (OutOfStockException e) { return e.getMessage(); }"
+   ],
+   "solution": "import java.util.*;\n\n// Checked: callers must plan for running out.\nclass OutOfStockException extends Exception {\n    private final int wanted;\n    private final int available;\n\n    OutOfStockException(String item, int wanted, int available) {\n        super(\"Only \" + available + \" \" + item + \" left, wanted \" + wanted);\n        this.wanted = wanted;\n        this.available = available;\n    }\n\n    int getWanted() { return wanted; }\n    int getAvailable() { return available; }\n}\n\n// Unchecked: a bad quantity is a programming mistake.\nclass InvalidQuantityException extends RuntimeException {\n    InvalidQuantityException(int qty) {\n        super(\"Quantity must be positive: \" + qty);\n    }\n}\n\npublic class Pharmacy {\n    private final Map<String, Integer> stock = new HashMap<>();\n\n    public void addStock(String item, int qty) {\n        if (qty <= 0) throw new InvalidQuantityException(qty);\n        stock.put(item, stockOf(item) + qty);\n    }\n\n    public int stockOf(String item) {\n        return stock.getOrDefault(item, 0);\n    }\n\n    public int dispense(String item, int qty) throws OutOfStockException {\n        if (qty <= 0) throw new InvalidQuantityException(qty);\n        int have = stockOf(item);\n        if (qty > have) throw new OutOfStockException(item, qty, have);\n        stock.put(item, have - qty);\n        return have - qty;\n    }\n\n    public static String tryDispense(Pharmacy p, String item, int qty) {\n        try {\n            return \"OK, \" + p.dispense(item, qty) + \" left\";\n        } catch (OutOfStockException e) {\n            return e.getMessage();\n        }\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why an enum instead of Strings for crop types?",
+   "choices": [
+    "Enums are shorter to type",
+    "Only the listed values exist, so typos can't sneak in",
+    "Strings can't be compared",
+    "Enums are faster to print"
+   ],
+   "answer": 1,
+   "why": "The compiler only accepts real constants."
+  },
+  {
+   "q": "`Crop.valueOf(\"YAM\")` when YAM isn't a constant…",
+   "choices": [
+    "returns null",
+    "throws IllegalArgumentException",
+    "creates YAM",
+    "returns MAIZE"
+   ],
+   "answer": 1,
+   "why": "valueOf only knows the declared constants."
+  },
+  {
+   "q": "A record gives you for free…",
+   "choices": [
+    "setters",
+    "constructor, accessors, equals, hashCode, toString",
+    "a database",
+    "inheritance from another record"
+   ],
+   "answer": 1,
+   "why": "Records are immutable data carriers."
+  },
+  {
+   "q": "Your exception extends Exception. What does the compiler demand?",
+   "choices": [
+    "Nothing",
+    "Methods that throw it declare `throws`, and callers catch or declare it",
+    "It must be static",
+    "It must have no message"
+   ],
+   "answer": 1,
+   "why": "That's a checked exception."
+  },
+  {
+   "q": "Best kind for 'quantity was negative' (a caller's bug)?",
+   "choices": [
+    "Checked exception",
+    "Unchecked (RuntimeException)",
+    "Return -1",
+    "Print and continue"
+   ],
+   "answer": 1,
+   "why": "Programming mistakes are unchecked; plan-for situations are checked."
+  }
+ ],
+ "cards": [
+  {
+   "q": "List all constants of an enum?",
+   "a": "Crop.values()"
+  },
+  {
+   "q": "Record accessor for field litres?",
+   "a": "r.litres()  (no get prefix)"
+  },
+  {
+   "q": "Compact constructor?",
+   "a": "record R(int x) { R { if (x < 0) throw ...; } }  Just the checks."
+  },
+  {
+   "q": "Checked vs unchecked?",
+   "a": "extends Exception: must catch/declare. extends RuntimeException: no need."
+  }
+ ],
+ "explain": "Explain when you'd make an exception checked and when unchecked, using a clinic or game example you make up."
+}

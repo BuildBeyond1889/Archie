@@ -1,0 +1,215 @@
+{
+ "id": "cpp-2-03",
+ "level": 2,
+ "title": "new and delete",
+ "concepts": [
+  "memory",
+  "pointers",
+  "dynamic-arrays"
+ ],
+ "skills": [
+  "heap",
+  "new/delete",
+  "leaks"
+ ],
+ "lesson": "Stack variables vanish when their function ends. Sometimes you need something to **outlive** the function that made it (a bullet fired in one frame that flies for the next fifty), or you only learn the size while running (how many sensor readings to keep). For that you ask the heap with `new`.\n\n```\nBullet* b = new Bullet(10);   // one object on the heap; you get its address\nb->damage;                    // use it through the pointer\ndelete b;                     // give it back\nb = nullptr;                  // so nobody uses the old address\n\nint* samples = new int[n];    // an array of n ints on the heap\nsamples[0] = 42;\ndelete[] samples;             // arrays use delete[]\n```\n\n**The rules.** Every `new` needs exactly one `delete`. Every `new[]` needs exactly one `delete[]`. Mixing them (`delete` on an array) is undefined behaviour. `delete nullptr` is allowed and does nothing.\n\n**Three ways to get it wrong:**\n\n- **Leak:** you forget `delete`. The memory stays taken until the program ends. One bullet is nothing; a leak every frame at 60 frames a second eats the machine.\n- **Dangling pointer:** you `delete` and keep using the pointer. The memory may already belong to something else. Setting the pointer to `nullptr` after `delete` makes the mistake visible.\n- **Double delete:** two parts of the code both `delete` the same object. Usually a crash, sometimes much later, far from the real bug.\n\nAll three come from the same question: **who owns this object, and who is responsible for deleting it?** With raw `new` the answer lives only in your head.\n\n**Why modern C++ avoids raw new.** It is too easy to forget a `delete` when a function has several `return`s or an error happens halfway. Modern code lets objects clean up after themselves: `std::vector` for arrays, and smart pointers (`std::unique_ptr`, `std::shared_ptr`) for single objects. You will meet them in the next units. Unreal has its own answer (a garbage collector for `UObject`s, plus `TUniquePtr` and `TSharedPtr` for everything else). You learn `new`/`delete` here so you know what those tools do for you, and so you can read older code.\n\nIn this course's tests a class keeps a count of how many objects are **alive**: the constructor adds one, the destructor takes one away. If the count isn't back to where it started after your code runs, something leaked.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n\nstruct Bullet\n{\n    inline static int alive = 0;\n    int damage;\n    Bullet(int damage) : damage(damage) { alive++; }\n    ~Bullet() { alive--; }\n};\n\nint main()\n{\n    Bullet* b = new Bullet(10);\n    std::cout << \"alive: \" << Bullet::alive << \", damage \" << b->damage << \"\\n\";\n    delete b;\n    b = nullptr;\n    std::cout << \"alive after delete: \" << Bullet::alive << \"\\n\";\n\n    int n = 5;\n    int* samples = new int[n];\n    for (int i = 0; i < n; i++) samples[i] = i * i;\n    std::cout << \"last sample \" << samples[n - 1] << \"\\n\";\n    delete[] samples;              // new[] pairs with delete[]\n    return 0;\n}\n",
+  "notes": [
+   "new Bullet(10) builds a Bullet on the heap and gives back its address.",
+   "The alive counter goes up in the constructor and down in the destructor: it is a leak detector.",
+   "After delete, b still holds the old address; setting it to nullptr stops accidental use.",
+   "new int[n] allows a size chosen while running; it must be freed with delete[]."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A buffer of readings",
+   "file": "readings.cpp",
+   "prompt": "Write int* makeReadings(int count, int start): allocate an array of count ints with new[], fill it with start, start+1, start+2, ... and return it. If count is 0 or less, return nullptr.\nWrite void freeReadings(int* readings) that releases an array made by makeReadings (it must be safe to call with nullptr).",
+   "starter": "int* makeReadings(int count, int start)\n{\n    return nullptr;\n}\n\nvoid freeReadings(int* readings)\n{\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int* p = makeReadings(3, 10); if (!p) return -1; int r = p[0] + p[2]; freeReadings(p); return r; }()",
+     "expect": "22"
+    },
+    {
+     "call": "[]{ int* p = makeReadings(5, 0); if (!p) return -1; int r = p[4]; freeReadings(p); return r; }()",
+     "expect": "4"
+    },
+    {
+     "call": "makeReadings(0, 5) == nullptr",
+     "expect": "true",
+     "hidden": true
+    },
+    {
+     "call": "[]{ freeReadings(nullptr); return 1; }()",
+     "expect": "1",
+     "hidden": true
+    },
+    {
+     "src_has": "delete[]",
+     "why": "An array made with new[] must be freed with delete[]."
+    },
+    {
+     "src_has": "new int[",
+     "why": "Allocate the array with new int[count]."
+    }
+   ],
+   "hints": [
+    "int* p = new int[count]; then a for loop that sets p[i] = start + i.",
+    "freeReadings is one line: delete[] readings; (delete[] on nullptr does nothing)."
+   ],
+   "solution": "int* makeReadings(int count, int start)\n{\n    if (count <= 0) return nullptr;\n    int* p = new int[count];        // the caller now owns this array\n    for (int i = 0; i < count; i++) p[i] = start + i;\n    return p;\n}\n\nvoid freeReadings(int* readings)\n{\n    delete[] readings;              // new[] pairs with delete[]; nullptr is fine\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Grow an array",
+   "file": "grow.cpp",
+   "prompt": "Write int* grow(int* old, int oldSize, int newSize): make a new array of newSize ints, copy the first min(oldSize, newSize) values from old, set any extra slots to 0, release old with delete[], and return the new array. old may be nullptr when oldSize is 0. (This is what std::vector does when it runs out of room.)",
+   "starter": "int* grow(int* old, int oldSize, int newSize)\n{\n    return nullptr;\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int* a = new int[2]{5, 6}; a = grow(a, 2, 4); if (!a) return -1; int r = a[0] * 1000 + a[1] * 100 + a[2] * 10 + a[3]; delete[] a; return r; }()",
+     "expect": "5600",
+     "hint_if_fail": "Copy the old values, then fill the new slots with 0."
+    },
+    {
+     "call": "[]{ int* a = new int[3]{1, 2, 3}; a = grow(a, 3, 2); if (!a) return -1; int r = a[0] * 10 + a[1]; delete[] a; return r; }()",
+     "expect": "12",
+     "hint_if_fail": "When shrinking, copy only newSize values."
+    },
+    {
+     "call": "[]{ int* a = grow(nullptr, 0, 3); if (!a) return -1; int r = a[0] + a[1] + a[2]; delete[] a; return r; }()",
+     "expect": "0",
+     "hidden": true
+    },
+    {
+     "src_has": "delete[]",
+     "why": "Release the old array with delete[] or it leaks."
+    }
+   ],
+   "hints": [
+    "int* bigger = new int[newSize]; then loop i < newSize: copy old[i] when i < oldSize, else 0.",
+    "Finish with delete[] old; return bigger;"
+   ],
+   "solution": "int* grow(int* old, int oldSize, int newSize)\n{\n    int* bigger = new int[newSize];\n    for (int i = 0; i < newSize; i++)\n        bigger[i] = (i < oldSize) ? old[i] : 0;\n    delete[] old;          // the old array is ours to release\n    return bigger;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Spawn and despawn bullets",
+   "file": "bullets.cpp",
+   "prompt": "Bullet is given (with a live counter). Write Bullet* spawnBullet(int damage) that creates a Bullet on the heap with new and returns it.\nWrite void despawn(Bullet*& b) that deletes the bullet and sets the caller's pointer to nullptr so it can't dangle. Calling it with a null pointer does nothing.",
+   "starter": "struct Bullet\n{\n    inline static int alive = 0;   // how many Bullets exist right now\n    int damage;\n    Bullet(int damage) : damage(damage) { alive++; }\n    ~Bullet() { alive--; }           // runs when a Bullet is destroyed (unit 4 explains)\n};\n\nBullet* spawnBullet(int damage)\n{\n    return nullptr;\n}\n\nvoid despawn(Bullet*& b)\n{\n}\n",
+   "tests": [
+    {
+     "call": "[]{ Bullet* b = spawnBullet(7); int d = b ? b->damage : -1; despawn(b); return d; }()",
+     "expect": "7"
+    },
+    {
+     "call": "[]{ int before = Bullet::alive; Bullet* b = spawnBullet(5); int during = Bullet::alive - before; despawn(b); return during; }()",
+     "expect": "1"
+    },
+    {
+     "call": "[]{ int before = Bullet::alive; Bullet* b = spawnBullet(5); despawn(b); return Bullet::alive - before; }()",
+     "expect": "0",
+     "hint_if_fail": "despawn must delete the bullet."
+    },
+    {
+     "call": "[]{ Bullet* b = spawnBullet(5); despawn(b); return b == nullptr; }()",
+     "expect": "true",
+     "hint_if_fail": "b is a reference to the caller's pointer: set it to nullptr after delete."
+    },
+    {
+     "call": "[]{ Bullet* b = nullptr; despawn(b); return b == nullptr; }()",
+     "expect": "true",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "spawnBullet: return new Bullet(damage);",
+    "despawn takes Bullet*& : a reference to a pointer, so b = nullptr changes the caller's variable.",
+    "delete b; b = nullptr;"
+   ],
+   "solution": "struct Bullet\n{\n    inline static int alive = 0;   // how many Bullets exist right now\n    int damage;\n    Bullet(int damage) : damage(damage) { alive++; }\n    ~Bullet() { alive--; }           // runs when a Bullet is destroyed (unit 4 explains)\n};\n\nBullet* spawnBullet(int damage)\n{\n    return new Bullet(damage);   // the caller owns it now\n}\n\nvoid despawn(Bullet*& b)\n{\n    delete b;        // safe on nullptr\n    b = nullptr;     // the caller's pointer can't dangle\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "int* a = new int[10]; How should it be freed?",
+   "choices": [
+    "delete a;",
+    "delete[] a;",
+    "free(a);",
+    "It frees itself"
+   ],
+   "answer": 1,
+   "why": "new[] pairs with delete[]."
+  },
+  {
+   "q": "A game news one Particle per frame and never deletes them. What happens?",
+   "choices": [
+    "Nothing",
+    "A memory leak that grows every frame",
+    "A compile error",
+    "The particles delete themselves"
+   ],
+   "answer": 1,
+   "why": "Every new needs a delete; otherwise memory piles up."
+  },
+  {
+   "q": "After delete p; what does p hold?",
+   "choices": [
+    "nullptr automatically",
+    "The old address, now invalid (dangling)",
+    "0",
+    "A new object"
+   ],
+   "answer": 1,
+   "why": "delete doesn't change p, which is why you set it to nullptr."
+  },
+  {
+   "q": "What does delete nullptr; do?",
+   "choices": [
+    "Crashes",
+    "Nothing: it is allowed",
+    "Leaks",
+    "Throws"
+   ],
+   "answer": 1,
+   "why": "Deleting a null pointer is a safe no-op."
+  },
+  {
+   "q": "Why does modern C++ avoid raw new and delete?",
+   "choices": [
+    "They are slow",
+    "It's easy to forget a delete or delete twice; vector and smart pointers clean up automatically",
+    "They are removed from C++17",
+    "They only work on Linux"
+   ],
+   "answer": 1,
+   "why": "Ownership by hand is error-prone; tools that own memory release it for you."
+  }
+ ],
+ "cards": [
+  {
+   "q": "One object on the heap?",
+   "a": "T* p = new T(args); ... delete p;"
+  },
+  {
+   "q": "An array on the heap?",
+   "a": "T* a = new T[n]; ... delete[] a;"
+  },
+  {
+   "q": "Leak vs dangling pointer?",
+   "a": "Leak: never deleted. Dangling: deleted but still used."
+  },
+  {
+   "q": "Habit after delete p?",
+   "a": "p = nullptr;"
+  }
+ ],
+ "explain": "Explain what a memory leak and a dangling pointer are, using bullets in a game as your example."
+}

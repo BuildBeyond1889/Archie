@@ -1,0 +1,247 @@
+{
+ "id": "web-2-07",
+ "level": 2,
+ "title": "JSON and fetch",
+ "concepts": [
+  "fetch",
+  "async",
+  "json",
+  "exceptions"
+ ],
+ "skills": [
+  "fetch",
+  "async",
+  "json",
+  "errors"
+ ],
+ "lesson": "So far your data has been typed into the code. Real apps load it: a price list, a stock file exported from the clinic system, a game's level layout. Keeping data in its own **JSON** file means you can update it without touching the code.\n\n**JSON** looks like JavaScript objects and arrays, with stricter rules: keys and text in **double quotes**, no trailing commas, no comments, no functions.\n\n```\n[\n  { \"name\": \"Paracetamol\", \"qty\": 120 },\n  { \"name\": \"ORS sachets\", \"qty\": 8 }\n]\n```\n\n**fetch** asks for a file and *doesn't wait for it*. Loading can take time (a slow disk, a slow network), and a page that froze while waiting would be awful. So `fetch` returns a **promise**: a value that will arrive later. Inside an `async` function you wait for it with `await`:\n\n```\nasync function loadStock() {\n  const response = await fetch(\"stock.json\");\n  if (!response.ok) throw new Error(`Could not load stock.json (${response.status})`);\n  return await response.json();   // reading the body is also async\n}\n```\n\nThree things trip everyone up:\n- **A missing file does not throw.** `fetch` only fails outright when it can't connect at all. A 404 (not found) or 500 (server error) arrives as a normal response with `response.ok` false. Check it yourself.\n- **`response.json()` throws** if the file isn't valid JSON (a trailing comma is enough).\n- **An async function always returns a promise.** Whoever calls it must `await` it too (or use `.then`).\n\n**try/catch with await** handles every kind of failure in one place:\n\n```\nstatus.textContent = \"Loading...\";\ntry {\n  const items = await loadStock();\n  showItems(items);\n  status.textContent = `${items.length} items`;\n} catch (err) {\n  status.textContent = \"Could not load stock. Try again.\";\n}\n```\n\n**Show what's happening.** A good page has three states: *loading* (set before you start, so people know something is happening), *loaded* (the data), and *error* (a plain message and a way to retry). A blank page that might be loading, or might be broken, is the worst of both.\n\n**Offline note.** Browsers refuse `fetch` for pages opened straight from a file (an address starting `file://`), for safety. Serve the folder with a tiny local web server instead: Archie's preview does this, or run `python -m http.server` in the folder and open `http://localhost:8000`. Nothing leaves your computer. The same code later works unchanged with an online API, which is exactly how weather apps, maps and multiplayer games load data.",
+ "example": {
+  "file": "example.js",
+  "code": "async function loadJson(url) {\n  const response = await fetch(url);                  // waits, without freezing the page\n  if (!response.ok) throw new Error(`Could not load ${url} (${response.status})`);\n  return await response.json();                        // throws if the JSON is broken\n}\n\nasync function showLevel() {\n  const status = document.getElementById(\"status\");\n  status.textContent = \"Loading level...\";             // 1. loading\n  try {\n    const level = await loadJson(\"level1.json\");\n    const enemies = level.enemies.filter((e) => e.wave === 1);\n    status.textContent = `Wave 1: ${enemies.length} enemies`;   // 2. loaded\n  } catch (err) {\n    status.textContent = \"Couldn't load the level. Check the file and try again.\";  // 3. error\n    console.error(err);\n  }\n}\n\nshowLevel();\n",
+  "notes": [
+   "loadJson checks response.ok, because a missing file doesn't throw by itself.",
+   "await only works inside an async function.",
+   "One try/catch covers a missing file, broken JSON and bad data.",
+   "The status line always shows loading, loaded or a clear error."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Read a JSON file",
+   "file": "ex1_load.js",
+   "prompt": "patients.json sits next to this file. Write async function loadJson(url): fetch the url; if response.ok is false, throw new Error(\"Could not load URL (STATUS)\") (for example \"Could not load missing.json (404)\"); otherwise return the parsed JSON. Then write async function patientNames(url) that uses loadJson and returns just the names, in order.",
+   "starter": "async function loadJson(url) {\n  // fetch, check response.ok, return the parsed JSON\n  return [];\n}\n\nasync function patientNames(url) {\n  return [];\n}\n",
+   "tests": [
+    {
+     "call": "loadJson(\"patients.json\").then((d) => d.length)",
+     "expect": 3,
+     "name": "loads the file"
+    },
+    {
+     "call": "loadJson(\"patients.json\").then((d) => d[1])",
+     "expect": {
+      "name": "Otieno",
+      "age": 71
+     },
+     "name": "the data inside"
+    },
+    {
+     "call": "patientNames(\"patients.json\")",
+     "expect": [
+      "Amina",
+      "Otieno",
+      "Chebet"
+     ],
+     "name": "patientNames()",
+     "hint_if_fail": "const data = await loadJson(url); return data.map((p) => p.name);"
+    },
+    {
+     "call": "loadJson(\"missing.json\").then(() => \"no error\", (e) => e.message)",
+     "expect": "Could not load missing.json (404)",
+     "name": "a missing file is an error",
+     "hidden": true,
+     "hint_if_fail": "fetch doesn't throw for 404: check response.ok and throw your own Error."
+    }
+   ],
+   "hints": [
+    "const response = await fetch(url);",
+    "if (!response.ok) throw new Error(`Could not load ${url} (${response.status})`);",
+    "return await response.json();"
+   ],
+   "solution": "async function loadJson(url) {\n  const response = await fetch(url);\n  // a 404 is NOT an error to fetch, so check it ourselves\n  if (!response.ok) throw new Error(`Could not load ${url} (${response.status})`);\n  return await response.json();\n}\n\nasync function patientNames(url) {\n  const patients = await loadJson(url);\n  return patients.map((p) => p.name);\n}\n",
+   "extra_files": {
+    "patients.json": "[\n  { \"name\": \"Amina\", \"age\": 34 },\n  { \"name\": \"Otieno\", \"age\": 71 },\n  { \"name\": \"Chebet\", \"age\": 5 }\n]\n"
+   }
+  },
+  {
+   "id": "e2",
+   "title": "Loading and error states",
+   "file": "ex2_stock.js",
+   "prompt": "The page has <p id=\"status\"> and <ul id=\"stock\">. Write async function showStock(url). It first sets #status to \"Loading...\" and empties #stock. Then, inside try/catch, it fetches the url (a response that isn't ok counts as a failure), reads the JSON array, adds one <li> per item with the text \"NAME: QTY\", sets #status to \"N items\" and returns true. On ANY failure (missing file, broken JSON) it sets #status to \"Could not load stock. Try again.\" and returns false. Don't call it yourself; the tests will.",
+   "starter": "async function showStock(url) {\n  // 1. \"Loading...\" and an empty list  2. try: fetch, check ok, json, draw, \"N items\", return true\n  // 3. catch: the error message, return false\n  return false;\n}\n",
+   "tests": [
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"stock\"));\nconst p = showStock(\"stock.json\");\nconst during = document.getElementById(\"status\").textContent;\nconst ok = await p;\n__eq(during, \"Loading...\", \"#status while loading\");\n__eq(ok, true, \"showStock() result\");\n__eq(ul.children.length, 4, \"li count\");\n__eq(ul.children[0].textContent, \"Paracetamol: 120\", \"the first li\");\n__eq(document.getElementById(\"status\").textContent, \"4 items\", \"#status when loaded\");\n})();",
+     "name": "loading, then loaded",
+     "hint_if_fail": "Set \"Loading...\" before the first await."
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"stock\"));\nawait showStock(\"stock.json\");\nawait showStock(\"stock.json\");\n__eq(ul.children.length, 4, \"li count after loading twice\");\n})();",
+     "name": "loading again doesn't double the list"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\n__live(document.getElementById(\"stock\"));\nconst ok = await showStock(\"missing.json\");\n__eq(ok, false, \"showStock() for a missing file\");\n__eq(document.getElementById(\"status\").textContent, \"Could not load stock. Try again.\", \"#status\");\n})();",
+     "name": "a missing file",
+     "hidden": true,
+     "hint_if_fail": "if (!response.ok) throw new Error(...) inside the try, so the catch handles it."
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = __live(document.getElementById(\"stock\"));\nconst ok = await showStock(\"broken.json\");\n__eq(ok, false, \"showStock() for broken JSON\");\n__eq(document.getElementById(\"status\").textContent, \"Could not load stock. Try again.\", \"#status\");\n__eq(ul.children.length, 0, \"nothing should be listed\");\n})();",
+     "name": "broken JSON",
+     "hidden": true,
+     "hint_if_fail": "response.json() throws on broken JSON: keep it inside the try."
+    }
+   ],
+   "hints": [
+    "status.textContent = \"Loading...\"; list.innerHTML = \"\"; come first, before any await.",
+    "try { const response = await fetch(url); if (!response.ok) throw new Error(\"HTTP \" + response.status); const items = await response.json(); ... return true; }",
+    "catch (err) { status.textContent = \"Could not load stock. Try again.\"; return false; }"
+   ],
+   "solution": "async function showStock(url) {\n  const status = document.getElementById(\"status\");\n  const list = document.getElementById(\"stock\");\n  status.textContent = \"Loading...\";          // shown straight away\n  list.innerHTML = \"\";\n  try {\n    const response = await fetch(url);\n    if (!response.ok) throw new Error(`HTTP ${response.status}`);\n    const items = await response.json();      // throws on broken JSON\n    for (const item of items) {\n      const li = document.createElement(\"li\");\n      li.textContent = `${item.name}: ${item.qty}`;\n      list.appendChild(li);\n    }\n    status.textContent = `${items.length} items`;\n    return true;\n  } catch (err) {\n    status.textContent = \"Could not load stock. Try again.\";\n    return false;\n  }\n}\n",
+   "extra_files": {
+    "stock.json": "[\n  { \"name\": \"Paracetamol\", \"qty\": 120 },\n  { \"name\": \"ORS sachets\", \"qty\": 8 },\n  { \"name\": \"Amoxicillin\", \"qty\": 15 },\n  { \"name\": \"Gloves (pairs)\", \"qty\": 40 }\n]\n",
+    "broken.json": "[\n  { \"name\": \"Paracetamol\", \"qty\": 120 },\n  { name: \"ORS sachets\", qty: 8, },\n]\n"
+   }
+  },
+  {
+   "id": "e3",
+   "title": "Low stock from a file",
+   "file": "ex3_low.js",
+   "prompt": "Write async function lowStock(url, threshold). It loads a JSON array of { name, qty } from url and returns the names of the items whose qty is BELOW threshold, sorted A to Z. If anything goes wrong (the response isn't ok, or the JSON is broken) it returns null instead of throwing.",
+   "starter": "async function lowStock(url, threshold) {\n  return [];\n}\n",
+   "tests": [
+    {
+     "call": "lowStock(\"stock.json\", 20)",
+     "expect": [
+      "Amoxicillin",
+      "ORS sachets"
+     ],
+     "name": "below 20, A to Z"
+    },
+    {
+     "call": "lowStock(\"stock.json\", 150)",
+     "expect": [
+      "Amoxicillin",
+      "Gloves (pairs)",
+      "ORS sachets",
+      "Paracetamol"
+     ],
+     "name": "everything is low"
+    },
+    {
+     "call": "lowStock(\"stock.json\", 8)",
+     "expect": [],
+     "name": "below means below",
+     "hidden": true
+    },
+    {
+     "call": "Promise.all([lowStock(\"missing.json\", 20), lowStock(\"broken.json\", 20)])",
+     "expect": [
+      null,
+      null
+     ],
+     "name": "failures give null",
+     "hidden": true,
+     "hint_if_fail": "Wrap it all in try/catch and return null in the catch; also return null when !response.ok."
+    }
+   ],
+   "hints": [
+    "Same start as loadJson: fetch, check response.ok, response.json().",
+    "items.filter((i) => i.qty < threshold).map((i) => i.name).sort((a, b) => a.localeCompare(b))",
+    "try { ... } catch (err) { return null; }"
+   ],
+   "solution": "async function lowStock(url, threshold) {\n  try {\n    const response = await fetch(url);\n    if (!response.ok) return null;\n    const items = await response.json();\n    return items\n      .filter((item) => item.qty < threshold)\n      .map((item) => item.name)\n      .sort((a, b) => a.localeCompare(b));\n  } catch (err) {\n    return null;     // broken JSON (or anything else unexpected)\n  }\n}\n",
+   "extra_files": {
+    "stock.json": "[\n  { \"name\": \"Paracetamol\", \"qty\": 120 },\n  { \"name\": \"ORS sachets\", \"qty\": 8 },\n  { \"name\": \"Amoxicillin\", \"qty\": 15 },\n  { \"name\": \"Gloves (pairs)\", \"qty\": 40 }\n]\n",
+    "broken.json": "[\n  { \"name\": \"Paracetamol\", \"qty\": 120 },\n  { name: \"ORS sachets\", qty: 8, },\n]\n"
+   }
+  }
+ ],
+ "quiz": [
+  {
+   "q": "fetch(\"missing.json\") on a server that answers 404. What happens?",
+   "choices": [
+    "fetch throws an error",
+    "It resolves to a response with ok false and status 404",
+    "It returns null",
+    "The page reloads"
+   ],
+   "answer": 1,
+   "why": "fetch only rejects when it can't connect; check response.ok."
+  },
+  {
+   "q": "Which is NOT valid JSON?",
+   "choices": [
+    "{\"qty\": 5}",
+    "[1, 2, 3]",
+    "{qty: 5}",
+    "\"hello\""
+   ],
+   "answer": 2,
+   "why": "JSON keys must be in double quotes."
+  },
+  {
+   "q": "const data = loadStock(); where loadStock is async. What is data?",
+   "choices": [
+    "The array",
+    "A promise",
+    "undefined",
+    "An error"
+   ],
+   "answer": 1,
+   "why": "Async functions always return promises; use await loadStock()."
+  },
+  {
+   "q": "Why set \"Loading...\" BEFORE the first await?",
+   "choices": [
+    "It's required",
+    "So people see something is happening while the data is on its way",
+    "await clears the page",
+    "To make it faster"
+   ],
+   "answer": 1,
+   "why": "Code before the first await runs immediately."
+  },
+  {
+   "q": "You opened index.html by double-clicking it and fetch(\"stock.json\") fails. Why?",
+   "choices": [
+    "JSON is broken",
+    "Browsers block fetch from file:// pages; serve the folder with a local web server",
+    "fetch needs internet",
+    "The file must be .js"
+   ],
+   "answer": 1,
+   "why": "Use Archie's preview or python -m http.server."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Load JSON with fetch?",
+   "a": "const r = await fetch(url); if (!r.ok) throw ...; const data = await r.json();"
+  },
+  {
+   "q": "Does a 404 make fetch throw?",
+   "a": "No: check response.ok yourself."
+  },
+  {
+   "q": "Where can await be used?",
+   "a": "Inside an async function (and at the top of modules)."
+  },
+  {
+   "q": "Three states of a loading page?",
+   "a": "Loading, loaded, error (with a way to retry)."
+  }
+ ],
+ "explain": "Explain what a promise is and why fetch returns one, with a made-up example from a game or an app."
+}

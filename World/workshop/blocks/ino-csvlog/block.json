@@ -1,0 +1,8 @@
+{"name": "CSV readings over USB", "kind": "toolkit", "lang": "Arduino", "version": "1.0.0",
+ "summary": "Prints a header and one CSV line per reading, so the computer can save sensor data straight into a spreadsheet.",
+ "tags": ["log", "csv", "serial", "usb", "data", "spreadsheet"],
+ "files": {"sketch/csvlog.h": "csvlog.h"},
+ "imports": {"ino": ["#include \"csvlog.h\""]},
+ "use": "CsvLog log(\"seconds,soil\"); setup: log.begin(); loop: log.row(millis()/1000, soil.percent());",
+ "test": {"run": ["g++", "-std=c++17", "-Wall", "-x", "c++", "test_csvlog.cpp", "-o", "t.exe"], "files": ["test_csvlog.cpp"], "stub": true, "then": "t.exe"},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

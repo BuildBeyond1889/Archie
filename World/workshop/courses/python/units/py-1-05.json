@@ -1,0 +1,189 @@
+{
+ "id": "py-1-05",
+ "level": 1,
+ "title": "Decisions: if, elif, else",
+ "skills": [
+  "conditions",
+  "booleans"
+ ],
+ "lesson": "Programs choose with `if`. The **condition** after `if` is checked; if it's True, the indented lines run:\n\n```\nif kg > 100:\n    print(\"Big harvest\")\nelif kg > 0:\n    print(\"Some harvest\")\nelse:\n    print(\"Nothing yet\")\n```\n\nOnly the first branch whose condition is True runs; `elif` (else-if) and `else` are optional. The colon `:` and the **indentation** (4 spaces) are how Python knows what's inside; get them wrong and you get an `IndentationError`.\n\nComparisons give True or False: `==` (equal: two signs! one `=` stores), `!=` (not equal), `<`, `>`, `<=`, `>=`. Combine with `and` (both true), `or` (at least one), `not`.\n\nOrder matters with elif: check the most specific case first. A grade program that checks `score >= 50` before `score >= 80` would give everyone 80+ the 50 grade.",
+ "example": {
+  "code": "temp = float(input(\"Fridge temperature (C)? \"))\nif temp < 2:\n    print(\"Too cold: vaccines can freeze\")\nelif temp <= 8:\n    print(\"OK: between 2 and 8\")\nelse:\n    print(\"Too warm: move the vaccines\")\n",
+  "notes": [
+   "Read a number.",
+   "First check: below 2.",
+   "Only reached if not below 2.",
+   "Everything else."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Vaccine fridge",
+   "file": "ex1_fridge.py",
+   "prompt": "Write fridge(temp) that returns \"too cold\" below 2, \"ok\" from 2 to 8 (including both), and \"too warm\" above 8.",
+   "starter": "def fridge(temp):\n    return \"\"\n",
+   "tests": [
+    {
+     "call": "fridge(5)",
+     "expect": "ok"
+    },
+    {
+     "call": "fridge(-1)",
+     "expect": "too cold"
+    },
+    {
+     "call": "fridge(9.5)",
+     "expect": "too warm"
+    },
+    {
+     "call": "fridge(2)",
+     "expect": "ok",
+     "hidden": true,
+     "hint_if_fail": "Exactly 2 and exactly 8 are both ok: use <= and >=."
+    },
+    {
+     "call": "fridge(8)",
+     "expect": "ok",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "if temp < 2: ... elif temp <= 8: ... else: ...",
+    "Each branch returns its word."
+   ],
+   "solution": "def fridge(temp):\n    if temp < 2:\n        return \"too cold\"\n    elif temp <= 8:\n        return \"ok\"\n    return \"too warm\"\n"
+  },
+  {
+   "id": "e2",
+   "title": "Grades",
+   "file": "ex2_grade.py",
+   "prompt": "Write grade(score) for scores 0 to 100: 80+ is \"A\", 65+ \"B\", 50+ \"C\", 40+ \"D\", below 40 \"E\". If the score is below 0 or above 100, return \"invalid\".",
+   "starter": "def grade(score):\n    return \"\"\n",
+   "tests": [
+    {
+     "call": "grade(85)",
+     "expect": "A"
+    },
+    {
+     "call": "grade(65)",
+     "expect": "B"
+    },
+    {
+     "call": "grade(51)",
+     "expect": "C"
+    },
+    {
+     "call": "grade(40)",
+     "expect": "D"
+    },
+    {
+     "call": "grade(12)",
+     "expect": "E"
+    },
+    {
+     "call": "grade(101)",
+     "expect": "invalid",
+     "hidden": true
+    },
+    {
+     "call": "grade(-5)",
+     "expect": "invalid",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Check invalid first, then from the highest grade down.",
+    "if score < 0 or score > 100: return \"invalid\""
+   ],
+   "solution": "def grade(score):\n    if score < 0 or score > 100:\n        return \"invalid\"\n    if score >= 80:\n        return \"A\"\n    if score >= 65:\n        return \"B\"\n    if score >= 50:\n        return \"C\"\n    if score >= 40:\n        return \"D\"\n    return \"E\"\n"
+  },
+  {
+   "id": "e3",
+   "title": "Leap years",
+   "file": "ex3_leap.py",
+   "prompt": "Write is_leap(year). A year is a leap year if it divides by 4, except years that divide by 100 aren't, except years that divide by 400 are. (2024 yes, 1900 no, 2000 yes.)",
+   "starter": "def is_leap(year):\n    return False\n",
+   "tests": [
+    {
+     "call": "is_leap(2024)",
+     "expect": true
+    },
+    {
+     "call": "is_leap(2023)",
+     "expect": false
+    },
+    {
+     "call": "is_leap(1900)",
+     "expect": false
+    },
+    {
+     "call": "is_leap(2000)",
+     "expect": true
+    },
+    {
+     "call": "is_leap(2100)",
+     "expect": false,
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "\"Divides by 4\" is year % 4 == 0.",
+    "return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)"
+   ],
+   "solution": "def is_leap(year):\n    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What's the difference between = and ==?",
+   "choices": [
+    "None",
+    "= stores a value, == compares",
+    "== stores, = compares",
+    "== is for text"
+   ],
+   "answer": 1,
+   "why": "One = stores; two compare."
+  },
+  {
+   "q": "x = 7. Which runs?\nif x > 5: A\nelif x > 3: B",
+   "choices": [
+    "A and B",
+    "only A",
+    "only B",
+    "neither"
+   ],
+   "answer": 1,
+   "why": "Only the first true branch runs."
+  },
+  {
+   "q": "not (3 > 2 and 1 > 2) is…",
+   "choices": [
+    "True",
+    "False"
+   ],
+   "answer": 0,
+   "why": "3>2 is True, 1>2 is False, and gives False, not gives True."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Equal / not equal in Python?",
+   "a": "== and !="
+  },
+  {
+   "q": "What makes lines belong to an if?",
+   "a": "The colon and 4 spaces of indentation."
+  },
+  {
+   "q": "Grades: check high or low first?",
+   "a": "Most specific (highest) first, or the earlier branch catches everything."
+  }
+ ],
+ "concepts": [
+  "conditions"
+ ],
+ "bridge": "No brackets or braces: `if kg > 100:` then an indented block; `elif`, `else:`. and/or/not are the words `and`, `or`, `not`.",
+ "explain": "Explain decisions: if, elif, else to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

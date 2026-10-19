@@ -1,0 +1,8 @@
+{"name": "Read aloud (web)", "kind": "feature", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "Reads words out loud with the phone's own voices (works offline when that language's voice is installed). For early readers, literacy apps and people with poor eyesight.",
+ "tags": ["speech", "voice", "read-aloud", "literacy", "accessibility", "reading"],
+ "files": {"js/speak.js": "speak.js"},
+ "imports": {"js": ["<script src=\"js/speak.js\"></script>"]},
+ "use": "speak('Karibu!', 'sw')",
+ "test": {"run": ["node", "test_speak.js"], "files": ["test_speak.js"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

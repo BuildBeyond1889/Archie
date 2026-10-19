@@ -1,0 +1,8 @@
+{"name": "Charts (window)", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Bar and line charts drawn in a tkinter window with tidy axes and labels. No installs.",
+ "tags": ["chart", "graph", "bar", "line", "tkinter", "visual"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/chart.py": "chart.py"},
+ "imports": {"py": ["from lib.chart import bar_chart, line_chart"]},
+ "use": "bar_chart(canvas, ['Jan','Feb'], [12, 30], title='Harvest (kg)')",
+ "test": {"run": ["python", "test_chart.py"], "files": ["test_chart.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

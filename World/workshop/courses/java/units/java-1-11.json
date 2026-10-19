@@ -1,0 +1,145 @@
+{
+ "id": "java-1-11",
+ "level": 1,
+ "title": "Classes and objects",
+ "concepts": [
+  "classes"
+ ],
+ "skills": [
+  "classes",
+  "objects",
+  "design"
+ ],
+ "bridge": "A **class** is a blueprint; an **object** is one thing made from it with `new`. Fields hold its data (usually `private`), a **constructor** sets them up, and methods (not `static`) work on that object's own data through `this`.",
+ "lesson": "So far everything has been `static`: methods that belong to the class as a whole. Real Java programs are built from **objects**: things that hold their own data and know how to do things with it.\n\n```\npublic class Plot {\n    private String name;          // fields: each Plot has its own\n    private double kg;\n\n    public Plot(String name) {    // constructor: runs on new Plot(...)\n        this.name = name;\n        this.kg = 0;\n    }\n\n    public void harvest(double more) {   // not static: works on THIS plot\n        if (more <= 0) throw new IllegalArgumentException();\n        kg += more;\n    }\n\n    public double getKg() { return kg; }\n    public String toString() { return name + \": \" + kg + \" kg\"; }\n}\n\nPlot north = new Plot(\"North\");\nnorth.harvest(40);\nSystem.out.println(north);        // calls toString(): North: 40.0 kg\n```\n\n- `private` fields mean only the class's own methods can touch them. That's **encapsulation**: `harvest` can refuse a negative amount, and nobody can set `kg` to nonsense from outside.\n- `this.name` means \"this object's name\", which tells it apart from the parameter `name`.\n- Getters (`getKg()`) give read access without write access.\n- `toString()` decides how the object prints.\n\nTwo classes in one file: only one can be `public` (the one matching the file name). For exercises, keep everything in one public class with a small helper class, or give each class its own file in real projects.",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    static class Plot {\n        private final String name;\n        private double kg;\n\n        Plot(String name) { this.name = name; }\n\n        void harvest(double more) {\n            if (more <= 0) throw new IllegalArgumentException(\"must be positive\");\n            kg += more;\n        }\n\n        double getKg() { return kg; }\n\n        public String toString() { return name + \": \" + kg + \" kg\"; }\n    }\n\n    public static void main(String[] args) {\n        Plot north = new Plot(\"North\"), south = new Plot(\"South\");\n        north.harvest(40);\n        north.harvest(5);\n        south.harvest(12);\n        System.out.println(north + \" | \" + south);\n    }\n}\n",
+  "notes": [
+   "A class inside Example, to keep it in one file.",
+   "Private fields, a constructor.",
+   "A method that guards its data.",
+   "Two objects, each with its own kg."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A bank account",
+   "file": "Account.java",
+   "prompt": "Make class Account with a private double balance, a constructor Account(double opening), deposit(double amount), withdraw(double amount) that returns false (and changes nothing) if the money isn't there, and getBalance(). Negative or zero amounts throw IllegalArgumentException.",
+   "starter": "public class Account {\n    private double balance;\n\n    // constructor, deposit, withdraw, getBalance\n}\n",
+   "tests": [
+    {
+     "call": "new Account(100).getBalance()",
+     "expect": "100.0"
+    },
+    {
+     "call": "((java.util.function.Supplier<Double>) () -> { Account a = new Account(50); a.deposit(25); return a.getBalance(); }).get()",
+     "expect": "75.0"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Account a = new Account(50); boolean ok = a.withdraw(80); return ok + \" \" + a.getBalance(); }).get()",
+     "expect": "false 50.0"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Account a = new Account(50); boolean ok = a.withdraw(20); return ok + \" \" + a.getBalance(); }).get()",
+     "expect": "true 30.0"
+    },
+    {
+     "call": "((java.util.function.Supplier<Double>) () -> { new Account(10).deposit(-5); return 0.0; }).get()",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true,
+     "hint_if_fail": "deposit(-5) should throw new IllegalArgumentException()."
+    },
+    {
+     "src_has": "private double balance",
+     "why": "Keep balance private."
+    }
+   ],
+   "hints": [
+    "public Account(double opening) { balance = opening; }",
+    "withdraw: if (amount > balance) return false; balance -= amount; return true;"
+   ],
+   "solution": "public class Account {\n    private double balance;\n\n    public Account(double opening) { balance = opening; }\n\n    public void deposit(double amount) {\n        if (amount <= 0) throw new IllegalArgumentException();\n        balance += amount;\n    }\n\n    public boolean withdraw(double amount) {\n        if (amount <= 0) throw new IllegalArgumentException();\n        if (amount > balance) return false;\n        balance -= amount;\n        return true;\n    }\n\n    public double getBalance() { return balance; }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "toString",
+   "file": "Item.java",
+   "prompt": "Make class Item with a name and a quantity (int), a constructor Item(String name, int qty), and toString() returning like \"maize x 3\". Add take(int n) that lowers the quantity but never below 0.",
+   "starter": "public class Item {\n    private String name;\n    private int qty;\n}\n",
+   "tests": [
+    {
+     "call": "new Item(\"maize\", 3)",
+     "expect": "maize x 3"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Item i = new Item(\"beans\", 5); i.take(2); return i.toString(); }).get()",
+     "expect": "beans x 3"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Item i = new Item(\"kale\", 2); i.take(9); return i.toString(); }).get()",
+     "expect": "kale x 0",
+     "hidden": true,
+     "hint_if_fail": "take(9) from 2 should leave 0, not -7."
+    }
+   ],
+   "hints": [
+    "public String toString() { return name + \" x \" + qty; }",
+    "take: qty = Math.max(0, qty - n);"
+   ],
+   "solution": "public class Item {\n    private String name;\n    private int qty;\n\n    public Item(String name, int qty) {\n        this.name = name;\n        this.qty = qty;\n    }\n\n    public void take(int n) { qty = Math.max(0, qty - n); }\n\n    public String toString() { return name + \" x \" + qty; }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What's the difference between a class and an object?",
+   "choices": [
+    "None",
+    "A class is the blueprint; an object is one thing made from it",
+    "Objects are faster",
+    "Classes hold data, objects don't"
+   ],
+   "answer": 1,
+   "why": "new Plot(\"North\") makes an object from the Plot class."
+  },
+  {
+   "q": "Why make fields private?",
+   "choices": [
+    "Speed",
+    "So only the class's methods can change them, keeping the data valid",
+    "Java requires it",
+    "To hide them from printing"
+   ],
+   "answer": 1,
+   "why": "Encapsulation."
+  },
+  {
+   "q": "What does this.name refer to?",
+   "choices": [
+    "The parameter",
+    "This object's field",
+    "The class name",
+    "Nothing"
+   ],
+   "answer": 1,
+   "why": "this is the current object."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Constructor?",
+   "a": "A method with the class's name and no return type; runs on new."
+  },
+  {
+   "q": "Encapsulation?",
+   "a": "Private fields + methods that guard them."
+  },
+  {
+   "q": "How an object prints?",
+   "a": "Override public String toString()"
+  }
+ ],
+ "explain": "Explain classes and objects to someone who has never programmed, in your own words, with an example you make up."
+}

@@ -1,0 +1,227 @@
+{
+ "id": "cpp-2-04",
+ "level": 2,
+ "title": "Destructors and RAII",
+ "concepts": [
+  "raii",
+  "destructors",
+  "constructors",
+  "memory"
+ ],
+ "skills": [
+  "destructors",
+  "RAII",
+  "scope"
+ ],
+ "lesson": "You have seen constructors: they run when an object is created. C++ also has the opposite, a **destructor**, which runs automatically when an object is destroyed. It has the class name with a `~` in front and takes nothing:\n\n```\nclass SampleBuffer\n{\npublic:\n    SampleBuffer(int n) : data(new double[n]), size(n) {}   // acquire\n    ~SampleBuffer() { delete[] data; }                      // release\nprivate:\n    double* data;\n    int size;\n};\n```\n\nWhen does it run? For a stack object, **at the closing brace of its scope**, no matter how you leave: falling off the end, a `return` in the middle, a `break`, or an exception. You can't forget to call it, because you never call it yourself.\n\n```\nvoid logWater()\n{\n    SampleBuffer buf(100);     // memory taken here\n    if (pumpBroken()) return;  // ~SampleBuffer runs here\n    ...\n}                              // or here\n```\n\nThis idea has a famous clumsy name: **RAII**, \"Resource Acquisition Is Initialisation\". Say it as: *the constructor acquires, the destructor releases, and the object's lifetime decides when*. A resource is anything you must give back: heap memory, an open file, a locked door, a network connection, a motor you switched on.\n\nWhy it matters: with raw `new`/`delete` every path out of a function needs its own cleanup, and one missed path is a leak. With RAII the cleanup is written **once**, in the destructor, and the compiler runs it on every path.\n\nYou already use RAII: `std::string` and `std::vector` free their memory in their destructors, and `std::ifstream` closes its file. The smart pointers in the next units are RAII for single heap objects.\n\n**Members are destroyed too.** When an object dies, its destructor body runs first, then each member's destructor. So a class whose members are a `std::vector` and a `std::string` needs no destructor at all: they clean themselves.\n\n**The common mistake:** a class that owns a raw pointer and can be **copied**. The default copy copies the pointer, both objects later delete the same memory, and the program crashes. Until unit 7 explains the fix, block copying:\n\n```\nSampleBuffer(const SampleBuffer&) = delete;\nSampleBuffer& operator=(const SampleBuffer&) = delete;\n```\n\nIn Unreal, `FScopeLock` locks a mutex in its constructor and unlocks it in its destructor; the same pattern guards robot motors in real tools: the \"stop\" goes in the destructor so an error can't leave a motor running.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <string>\n\nclass Motor\n{\npublic:\n    Motor(std::string name) : name(name) { std::cout << name << \" ON\\n\"; }\n    ~Motor() { std::cout << name << \" OFF\\n\"; }   // always runs\n    Motor(const Motor&) = delete;\n    Motor& operator=(const Motor&) = delete;\nprivate:\n    std::string name;\n};\n\nbool runPump(bool sensorFault)\n{\n    Motor pump(\"pump\");\n    if (sensorFault) {\n        std::cout << \"fault! leaving early\\n\";\n        return false;            // ~Motor still runs: pump OFF\n    }\n    std::cout << \"pumping water\\n\";\n    return true;\n}                                // ~Motor runs here on the normal path\n\nint main()\n{\n    runPump(false);\n    runPump(true);\n    {\n        Motor fan(\"fan\");\n        std::cout << \"inside the block\\n\";\n    }                            // fan OFF at this brace\n    std::cout << \"done\\n\";\n    return 0;\n}\n",
+  "notes": [
+   "The constructor switches the motor on (acquire); the destructor switches it off (release).",
+   "The early return still switches the pump off: the destructor runs on every way out of the scope.",
+   "A pair of braces makes a scope; the fan stops at the closing brace.",
+   "Copying is deleted so two Motor objects can never think they control the same motor."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A sensor reading buffer",
+   "file": "buffer.cpp",
+   "prompt": "Finish class ReadingBuffer, which owns a heap array of doubles.\nReadingBuffer(int capacity) allocates the array with new double[capacity] (capacity may be 0).\n~ReadingBuffer() releases it with delete[].\nbool add(double v) stores v and returns true, or returns false if the buffer is full.\nint size() const is how many values were added; double average() const is their average, or 0 when empty.",
+   "starter": "class ReadingBuffer\n{\npublic:\n    ReadingBuffer(int capacity) : data(nullptr), capacity(capacity), count(0) {}\n    // TODO: a destructor\n    ReadingBuffer(const ReadingBuffer&) = delete;\n    ReadingBuffer& operator=(const ReadingBuffer&) = delete;\n\n    bool add(double v) { return false; }\n    int size() const { return count; }\n    double average() const { return 0; }\nprivate:\n    double* data;\n    int capacity;\n    int count;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ ReadingBuffer b(3); b.add(2); b.add(4); return b.size(); }()",
+     "expect": "2"
+    },
+    {
+     "call": "[]{ ReadingBuffer b(3); b.add(2); b.add(5); return b.average(); }()",
+     "expect": "3.5"
+    },
+    {
+     "call": "[]{ ReadingBuffer b(2); b.add(1); b.add(2); return b.add(3); }()",
+     "expect": "false",
+     "hint_if_fail": "When count == capacity the buffer is full."
+    },
+    {
+     "call": "[]{ ReadingBuffer b(2); b.add(1); b.add(2); b.add(30); return b.average(); }()",
+     "expect": "1.5"
+    },
+    {
+     "call": "[]{ ReadingBuffer b(0); bool ok = b.add(5); return std::to_string(ok) + \",\" + std::to_string(b.average()); }()",
+     "expect": "0,0.000000",
+     "hidden": true,
+     "hint_if_fail": "A buffer of capacity 0 can't take anything, and an empty average is 0."
+    },
+    {
+     "src_has": "~ReadingBuffer",
+     "why": "Write a destructor that releases the array."
+    },
+    {
+     "src_has": "delete[]",
+     "why": "The array was made with new[], so free it with delete[]."
+    }
+   ],
+   "hints": [
+    "Constructor: data(new double[capacity]).",
+    "Destructor: ~ReadingBuffer() { delete[] data; }",
+    "add: if (count == capacity) return false; data[count++] = v; return true;"
+   ],
+   "solution": "class ReadingBuffer\n{\npublic:\n    ReadingBuffer(int capacity) : data(new double[capacity]), capacity(capacity), count(0) {}   // acquire\n    ~ReadingBuffer() { delete[] data; }                                                       // release\n    ReadingBuffer(const ReadingBuffer&) = delete;\n    ReadingBuffer& operator=(const ReadingBuffer&) = delete;\n\n    bool add(double v)\n    {\n        if (count == capacity) return false;\n        data[count++] = v;\n        return true;\n    }\n    int size() const { return count; }\n    double average() const\n    {\n        if (count == 0) return 0;\n        double sum = 0;\n        for (int i = 0; i < count; i++) sum += data[i];\n        return sum / count;\n    }\nprivate:\n    double* data;\n    int capacity;\n    int count;\n};\n"
+  },
+  {
+   "id": "e2",
+   "title": "A lock guard for a door",
+   "file": "lockguard.cpp",
+   "prompt": "Door is given. Write class LockGuard: LockGuard(Door& d) locks the door (locked = true) and adds 1 to timesLocked; its destructor unlocks it (locked = false). Copying a LockGuard must not be allowed (= delete). The door must be unlocked again however the scope is left, even by an exception.",
+   "starter": "struct Door\n{\n    bool locked = false;\n    int timesLocked = 0;\n};\n\nclass LockGuard\n{\npublic:\n    LockGuard(Door& d) {}\n};\n",
+   "tests": [
+    {
+     "call": "[]{ Door d; LockGuard g(d); return d.locked; }()",
+     "expect": "true"
+    },
+    {
+     "call": "[]{ Door d; { LockGuard g(d); } return d.locked; }()",
+     "expect": "false",
+     "hint_if_fail": "Unlock in the destructor: ~LockGuard()."
+    },
+    {
+     "call": "[]{ Door d; { LockGuard a(d); } { LockGuard b(d); } return d.timesLocked; }()",
+     "expect": "2"
+    },
+    {
+     "call": "[]{ Door d; try { LockGuard g(d); throw 1; } catch (int) {} return std::to_string(d.locked) + std::to_string(d.timesLocked); }()",
+     "expect": "01",
+     "hidden": true
+    },
+    {
+     "src_has": "=delete",
+     "why": "Delete the copy constructor: LockGuard(const LockGuard&) = delete;"
+    }
+   ],
+   "hints": [
+    "Keep a reference to the door as a member: Door& door; set it in the initialiser list.",
+    "LockGuard(Door& d) : door(d) { door.locked = true; door.timesLocked++; }",
+    "~LockGuard() { door.locked = false; } and LockGuard(const LockGuard&) = delete;"
+   ],
+   "solution": "struct Door\n{\n    bool locked = false;\n    int timesLocked = 0;\n};\n\nclass LockGuard\n{\npublic:\n    LockGuard(Door& d) : door(d)\n    {\n        door.locked = true;       // acquire\n        door.timesLocked++;\n    }\n    ~LockGuard() { door.locked = false; }   // release, on every way out\n    LockGuard(const LockGuard&) = delete;\n    LockGuard& operator=(const LockGuard&) = delete;\nprivate:\n    Door& door;\n};\n"
+  },
+  {
+   "id": "e3",
+   "title": "A wave that cleans up",
+   "file": "wave.cpp",
+   "prompt": "Wave owns its enemies through raw pointers, and it leaks. Fix it:\n- add a destructor that deletes every enemy;\n- make void clear() delete every enemy (not just forget them) and leave the wave empty;\n- write int totalHealth() const: the sum of all enemies' hp.\nspawn and count already work. Enemy has a live counter the tests use.",
+   "starter": "struct Enemy\n{\n    inline static int alive = 0;\n    int hp;\n    Enemy(int hp) : hp(hp) { alive++; }\n    ~Enemy() { alive--; }\n};\n\nclass Wave\n{\npublic:\n    Wave() {}\n    Wave(const Wave&) = delete;\n    Wave& operator=(const Wave&) = delete;\n\n    void spawn(int hp) { enemies.push_back(new Enemy(hp)); }\n    int count() const { return enemies.size(); }\n    int totalHealth() const { return 0; }\n    void clear() { enemies.clear(); }   // BUG: the Enemy objects are never deleted\nprivate:\n    std::vector<Enemy*> enemies;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ Wave w; w.spawn(10); w.spawn(25); return w.totalHealth(); }()",
+     "expect": "35"
+    },
+    {
+     "call": "[]{ int before = Enemy::alive; { Wave w; w.spawn(10); w.spawn(20); } return Enemy::alive - before; }()",
+     "expect": "0",
+     "hint_if_fail": "When the Wave is destroyed its enemies must be deleted: write ~Wave()."
+    },
+    {
+     "call": "[]{ int before = Enemy::alive; Wave w; w.spawn(10); w.spawn(20); w.clear(); return (Enemy::alive - before) * 10 + w.count(); }()",
+     "expect": "0",
+     "hint_if_fail": "clear() must delete each enemy before emptying the vector."
+    },
+    {
+     "call": "[]{ int before = Enemy::alive; { Wave w; w.spawn(1); w.clear(); w.spawn(2); w.spawn(3); if (w.totalHealth() != 5) return -1; } return Enemy::alive - before; }()",
+     "expect": "0",
+     "hidden": true
+    },
+    {
+     "call": "Wave().totalHealth()",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "clear(): for (Enemy* e : enemies) delete e; then enemies.clear();",
+    "The destructor can simply call clear().",
+    "totalHealth: add up e->hp for each Enemy* e."
+   ],
+   "solution": "struct Enemy\n{\n    inline static int alive = 0;\n    int hp;\n    Enemy(int hp) : hp(hp) { alive++; }\n    ~Enemy() { alive--; }\n};\n\nclass Wave\n{\npublic:\n    Wave() {}\n    ~Wave() { clear(); }        // the wave owns its enemies, so it releases them\n    Wave(const Wave&) = delete;\n    Wave& operator=(const Wave&) = delete;\n\n    void spawn(int hp) { enemies.push_back(new Enemy(hp)); }\n    int count() const { return enemies.size(); }\n    int totalHealth() const\n    {\n        int total = 0;\n        for (const Enemy* e : enemies) total += e->hp;\n        return total;\n    }\n    void clear()\n    {\n        for (Enemy* e : enemies) delete e;\n        enemies.clear();\n    }\nprivate:\n    std::vector<Enemy*> enemies;\n};\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "When does a stack object's destructor run?",
+   "choices": [
+    "When you call it",
+    "At the end of its scope, however the scope is left",
+    "Only when main ends",
+    "Never"
+   ],
+   "answer": 1,
+   "why": "Leaving the scope (end, return, break, exception) destroys the object."
+  },
+  {
+   "q": "What does RAII mean in practice?",
+   "choices": [
+    "Use raw pointers",
+    "The constructor acquires a resource and the destructor releases it",
+    "Allocate everything at startup",
+    "Avoid classes"
+   ],
+   "answer": 1,
+   "why": "The object's lifetime controls the resource."
+  },
+  {
+   "q": "A class has only a std::vector and a std::string as members. Does it need a destructor?",
+   "choices": [
+    "Yes, to free the vector",
+    "No: the members clean themselves up",
+    "Yes, always",
+    "Only in Unreal"
+   ],
+   "answer": 1,
+   "why": "Members' destructors run automatically."
+  },
+  {
+   "q": "A class owns a raw pointer and gets copied with the default copy. What goes wrong?",
+   "choices": [
+    "Nothing",
+    "Both copies delete the same memory: a double delete",
+    "The copy is empty",
+    "It doesn't compile"
+   ],
+   "answer": 1,
+   "why": "The default copy copies the pointer, not what it points at."
+  },
+  {
+   "q": "Why put 'motor off' in a destructor rather than at the end of the function?",
+   "choices": [
+    "It is faster",
+    "It also runs on early returns and exceptions",
+    "Destructors run first",
+    "Style only"
+   ],
+   "answer": 1,
+   "why": "Cleanup in the destructor can't be skipped by an unexpected way out."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Destructor syntax?",
+   "a": "~ClassName() { ... } with no parameters and no return type."
+  },
+  {
+   "q": "RAII in one line?",
+   "a": "Constructor acquires, destructor releases, scope decides when."
+  },
+  {
+   "q": "Block copying a class?",
+   "a": "T(const T&) = delete; T& operator=(const T&) = delete;"
+  },
+  {
+   "q": "RAII types you already use?",
+   "a": "std::string, std::vector, std::ifstream."
+  }
+ ],
+ "explain": "Explain RAII in your own words, using something from a tool or robot (a motor, a file, a lock) as the resource."
+}

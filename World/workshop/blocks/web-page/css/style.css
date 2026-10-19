@@ -1,0 +1,13 @@
+/* Readable on a cheap phone in sunlight: big enough text, strong contrast, nothing fancy. */
+:root { --fg: #111; --bg: #fff; --muted: #555; --accent: #2a6f97; --line: #ddd; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 17px/1.5 system-ui, "Segoe UI", Roboto, Arial, sans-serif; color: var(--fg); background: var(--bg); }
+header, main, footer { max-width: 760px; margin: 0 auto; padding: 12px 16px; }
+header h1 { margin: 8px 0; font-size: 1.5rem; }
+footer { color: var(--muted); font-size: .85rem; }
+button, input, select, textarea { font: inherit; padding: .45rem .7rem; border: 1px solid #aaa; border-radius: 6px; }
+button { background: var(--accent); color: #fff; border: 0; cursor: pointer; }
+button.secondary { background: #e9eef2; color: var(--fg); }
+table { border-collapse: collapse; width: 100%; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

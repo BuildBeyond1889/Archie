@@ -1,0 +1,220 @@
+{
+ "id": "web-2-01",
+ "level": 2,
+ "title": "Building elements from data",
+ "concepts": [
+  "dom",
+  "rendering",
+  "iteration"
+ ],
+ "skills": [
+  "dom",
+  "createElement",
+  "safety"
+ ],
+ "lesson": "In Level 1 you changed elements that were already in the HTML: find one with `getElementById`, set its `textContent`. That works when you know in advance what the page holds. Real apps rarely do. Today's clinic list depends on who walked in; a game's inventory depends on what the player picked up. So the page has to **build elements from data**.\n\nBuilding one element takes four steps:\n\n```\nconst li = document.createElement(\"li\");    // 1. make it (it exists, but nowhere yet)\nli.textContent = \"maize: 120 kg\";           // 2. fill it\nli.classList.add(\"big\");                     // 3. style it (optional)\nlist.appendChild(li);                        // 4. put it on the page\n```\n\nThe most common mistake is forgetting step 4: the element is made and filled, but it floats in memory and never appears. If nothing shows up, look for the missing `appendChild`.\n\n**textContent or innerHTML?** `innerHTML` reads its string *as HTML*. That's handy for HTML you wrote yourself, but dangerous for data. Suppose a patient's name was typed into a form as `<img src=x onerror=\"stealData()\">`. Put that into `innerHTML` and the browser builds an image and runs the code. This is called **XSS** (cross-site scripting), and it's one of the most common security holes on the web. `textContent` shows the characters exactly as they are, so the name appears as harmless text. The habit: **data goes in with textContent**. Use `innerHTML` only for HTML you typed into your own code, or `\"\"` to empty an element.\n\nAlso avoid `list.innerHTML += \"<li>...</li>\"` in a loop: it turns the whole list back into text and rebuilds it every time, which is slow and throws away any click listeners already attached.\n\n**From an array to a list.** Data usually arrives as an array of objects. Loop over it and make one element per item:\n\n```\nfor (const h of harvests) {\n  const li = document.createElement(\"li\");\n  li.textContent = `${h.farmer}: ${h.kg} kg`;\n  li.dataset.farmer = h.farmer;   // becomes data-farmer=\"Amina\"\n  list.appendChild(li);\n}\n```\n\n`dataset` stores small facts on an element as `data-*` attributes, so later code (a click handler, say) can tell which item it belongs to. You'll use that in the next unit.\n\nPut the building in a function that takes data and returns an element (`buildList(harvests)`). It's then easy to test, and the same function can draw a sensor log for a robot, a leaderboard for a game, or a stock list for a clinic.",
+ "example": {
+  "file": "example.js",
+  "code": "// Data first: an array of objects, like rows in a spreadsheet.\nconst harvests = [\n  { farmer: \"Amina\", crop: \"maize\", kg: 120 },\n  { farmer: \"Juma\", crop: \"beans\", kg: 45 },\n  { farmer: \"Wanjiru\", crop: \"potatoes\", kg: 80 },\n];\n\nfunction makeItem(h) {\n  const li = document.createElement(\"li\");\n  li.textContent = `${h.farmer}: ${h.kg} kg of ${h.crop}`;  // safe, even if a name holds \"<b>\"\n  if (h.kg >= 100) li.classList.add(\"big\");\n  li.dataset.farmer = h.farmer;                              // data-farmer=\"Amina\"\n  return li;\n}\n\nfunction buildList(rows) {\n  const ul = document.createElement(\"ul\");\n  for (const h of rows) ul.appendChild(makeItem(h));\n  return ul;\n}\n\n// One line puts the finished list on the page.\ndocument.getElementById(\"report\").appendChild(buildList(harvests));\n",
+  "notes": [
+   "The data is a plain array of objects; the page is built from it.",
+   "makeItem makes, fills, styles and labels one element, and returns it.",
+   "textContent keeps typed-in text harmless; innerHTML would run it as HTML.",
+   "buildList loops and appends; nothing shows until the final appendChild onto the page."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "One list item",
+   "file": "ex1_item.js",
+   "prompt": "Write a function makeItem(crop, kg) that creates an <li> element, sets its text to \"CROP: KG kg\" (for example \"maize: 40 kg\") using textContent, and returns it. Don't use innerHTML.",
+   "starter": "function makeItem(crop, kg) {\n  // create an li, set its text, return it\n  return null;\n}\n",
+   "tests": [
+    {
+     "call": "makeItem(\"maize\", 40).tagName",
+     "expect": "LI",
+     "name": "it's an li"
+    },
+    {
+     "call": "makeItem(\"maize\", 40).textContent",
+     "expect": "maize: 40 kg",
+     "name": "the text"
+    },
+    {
+     "call": "makeItem(\"<b>beans</b>\", 0).textContent",
+     "expect": "<b>beans</b>: 0 kg",
+     "name": "HTML in the data stays as text",
+     "hidden": true,
+     "hint_if_fail": "Use textContent so the characters are shown exactly."
+    },
+    {
+     "src_not": "innerHTML",
+     "why": "Use textContent for data, not innerHTML."
+    }
+   ],
+   "hints": [
+    "document.createElement(\"li\") makes the element.",
+    "li.textContent = `${crop}: ${kg} kg`; then return li;"
+   ],
+   "solution": "function makeItem(crop, kg) {\n  const li = document.createElement(\"li\");\n  li.textContent = `${crop}: ${kg} kg`;   // textContent: data is shown, never run\n  return li;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "A list from an array",
+   "file": "ex2_list.js",
+   "prompt": "Write buildList(harvests). harvests is an array like [{ crop: \"maize\", kg: 120 }, ...]. Return a new <ul> with one <li> per harvest, in order. Each li's text is \"CROP: KG kg\"; it gets the class \"big\" when kg is 100 or more; and li.dataset.crop is set to the crop name. An empty array gives an empty ul.",
+   "starter": "function buildList(harvests) {\n  const ul = document.createElement(\"ul\");\n  // one li per harvest\n  return ul;\n}\n",
+   "tests": [
+    {
+     "call": "buildList([{ crop: \"maize\", kg: 120 }, { crop: \"beans\", kg: 45 }]).children.length",
+     "expect": 2,
+     "name": "one li per harvest"
+    },
+    {
+     "call": "buildList([{ crop: \"maize\", kg: 120 }, { crop: \"beans\", kg: 45 }]).children[1].textContent",
+     "expect": "beans: 45 kg",
+     "name": "the text"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = buildList([{ crop: \"maize\", kg: 120 }, { crop: \"beans\", kg: 45 }, { crop: \"rice\", kg: 100 }]);\nif (!ul.children[0].classList.contains(\"big\")) throw new Error(\"120 kg should have the class big\");\nif (ul.children[1].classList.contains(\"big\")) throw new Error(\"45 kg should not have the class big\");\nif (!ul.children[2].classList.contains(\"big\")) throw new Error(\"exactly 100 kg should have the class big too\");\n})();",
+     "name": "big harvests are marked",
+     "hint_if_fail": "kg >= 100, and classList.add(\"big\")."
+    },
+    {
+     "call": "buildList([{ crop: \"maize\", kg: 120 }]).children[0].dataset.crop",
+     "expect": "maize",
+     "name": "dataset.crop"
+    },
+    {
+     "call": "(() => { const u = buildList([]); return [u.tagName, u.children.length]; })()",
+     "expect": [
+      "UL",
+      0
+     ],
+     "name": "an empty array",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "for (const h of harvests) { ... } and inside, make an li.",
+    "if (h.kg >= 100) li.classList.add(\"big\"); li.dataset.crop = h.crop;",
+    "Don't forget ul.appendChild(li) inside the loop."
+   ],
+   "solution": "function buildList(harvests) {\n  const ul = document.createElement(\"ul\");\n  for (const h of harvests) {\n    const li = document.createElement(\"li\");\n    li.textContent = `${h.crop}: ${h.kg} kg`;\n    if (h.kg >= 100) li.classList.add(\"big\");\n    li.dataset.crop = h.crop;\n    ul.appendChild(li);\n  }\n  return ul;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Patients on the page",
+   "file": "ex3_patients.js",
+   "prompt": "This script goes with a page that has <ul id=\"patients\"> and <p id=\"count\">. Write countText(n) returning \"0 patients\", \"1 patient\", \"2 patients\" and so on. Write showPatients(patients) that appends one <li> to #patients for each patient, with the text \"NAME (age AGE)\" and the class \"urgent\" if patient.urgent is true, then sets #count's text to countText(the number of patients). The last line already calls showPatients(PATIENTS).",
+   "starter": "var PATIENTS = [\n  { name: \"Amina\", age: 34, urgent: false },\n  { name: \"Otieno\", age: 71, urgent: true },\n  { name: \"Chebet\", age: 5, urgent: false },\n];\n\nfunction countText(n) {\n  return \"\";\n}\n\nfunction showPatients(patients) {\n  // add an li to #patients for each patient, then update #count\n}\n\nshowPatients(PATIENTS);\n",
+   "tests": [
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = document.getElementById(\"patients\");\nif (ul.children.length !== 3) throw new Error(\"#patients should have 3 li elements, it has \" + ul.children.length);\n__eq(ul.children[1].textContent, \"Otieno (age 71)\", \"the second patient\");\n})();",
+     "name": "three patients listed"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst ul = document.getElementById(\"patients\");\nif (!ul.children[1] || !ul.children[1].classList.contains(\"urgent\")) throw new Error(\"Otieno is urgent: his li needs the class urgent\");\nif (ul.children[0].classList.contains(\"urgent\")) throw new Error(\"Amina is not urgent\");\n})();",
+     "name": "urgent patients stand out"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\n__eq(document.getElementById(\"count\").textContent, \"3 patients\", \"#count\");\n})();",
+     "name": "the count"
+    },
+    {
+     "call": "[countText(0), countText(1), countText(12)]",
+     "expect": [
+      "0 patients",
+      "1 patient",
+      "12 patients"
+     ],
+     "name": "one patient, not one patients",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Find the list once: const list = document.getElementById(\"patients\");",
+    "In the loop: create the li, set textContent, add the class if p.urgent, appendChild.",
+    "countText: return n === 1 ? \"1 patient\" : `${n} patients`;"
+   ],
+   "solution": "var PATIENTS = [\n  { name: \"Amina\", age: 34, urgent: false },\n  { name: \"Otieno\", age: 71, urgent: true },\n  { name: \"Chebet\", age: 5, urgent: false },\n];\n\nfunction countText(n) {\n  return n === 1 ? \"1 patient\" : `${n} patients`;\n}\n\nfunction showPatients(patients) {\n  const list = document.getElementById(\"patients\");\n  for (const p of patients) {\n    const li = document.createElement(\"li\");\n    li.textContent = `${p.name} (age ${p.age})`;\n    if (p.urgent) li.classList.add(\"urgent\");\n    list.appendChild(li);\n  }\n  document.getElementById(\"count\").textContent = countText(patients.length);\n}\n\nshowPatients(PATIENTS);\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "A name typed into a form is <img src=x onerror=\"steal()\">. Which line shows it safely?",
+   "choices": [
+    "li.innerHTML = name",
+    "li.textContent = name",
+    "li.outerHTML = name",
+    "document.write(name)"
+   ],
+   "answer": 1,
+   "why": "textContent shows the characters; the others parse it as HTML and can run the code."
+  },
+  {
+   "q": "You create an li and set its textContent, but nothing appears on the page. Most likely?",
+   "choices": [
+    "textContent is broken",
+    "It was never appended with appendChild",
+    "li elements need a class",
+    "The browser needs a reload"
+   ],
+   "answer": 1,
+   "why": "A created element lives only in memory until you append it somewhere on the page."
+  },
+  {
+   "q": "Why is list.innerHTML += \"<li>...</li>\" inside a loop a poor habit?",
+   "choices": [
+    "It isn't allowed",
+    "It rebuilds the whole list every time, is slow, drops listeners and is unsafe with data",
+    "It only works once",
+    "It adds the items in reverse"
+   ],
+   "answer": 1,
+   "why": "Each += turns the list into text and rebuilds it from scratch."
+  },
+  {
+   "q": "After li.dataset.id = 7, the element has…",
+   "choices": [
+    "an id of 7",
+    "an attribute data-id=\"7\"",
+    "a class \"7\"",
+    "the text 7"
+   ],
+   "answer": 1,
+   "why": "dataset maps to data-* attributes (values are stored as text)."
+  },
+  {
+   "q": "Why write buildList(data) that RETURNS an element, rather than code that writes straight into one fixed list?",
+   "choices": [
+    "It's required by browsers",
+    "It can be tested on its own and reused for other data and other places",
+    "It runs faster",
+    "Returned elements can't have XSS"
+   ],
+   "answer": 1,
+   "why": "Functions that take data and return results are easy to test and reuse."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Make a new element?",
+   "a": "document.createElement(\"li\")"
+  },
+  {
+   "q": "Put it on the page?",
+   "a": "parent.appendChild(child)"
+  },
+  {
+   "q": "textContent vs innerHTML?",
+   "a": "textContent shows text exactly (safe for data); innerHTML parses HTML (only for your own markup)."
+  },
+  {
+   "q": "data-id=\"7\" in JavaScript?",
+   "a": "el.dataset.id (a string, \"7\")"
+  }
+ ],
+ "explain": "Explain why textContent is safer than innerHTML for showing a name someone typed, with an example name you make up."
+}

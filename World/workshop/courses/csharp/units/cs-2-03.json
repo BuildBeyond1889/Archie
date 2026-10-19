@@ -1,0 +1,238 @@
+{
+ "id": "cs-2-03",
+ "level": 2,
+ "title": "Inheritance and abstract classes",
+ "concepts": [
+  "inheritance",
+  "abstract-classes",
+  "design"
+ ],
+ "skills": [
+  "inheritance",
+  "override",
+  "composition"
+ ],
+ "lesson": "A goblin, a troll and a dragon are all enemies. They all have a name and health, can take damage and can die. Writing that code three times means fixing every bug three times. **Inheritance** lets them share it:\n\n```\npublic abstract class Enemy\n{\n    public string Name { get; }\n    public int Health { get; protected set; }\n\n    protected Enemy(string name, int health) { Name = name; Health = health; }\n\n    public virtual void TakeDamage(int amount) => Health = Math.Max(0, Health - amount);\n    public abstract int AttackDamage();\n}\n\npublic class Troll : Enemy\n{\n    public Troll(string name) : base(name, 80) { }\n    public override int AttackDamage() => 12;\n    public override void TakeDamage(int amount) => base.TakeDamage(amount / 2);  // thick skin\n}\n```\n\nThe words, one at a time:\n- `class Troll : Enemy` means a Troll **is an** Enemy. It gets everything Enemy has.\n- `: base(name, 80)` calls the parent's constructor, so the shared setup happens in one place.\n- `protected` means \"this class and its children only\". The Troll can set `Health`; outside code can't.\n- `virtual` means \"children may replace this\". `override` is the child replacing it. `base.TakeDamage(...)` calls the parent's version, so the Troll reuses the rule instead of copying it.\n- `abstract` on a method means \"every child must write this\". On a class it means \"you can't make a plain Enemy, only a kind of enemy\". That's right: there is no such thing as a generic enemy on screen.\n- `sealed` means \"nobody may inherit from this\": use it for a boss that's final.\n\n**The common mistake** is building deep family trees: `Enemy > FlyingEnemy > FireFlyingEnemy > ...`. Then you want a fire enemy that swims, and the tree breaks. A good test: use inheritance only for a real **is-a** relation, kept shallow. When it's really **has-a** (a player has health, a barrel has health), use **composition**: give each one a `Health` object instead of a shared parent.\n\nThat's exactly how Unity works. A GameObject *has* components (a Rigidbody, a Collider, your Health script) instead of inheriting from a giant base class. You'll still inherit (every script inherits `MonoBehaviour`), but you build behaviour by combining parts.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\npublic abstract class Enemy\n{\n    public string Name { get; }\n    public int Health { get; protected set; }\n    protected Enemy(string name, int health) { Name = name; Health = health; }\n    public virtual void TakeDamage(int amount) => Health = Math.Max(0, Health - amount);\n    public abstract int AttackDamage();\n    public virtual string Describe() => $\"{Name} ({Health} HP)\";\n}\n\npublic class Goblin : Enemy\n{\n    public Goblin(string name) : base(name, 30) { }\n    public override int AttackDamage() => 5;\n}\n\npublic sealed class Golem : Enemy\n{\n    public Golem() : base(\"Golem\", 120) { }\n    public override int AttackDamage() => 15;\n    public override void TakeDamage(int amount) => base.TakeDamage(Math.Max(0, amount - 10));   // stone skin\n    public override string Describe() => base.Describe() + \" [stone]\";\n}\n\nclass Program\n{\n    static void Main()\n    {\n        Enemy[] wave = { new Goblin(\"Snik\"), new Golem() };\n        foreach (Enemy e in wave)\n        {\n            e.TakeDamage(25);\n            Console.WriteLine($\"{e.Describe()} hits for {e.AttackDamage()}\");\n        }\n    }\n}\n",
+  "notes": [
+   "Enemy is abstract: you can't write new Enemy(...), only new Goblin(...).",
+   "Health has a protected setter: children may change it, outside code can't.",
+   ": base(name, 30) runs the parent constructor with the goblin's numbers.",
+   "Golem overrides TakeDamage but still calls base.TakeDamage, so the 'never below 0' rule stays in one place.",
+   "Golem is sealed: nothing can inherit from it."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "An enemy family",
+   "file": "Enemies.cs",
+   "prompt": "The abstract class Enemy is given. Write three kinds of enemy:\n- Goblin(string name): 30 HP, AttackDamage() returns 5.\n- Troll(string name): 80 HP, AttackDamage() returns 12. Override TakeDamage so a troll only takes half (amount / 2, whole numbers), by calling base.TakeDamage.\n- sealed class DragonBoss with a constructor that takes nothing: name \"Dragon\", 200 HP. AttackDamage() is 25, or 40 once Health is 100 or less. Describe() adds \" [BOSS]\" to the normal description.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic abstract class Enemy\n{\n    public string Name { get; }\n    public int Health { get; protected set; }\n\n    protected Enemy(string name, int health)\n    {\n        Name = name;\n        Health = health;\n    }\n\n    public bool IsDead => Health <= 0;\n\n    public virtual void TakeDamage(int amount)\n    {\n        Health = Math.Max(0, Health - amount);\n    }\n\n    public abstract int AttackDamage();\n\n    public virtual string Describe() => $\"{Name} ({Health} HP)\";\n}\n\n// Write Goblin, Troll and DragonBoss below.\n",
+   "tests": [
+    {
+     "call": "new Goblin(\"Snik\").Describe() + \" \" + new Goblin(\"Snik\").AttackDamage()",
+     "expect": "Snik (30 HP) 5",
+     "name": "goblin"
+    },
+    {
+     "call": "((Func<string>)(() => { var t = new Troll(\"Grum\"); t.TakeDamage(21); return t.Describe() + \" \" + t.AttackDamage(); }))()",
+     "expect": "Grum (70 HP) 12",
+     "name": "troll takes half"
+    },
+    {
+     "call": "((Func<string>)(() => { var d = new DragonBoss(); int a = d.AttackDamage(); d.TakeDamage(100); return a + \" \" + d.AttackDamage() + \" \" + d.Describe(); }))()",
+     "expect": "25 40 Dragon (100 HP) [BOSS]",
+     "name": "the dragon gets angry"
+    },
+    {
+     "call": "((Func<string>)(() => { Enemy e = new Troll(\"T\"); e.TakeDamage(1000); return e.Health + \" \" + e.IsDead; }))()",
+     "expect": "0 True",
+     "hidden": true,
+     "name": "override works through an Enemy variable"
+    },
+    {
+     "call": "typeof(DragonBoss).IsSealed.ToString()",
+     "expect": "True",
+     "hidden": true,
+     "name": "the boss is sealed"
+    },
+    {
+     "src_has": "base.TakeDamage",
+     "why": "The troll should reuse the parent's rule with base.TakeDamage(...)."
+    }
+   ],
+   "hints": [
+    "public class Goblin : Enemy { public Goblin(string name) : base(name, 30) { } public override int AttackDamage() => 5; }",
+    "Troll: public override void TakeDamage(int amount) => base.TakeDamage(amount / 2);",
+    "DragonBoss: public DragonBoss() : base(\"Dragon\", 200) { } and public override string Describe() => base.Describe() + \" [BOSS]\";"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic abstract class Enemy\n{\n    public string Name { get; }\n    public int Health { get; protected set; }\n\n    protected Enemy(string name, int health)\n    {\n        Name = name;\n        Health = health;\n    }\n\n    public bool IsDead => Health <= 0;\n\n    public virtual void TakeDamage(int amount)\n    {\n        Health = Math.Max(0, Health - amount);\n    }\n\n    public abstract int AttackDamage();\n\n    public virtual string Describe() => $\"{Name} ({Health} HP)\";\n}\n\npublic class Goblin : Enemy\n{\n    public Goblin(string name) : base(name, 30) { }\n\n    public override int AttackDamage() => 5;\n}\n\npublic class Troll : Enemy\n{\n    public Troll(string name) : base(name, 80) { }\n\n    public override int AttackDamage() => 12;\n\n    // Thick skin: half damage, but the \"never below 0\" rule still lives in the base class.\n    public override void TakeDamage(int amount) => base.TakeDamage(amount / 2);\n}\n\npublic sealed class DragonBoss : Enemy\n{\n    public DragonBoss() : base(\"Dragon\", 200) { }\n\n    public override int AttackDamage() => Health <= 100 ? 40 : 25;\n\n    public override string Describe() => base.Describe() + \" [BOSS]\";\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Tower defence turrets",
+   "file": "Turrets.cs",
+   "prompt": "Write the whole family yourself:\n- abstract class Turret: Name (get only), Level (get; private set; starts at 1), a protected constructor Turret(string name),\n  an abstract int Damage { get; }, a virtual int UpgradeCost => Level * 100, void Upgrade() that adds 1 to Level but throws InvalidOperationException if Level is already 5,\n  and ToString() like \"Arrow L1: 5 dmg\".\n- ArrowTurret(): name \"Arrow\", Damage is 5 * Level.\n- CannonTurret(): name \"Cannon\", Damage is 20 + 10 * (Level - 1), and it overrides UpgradeCost to Level * 150.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\n// Write the abstract class Turret, then ArrowTurret and CannonTurret.\n",
+   "tests": [
+    {
+     "call": "new ArrowTurret().ToString()",
+     "expect": "Arrow L1: 5 dmg",
+     "name": "arrow turret"
+    },
+    {
+     "call": "((Func<string>)(() => { var c = new CannonTurret(); int cost = c.UpgradeCost; c.Upgrade(); return cost + \" \" + c + \" \" + c.UpgradeCost; }))()",
+     "expect": "150 Cannon L2: 30 dmg 300",
+     "name": "cannon upgrade"
+    },
+    {
+     "call": "((Func<string>)(() => { Turret t = new ArrowTurret(); t.Upgrade(); t.Upgrade(); return t.Damage + \" \" + t.UpgradeCost; }))()",
+     "expect": "15 300",
+     "name": "through a Turret variable"
+    },
+    {
+     "call": "((Func<string>)(() => { var t = new ArrowTurret(); for (int i = 0; i < 5; i++) t.Upgrade(); return \"no error\"; }))()",
+     "expect": "!ERR InvalidOperationException",
+     "hidden": true,
+     "name": "level 5 is the max"
+    },
+    {
+     "call": "typeof(Turret).IsAbstract.ToString()",
+     "expect": "True",
+     "hidden": true,
+     "name": "Turret is abstract"
+    },
+    {
+     "src_has": ": base(",
+     "why": "The turrets should call the parent constructor with : base(\"Arrow\")."
+    }
+   ],
+   "hints": [
+    "public abstract class Turret { protected Turret(string name) { Name = name; } public abstract int Damage { get; } ... }",
+    "public virtual int UpgradeCost => Level * 100; and in CannonTurret: public override int UpgradeCost => Level * 150;",
+    "public ArrowTurret() : base(\"Arrow\") { } public override int Damage => 5 * Level;"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic abstract class Turret\n{\n    public string Name { get; }\n    public int Level { get; private set; } = 1;\n\n    protected Turret(string name)\n    {\n        Name = name;\n    }\n\n    // Every turret must say how hard it hits.\n    public abstract int Damage { get; }\n\n    // Most turrets cost this much; a child may change it.\n    public virtual int UpgradeCost => Level * 100;\n\n    public void Upgrade()\n    {\n        if (Level >= 5) throw new InvalidOperationException(\"Already at the top level.\");\n        Level++;\n    }\n\n    public override string ToString() => $\"{Name} L{Level}: {Damage} dmg\";\n}\n\npublic class ArrowTurret : Turret\n{\n    public ArrowTurret() : base(\"Arrow\") { }\n\n    public override int Damage => 5 * Level;\n}\n\npublic class CannonTurret : Turret\n{\n    public CannonTurret() : base(\"Cannon\") { }\n\n    public override int Damage => 20 + 10 * (Level - 1);\n\n    public override int UpgradeCost => Level * 150;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Composition: a Health component",
+   "file": "Components.cs",
+   "prompt": "Instead of a shared parent, give things a Health component.\n- Finish class Health: Max and Current (Current starts at Max; constructor throws ArgumentOutOfRangeException if max is 0 or less),\n  IsEmpty (true at 0), Damage(int amount) (never below 0; negative amounts do nothing), Heal(int amount) (never above Max; negative amounts do nothing).\n- class Player: constructor Player(string name, int maxHealth), Name, and a get-only property Health of type Health.\n- class Barrel: a get-only Health property with Max 20, and a bool Explodes that is true when its health is empty.\nPlayer and Barrel must NOT inherit from Health.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Health\n{\n    public int Max { get; }\n    public int Current { get; private set; }\n\n    public Health(int max)\n    {\n        Max = max;\n        Current = max;\n    }\n\n    public bool IsEmpty => false;\n\n    public void Damage(int amount) { }\n\n    public void Heal(int amount) { }\n}\n\n// Player and Barrel go here: each one HAS a Health.\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var p = new Player(\"Amina\", 100); p.Health.Damage(30); p.Health.Heal(10); return p.Name + \" \" + p.Health.Current + \"/\" + p.Health.Max; }))()",
+     "expect": "Amina 80/100",
+     "name": "a player has health"
+    },
+    {
+     "call": "((Func<string>)(() => { var b = new Barrel(); b.Health.Damage(25); return b.Health.Current + \" \" + b.Explodes; }))()",
+     "expect": "0 True",
+     "name": "a barrel has health too"
+    },
+    {
+     "call": "((Func<string>)(() => { var h = new Health(50); h.Damage(-10); h.Heal(500); return h.Current.ToString(); }))()",
+     "expect": "50",
+     "hidden": true,
+     "name": "negative damage and over-healing"
+    },
+    {
+     "call": "new Health(0).Max",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "zero max is refused"
+    },
+    {
+     "src_not": ":Health",
+     "why": "Player and Barrel should HAVE a Health, not inherit from it."
+    }
+   ],
+   "hints": [
+    "Health.Damage: Current = Math.Max(0, Current - Math.Max(0, amount));",
+    "public class Player { public string Name { get; } public Health Health { get; } public Player(string name, int maxHealth) { Name = name; Health = new Health(maxHealth); } }",
+    "public class Barrel { public Health Health { get; } = new Health(20); public bool Explodes => Health.IsEmpty; }"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\n// One small part that does one job well, reused by anything that needs it.\npublic class Health\n{\n    public int Max { get; }\n    public int Current { get; private set; }\n\n    public Health(int max)\n    {\n        if (max <= 0) throw new ArgumentOutOfRangeException(nameof(max));\n        Max = max;\n        Current = max;\n    }\n\n    public bool IsEmpty => Current == 0;\n\n    public void Damage(int amount) => Current = Math.Max(0, Current - Math.Max(0, amount));\n\n    public void Heal(int amount) => Current = Math.Min(Max, Current + Math.Max(0, amount));\n}\n\npublic class Player\n{\n    public string Name { get; }\n    public Health Health { get; }   // has-a, not is-a\n\n    public Player(string name, int maxHealth)\n    {\n        Name = name;\n        Health = new Health(maxHealth);\n    }\n}\n\npublic class Barrel\n{\n    public Health Health { get; } = new Health(20);\n\n    public bool Explodes => Health.IsEmpty;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does `abstract` on a class mean?",
+   "choices": [
+    "It runs faster",
+    "You can't create it directly, only its children",
+    "It has no methods",
+    "It can't have a constructor"
+   ],
+   "answer": 1,
+   "why": "Abstract classes are made to be inherited."
+  },
+  {
+   "q": "A Troll overrides TakeDamage. Why call base.TakeDamage(amount / 2) instead of writing the subtraction again?",
+   "choices": [
+    "It's required",
+    "The shared rule (never below 0) stays in one place",
+    "To make it slower",
+    "base is faster"
+   ],
+   "answer": 1,
+   "why": "Reuse, don't copy."
+  },
+  {
+   "q": "Which word lets child classes change Health but hides it from everyone else?",
+   "choices": [
+    "public",
+    "private",
+    "protected",
+    "sealed"
+   ],
+   "answer": 2,
+   "why": "protected = this class and its children."
+  },
+  {
+   "q": "Players and barrels both need health. Best design?",
+   "choices": [
+    "Barrel inherits from Player",
+    "Both inherit from a Health class",
+    "Each has a Health object (composition)",
+    "Copy the code"
+   ],
+   "answer": 2,
+   "why": "It's has-a, not is-a."
+  },
+  {
+   "q": "Enemy e = new Troll(\"T\"); e.TakeDamage(10); Which TakeDamage runs?",
+   "choices": [
+    "Enemy's",
+    "Troll's override",
+    "Both",
+    "Neither"
+   ],
+   "answer": 1,
+   "why": "The real object's override runs, whatever the variable's type."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Call the parent constructor?",
+   "a": "public Troll(string n) : base(n, 80) { }"
+  },
+  {
+   "q": "virtual vs abstract method?",
+   "a": "virtual has a body children may replace; abstract has none and children must write it"
+  },
+  {
+   "q": "Stop anyone inheriting?",
+   "a": "sealed class DragonBoss"
+  },
+  {
+   "q": "Inheritance or composition?",
+   "a": "is-a (kept shallow): inherit. has-a: composition"
+  }
+ ],
+ "explain": "Explain when you'd use inheritance and when you'd use composition, with an example from a game you'd like to make."
+}

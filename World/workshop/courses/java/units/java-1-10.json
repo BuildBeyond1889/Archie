@@ -1,0 +1,143 @@
+{
+ "id": "java-1-10",
+ "level": 1,
+ "title": "Exceptions",
+ "concepts": [
+  "errors"
+ ],
+ "skills": [
+  "errors",
+  "exceptions",
+  "debugging"
+ ],
+ "bridge": "Java calls errors **exceptions** and handles them with `try { ... } catch (NumberFormatException e) { ... }`. Some exceptions are **checked**: the compiler makes you handle or declare them (`throws IOException`), mostly for files and networks. Throw your own with `throw new IllegalArgumentException(\"bad kg\");`.",
+ "lesson": "When something goes wrong at run time, Java **throws an exception**, and unless something catches it, the program stops and prints a **stack trace**: the exception's name and message first, then the lines it passed through, most recent first. Read the first line (what) and the first line that mentions *your* file (where).\n\nCommon ones: `NullPointerException` (using something that is `null`), `ArrayIndexOutOfBoundsException`, `NumberFormatException` (`Integer.parseInt(\"abc\")`), `ArithmeticException` (dividing an int by zero), `IllegalArgumentException`.\n\nHandling the ones you expect:\n\n```\ntry {\n    int age = Integer.parseInt(text);\n} catch (NumberFormatException e) {\n    System.out.println(\"Please type a number\");\n}\n```\n\nCatch the specific exception, never a blanket `catch (Exception e)` that hides real bugs. `finally { ... }` runs whether or not there was an exception (cleaning up).\n\n**Throwing** your own when a method gets bad input is good design: `if (kg <= 0) throw new IllegalArgumentException(\"kg must be positive\");`. The caller learns immediately instead of getting a wrong answer later.\n\n**Checked exceptions** (like `IOException` from files) must be caught or declared with `throws` in the method header; the compiler insists. Unchecked ones (the list above) don't need that.",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    static Integer safeInt(String text) {\n        try {\n            return Integer.parseInt(text.trim());\n        } catch (NumberFormatException e) {\n            return null;\n        }\n    }\n\n    static double perKg(double total, double kg) {\n        if (kg <= 0) throw new IllegalArgumentException(\"kg must be positive\");\n        return total / kg;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(safeInt(\" 42 \") + \" \" + safeInt(\"abc\"));\n        try {\n            perKg(100, 0);\n        } catch (IllegalArgumentException e) {\n            System.out.println(\"Problem: \" + e.getMessage());\n        }\n    }\n}\n",
+  "notes": [
+   "Catch the one exception you expect.",
+   "Throw when the input is bad.",
+   "The caller catches it and shows the message."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Safe number",
+   "file": "SafeNum.java",
+   "prompt": "Write toNumber(String text) returning a Double: the number if the text is one (\"2.5\", \"2,5\" and \" 7 \" all work), or null if not. Use try/catch.",
+   "starter": "public class SafeNum {\n    public static Double toNumber(String text) {\n        return null;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "SafeNum.toNumber(\"42\")",
+     "expect": "42.0"
+    },
+    {
+     "call": "SafeNum.toNumber(\"2,5\")",
+     "expect": "2.5"
+    },
+    {
+     "call": "SafeNum.toNumber(\"abc\")",
+     "expect": "null"
+    },
+    {
+     "call": "SafeNum.toNumber(\" 7 \")",
+     "expect": "7.0",
+     "hidden": true
+    },
+    {
+     "src_has": "catch",
+     "why": "Use try/catch."
+    }
+   ],
+   "hints": [
+    "Double.parseDouble(text.trim().replace(\",\", \".\"))",
+    "catch (NumberFormatException e) { return null; }"
+   ],
+   "solution": "public class SafeNum {\n    public static Double toNumber(String text) {\n        try {\n            return Double.parseDouble(text.trim().replace(\",\", \".\"));\n        } catch (NumberFormatException e) {\n            return null;\n        }\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Refuse bad input",
+   "file": "Record.java",
+   "prompt": "Write pricePerKg(double total, double kg): total / kg rounded to 2 decimals. If kg is 0 or less, or total is negative, throw an IllegalArgumentException.",
+   "starter": "public class Record {\n    public static double pricePerKg(double total, double kg) {\n        return total / kg;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Record.pricePerKg(100, 8)",
+     "expect": "12.5"
+    },
+    {
+     "call": "Record.pricePerKg(10, 3)",
+     "expect": "3.33"
+    },
+    {
+     "call": "Record.pricePerKg(100, 0)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hint_if_fail": "kg 0 should throw new IllegalArgumentException(\"...\") (with no message, or the test shows yours)."
+    },
+    {
+     "call": "Record.pricePerKg(-5, 2)",
+     "expect": "!ERR java.lang.IllegalArgumentException",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "if (kg <= 0 || total < 0) throw new IllegalArgumentException();",
+    "return Math.round(total / kg * 100) / 100.0;"
+   ],
+   "solution": "public class Record {\n    public static double pricePerKg(double total, double kg) {\n        if (kg <= 0 || total < 0) throw new IllegalArgumentException();\n        return Math.round(total / kg * 100) / 100.0;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Integer.parseInt(\"3.5\") throws…",
+   "choices": [
+    "ArithmeticException",
+    "NumberFormatException",
+    "NullPointerException",
+    "nothing"
+   ],
+   "answer": 1,
+   "why": "It's not a valid whole number."
+  },
+  {
+   "q": "Where do you look first in a stack trace?",
+   "choices": [
+    "The last line",
+    "The first line (what), then the first line in your own file (where)",
+    "The middle",
+    "Nowhere"
+   ],
+   "answer": 1,
+   "why": "Most recent first."
+  },
+  {
+   "q": "What must you do with a checked exception like IOException?",
+   "choices": [
+    "Nothing",
+    "Catch it or declare throws",
+    "Restart Java",
+    "Use =="
+   ],
+   "answer": 1,
+   "why": "The compiler insists."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Handle a bad number in Java?",
+   "a": "try { Integer.parseInt(t); } catch (NumberFormatException e) { }"
+  },
+  {
+   "q": "Reject bad arguments?",
+   "a": "throw new IllegalArgumentException(\"why\");"
+  },
+  {
+   "q": "Checked vs unchecked?",
+   "a": "Checked (IOException) must be caught or declared; unchecked don't."
+  }
+ ],
+ "explain": "Explain exceptions to someone who has never programmed, in your own words, with an example you make up."
+}

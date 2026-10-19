@@ -1,0 +1,113 @@
+{
+ "id": "cs-1-12",
+ "level": 1,
+ "title": "Level 1 project: a game inventory",
+ "concepts": [
+  "classes",
+  "lists",
+  "maps"
+ ],
+ "skills": [
+  "design",
+  "classes",
+  "collections"
+ ],
+ "project": true,
+ "lesson": "A real piece of a game: the **inventory**, written as a plain C# class you could drop into a Unity project as-is.\n\nMake `public class Inventory` with:\n1. A constructor `Inventory(int maxSlots)`: how many different items fit.\n2. `bool Add(string item, int count)`: adds `count` of an item (names are case-insensitive: \"Arrow\" and \"arrow\" are the same, stored lowercase). Adding a NEW item when all slots are used fails and returns false; adding more of an item you already have always works. Count must be at least 1 (else `ArgumentOutOfRangeException`).\n3. `int Take(string item, int count)`: removes up to `count`, frees the slot at 0, returns how many were taken.\n4. `int CountOf(string item)` and the property `int SlotsUsed`.\n5. `override string ToString()`: items alphabetically as `arrow x15, potion x2`, or `(empty)`.\n\nPlan the field first (a `Dictionary<string, int>` works), then each method, checking as you go.\n\nNext: **Level 2** (interfaces, inheritance, events, generics, unit testing) — and if you want, a Unity track where these classes become MonoBehaviours.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\nclass Program\n{\n    static void Main()\n    {\n        var d = new Dictionary<string, int> { [\"potion\"] = 2, [\"arrow\"] = 15 };\n        Console.WriteLine(string.Join(\", \", d.OrderBy(kv => kv.Key).Select(kv => $\"{kv.Key} x{kv.Value}\")));\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "The inventory",
+   "file": "Inventory.cs",
+   "prompt": "Build Inventory as described in the lesson. All the tests must pass.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Inventory\n{\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var i = new Inventory(3); i.Add(\"Arrow\", 10); i.Add(\"arrow\", 5); i.Add(\"Potion\", 2); return i.ToString() + \" | \" + i.SlotsUsed; }))()",
+     "expect": "arrow x15, potion x2 | 2",
+     "name": "add and print"
+    },
+    {
+     "call": "((Func<string>)(() => { var i = new Inventory(1); bool a = i.Add(\"sword\", 1); bool b = i.Add(\"shield\", 1); bool c = i.Add(\"Sword\", 1); return a + \" \" + b + \" \" + c + \" \" + i.CountOf(\"SWORD\"); }))()",
+     "expect": "True False True 2",
+     "name": "slots are limited"
+    },
+    {
+     "call": "((Func<string>)(() => { var i = new Inventory(2); i.Add(\"potion\", 2); int t = i.Take(\"potion\", 5); return t + \" \" + i.SlotsUsed + \" \" + i; }))()",
+     "expect": "2 0 (empty)",
+     "name": "take frees the slot"
+    },
+    {
+     "call": "((Func<int>)(() => new Inventory(2).Take(\"ghost\", 1)))()",
+     "expect": "0",
+     "hidden": true
+    },
+    {
+     "call": "((Func<bool>)(() => new Inventory(2).Add(\"x\", 0)))()",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Fields: private readonly Dictionary<string, int> items = new(); private readonly int maxSlots;",
+    "Add: key = item.ToLowerInvariant(); if (!items.ContainsKey(key) && items.Count >= maxSlots) return false;",
+    "ToString: items.Count == 0 ? \"(empty)\" : string.Join(\", \", items.OrderBy(kv => kv.Key).Select(kv => $\"{kv.Key} x{kv.Value}\"))"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Inventory\n{\n    private readonly Dictionary<string, int> items = new();\n    private readonly int maxSlots;\n\n    public Inventory(int maxSlots) { this.maxSlots = maxSlots; }\n\n    public int SlotsUsed => items.Count;\n\n    public bool Add(string item, int count)\n    {\n        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));\n        string key = item.Trim().ToLowerInvariant();\n        if (!items.ContainsKey(key) && items.Count >= maxSlots) return false;\n        items[key] = items.GetValueOrDefault(key) + count;\n        return true;\n    }\n\n    public int Take(string item, int count)\n    {\n        string key = item.Trim().ToLowerInvariant();\n        int have = items.GetValueOrDefault(key);\n        int t = Math.Min(have, count);\n        if (have - t <= 0) items.Remove(key); else items[key] = have - t;\n        return t;\n    }\n\n    public int CountOf(string item) => items.GetValueOrDefault(item.Trim().ToLowerInvariant());\n\n    public override string ToString() => items.Count == 0 ? \"(empty)\" : string.Join(\", \", items.OrderBy(kv => kv.Key).Select(kv => $\"{kv.Key} x{kv.Value}\"));\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why store names lowercase?",
+   "choices": [
+    "Saves memory",
+    "So 'Arrow' and 'arrow' are the same item",
+    "C# requires it",
+    "Speed"
+   ],
+   "answer": 1,
+   "why": "One rule in one place."
+  },
+  {
+   "q": "Where should 'count must be at least 1' be checked?",
+   "choices": [
+    "In ToString",
+    "At the start of Add",
+    "Nowhere",
+    "In Main"
+   ],
+   "answer": 1,
+   "why": "Guard the door."
+  },
+  {
+   "q": "Could this class go into Unity as-is?",
+   "choices": [
+    "No",
+    "Yes: it's plain C# with no console code",
+    "Only with changes to every line",
+    "Only in Unreal"
+   ],
+   "answer": 1,
+   "why": "Logic separate from display."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Sort dictionary entries by key?",
+   "a": "dict.OrderBy(kv => kv.Key)"
+  },
+  {
+   "q": "Case-insensitive key?",
+   "a": "Store key.ToLowerInvariant()"
+  },
+  {
+   "q": "Property from a field?",
+   "a": "public int SlotsUsed => items.Count;"
+  }
+ ],
+ "explain": "Explain level 1 project: a game inventory to someone who has never programmed, in your own words, with an example you make up."
+}

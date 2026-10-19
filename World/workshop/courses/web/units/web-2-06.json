@@ -1,0 +1,233 @@
+{
+ "id": "web-2-06",
+ "level": 2,
+ "title": "Saving in the browser",
+ "concepts": [
+  "storage",
+  "json",
+  "exceptions"
+ ],
+ "skills": [
+  "localStorage",
+  "json",
+  "recovery"
+ ],
+ "lesson": "Close the tab and your to-do list is gone: every variable lives only while the page is open. For a small offline app you don't need a server to remember things. The browser gives every site a little notebook called **localStorage**.\n\n```\nlocalStorage.setItem(\"water.buckets\", \"12\");   // save\nlocalStorage.getItem(\"water.buckets\");         // \"12\" (or null if never saved)\nlocalStorage.removeItem(\"water.buckets\");      // forget\n```\n\nIt survives closing the tab, closing the browser and restarting the computer. Two facts shape everything else:\n- It stores **text only**. Save an array directly and you get the useless text `\"[object Object]\"`.\n- `getItem` gives **null** for a key that was never saved.\n\n**JSON turns data into text and back.**\n\n```\nlocalStorage.setItem(\"farm.todos\", JSON.stringify(todos));    // array to text\nconst todos = JSON.parse(localStorage.getItem(\"farm.todos\")); // text to array\n```\n\n**Load on start, save on every change.** The pattern for an app with state: when the page opens, load the state (or a sensible default); every time the state changes, save it. A good place is right next to `render()`: change state, save, render.\n\n**Expect broken data.** Saved data can be missing (first visit, or the person cleared their browser), broken (an old version of your app saved a different shape, or someone edited it by hand), or simply not what you expect. `JSON.parse` *throws* on broken text and would stop your whole app on load, leaving a blank page. So loading is defensive:\n\n```\nfunction loadTodos() {\n  try {\n    const data = JSON.parse(localStorage.getItem(\"farm.todos\"));\n    return Array.isArray(data) ? data : [];\n  } catch (err) {\n    return [];          // broken text: start fresh instead of crashing\n  }\n}\n```\n\n`JSON.parse(null)` gives `null`, which isn't an array, so a missing key also falls back to `[]`. For important data you can go further: keep only items that look right (`typeof item.name === \"string\"`).\n\n**Good habits.**\n- Name keys with your app in them (`\"chama.payments\"`), so two apps on the same site don't overwrite each other. Adding a version (`\"chama.v1\"`) helps when the shape changes later.\n- Return a *copy* of defaults (`{ ...DEFAULTS }`), not the defaults object itself, so changing settings can't change the defaults.\n- Know the limits: about 5 MB per site, only on this browser on this computer, and visible to anyone using it. Fine for a game's high score or a group's records on a shared clinic laptop; not a place for passwords. Games use exactly this for save slots and settings.",
+ "example": {
+  "file": "example.js",
+  "code": "const KEY = \"game.save.v1\";\nconst NEW_GAME = { level: 1, gold: 0, inventory: [] };\n\nfunction saveGame(state) {\n  localStorage.setItem(KEY, JSON.stringify(state));     // objects must become text\n}\n\nfunction loadGame() {\n  try {\n    const data = JSON.parse(localStorage.getItem(KEY));  // null if never saved\n    if (data === null || typeof data !== \"object\") return { ...NEW_GAME };\n    return { ...NEW_GAME, ...data };                     // fill in anything missing\n  } catch (err) {\n    console.warn(\"Save was broken; starting a new game.\");\n    return { ...NEW_GAME };\n  }\n}\n\nlet game = loadGame();          // load on start\ngame.gold += 50;\nsaveGame(game);                 // save on every change\n",
+  "notes": [
+   "One key, named after the app, with a version.",
+   "JSON.stringify before saving, because localStorage holds only text.",
+   "try/catch around JSON.parse: a broken save starts a new game instead of crashing.",
+   "{ ...NEW_GAME, ...data } fills in fields an older save didn't have, and returns a fresh copy."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Save and load settings",
+   "file": "ex1_settings.js",
+   "prompt": "Keep var DEFAULTS = { theme: \"light\", fontSize: 16 }. Write saveSettings(settings), which stores the object as JSON under the key \"archie.settings\". Write loadSettings(), which returns the saved settings on top of the defaults (a saved { theme: \"dark\" } gives { theme: \"dark\", fontSize: 16 }). If nothing is saved, or the saved text is broken, return a COPY of DEFAULTS.",
+   "starter": "var DEFAULTS = { theme: \"light\", fontSize: 16 };\n\nfunction saveSettings(settings) {\n}\n\nfunction loadSettings() {\n  return DEFAULTS;\n}\n",
+   "tests": [
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nsaveSettings({ theme: \"dark\", fontSize: 20 });\nconst raw = localStorage.getItem(\"archie.settings\");\nif (raw === null) throw new Error(\"nothing was saved under archie.settings\");\n__eq(JSON.parse(raw), { theme: \"dark\", fontSize: 20 }, \"the saved JSON\");\n})();",
+     "name": "saves as JSON",
+     "hint_if_fail": "localStorage.setItem(\"archie.settings\", JSON.stringify(settings))"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nsaveSettings({ theme: \"dark\", fontSize: 20 });\n__eq(loadSettings(), { theme: \"dark\", fontSize: 20 }, \"loadSettings()\");\n})();",
+     "name": "loads what was saved"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.removeItem(\"archie.settings\");\n__eq(loadSettings(), { theme: \"light\", fontSize: 16 }, \"loadSettings() with nothing saved\");\n})();",
+     "name": "nothing saved yet"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.setItem(\"archie.settings\", JSON.stringify({ theme: \"dark\" }));\n__eq(loadSettings(), { theme: \"dark\", fontSize: 16 }, \"a save with only theme\");\n})();",
+     "name": "fills in missing settings",
+     "hidden": true,
+     "hint_if_fail": "return { ...DEFAULTS, ...saved };"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.setItem(\"archie.settings\", \"{oops\");\n__eq(loadSettings(), { theme: \"light\", fontSize: 16 }, \"broken saved text\");\n})();",
+     "name": "broken data",
+     "hidden": true,
+     "hint_if_fail": "Wrap JSON.parse in try/catch."
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.clear();\nconst s = loadSettings();\ns.theme = \"neon\";\n__eq(loadSettings().theme, \"light\", \"changing the returned object must not change the defaults\");\n})();",
+     "name": "defaults are protected",
+     "hidden": true,
+     "hint_if_fail": "Return { ...DEFAULTS }, a copy."
+    }
+   ],
+   "hints": [
+    "saveSettings: localStorage.setItem(\"archie.settings\", JSON.stringify(settings));",
+    "loadSettings: const raw = localStorage.getItem(\"archie.settings\"); if (raw === null) return { ...DEFAULTS };",
+    "try { return { ...DEFAULTS, ...JSON.parse(raw) }; } catch (err) { return { ...DEFAULTS }; }"
+   ],
+   "solution": "var DEFAULTS = { theme: \"light\", fontSize: 16 };\n\nfunction saveSettings(settings) {\n  localStorage.setItem(\"archie.settings\", JSON.stringify(settings));\n}\n\nfunction loadSettings() {\n  const raw = localStorage.getItem(\"archie.settings\");\n  if (raw === null) return { ...DEFAULTS };        // a copy, so callers can't change DEFAULTS\n  try {\n    return { ...DEFAULTS, ...JSON.parse(raw) };     // saved values win; missing ones come from DEFAULTS\n  } catch (err) {\n    return { ...DEFAULTS };                       // broken text: fall back instead of crashing\n  }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Broken data doesn't crash",
+   "file": "ex2_stock.js",
+   "prompt": "The clinic's stock is an array like [{ name: \"ORS\", qty: 30 }] saved under the key \"clinic.stock\". The starter has two classic bugs. Fix saveStock(stock) so it saves JSON. Fix loadStock() so it never crashes: it returns [] if nothing is saved, if the text is broken, or if the saved value isn't an array; and it keeps only items that are objects with a text name and a number qty (anything else is dropped).",
+   "starter": "function saveStock(stock) {\n  localStorage.setItem(\"clinic.stock\", stock);\n}\n\nfunction loadStock() {\n  return JSON.parse(localStorage.getItem(\"clinic.stock\"));\n}\n",
+   "tests": [
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nsaveStock([{ name: \"ORS\", qty: 30 }]);\n__eq(localStorage.getItem(\"clinic.stock\"), '[{\"name\":\"ORS\",\"qty\":30}]', \"the saved text\");\n__eq(loadStock(), [{ name: \"ORS\", qty: 30 }], \"loadStock() after saving\");\n})();",
+     "name": "save and load",
+     "hint_if_fail": "Saving an array directly stores \"[object Object]\". Use JSON.stringify."
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.setItem(\"clinic.stock\", \"not json{\");\n__eq(loadStock(), [], \"loadStock() with broken text\");\n})();",
+     "name": "broken text gives []",
+     "hint_if_fail": "try { ... } catch (err) { return []; }"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.setItem(\"clinic.stock\", '{\"name\":\"ORS\"}');\n__eq(loadStock(), [], \"an object instead of an array\");\n})();",
+     "name": "not an array gives []"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.removeItem(\"clinic.stock\");\n__eq(loadStock(), [], \"nothing saved\");\n})();",
+     "name": "nothing saved gives []",
+     "hidden": true,
+     "hint_if_fail": "JSON.parse(null) is null, which is not an array."
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.setItem(\"clinic.stock\", '[{\"name\":\"ORS\",\"qty\":30},null,{\"name\":\"Zinc\"},{\"name\":5,\"qty\":2},\"gloves\",{\"name\":\"Gloves\",\"qty\":100}]');\n__eq(loadStock(), [{ name: \"ORS\", qty: 30 }, { name: \"Gloves\", qty: 100 }], \"only good items\");\n})();",
+     "name": "bad items are dropped",
+     "hidden": true,
+     "hint_if_fail": "filter((item) => item !== null && typeof item === \"object\" && typeof item.name === \"string\" && Number.isFinite(item.qty))"
+    }
+   ],
+   "hints": [
+    "saveStock: JSON.stringify(stock) before setItem.",
+    "loadStock: let data; try { data = JSON.parse(...); } catch (err) { return []; } if (!Array.isArray(data)) return [];",
+    "Then return data.filter(...) keeping items with typeof item.name === \"string\" and Number.isFinite(item.qty). Check item !== null first (typeof null is \"object\")."
+   ],
+   "solution": "function saveStock(stock) {\n  localStorage.setItem(\"clinic.stock\", JSON.stringify(stock));\n}\n\nfunction isGoodItem(item) {\n  // typeof null is \"object\", so rule null out first\n  return item !== null && typeof item === \"object\" && typeof item.name === \"string\" && Number.isFinite(item.qty);\n}\n\nfunction loadStock() {\n  let data;\n  try {\n    data = JSON.parse(localStorage.getItem(\"clinic.stock\"));   // JSON.parse(null) is null\n  } catch (err) {\n    return [];\n  }\n  if (!Array.isArray(data)) return [];\n  return data.filter(isGoodItem);\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "A counter that remembers",
+   "file": "ex3_water.js",
+   "prompt": "Wanjiru logs buckets of water carried to the seedlings (20 litres each). The page has <button id=\"add-bucket\">, <button id=\"reset\"> and <p id=\"total\">. Write loadCount(): the number saved under \"water.buckets\", or 0 if it's missing, not a whole number, or negative. Write saveCount(n) to store it. Write totalText(n): \"1 bucket (20 L)\", \"3 buckets (60 L)\". Keep var buckets = loadCount() (so the count survives a restart) and show totalText(buckets) in #total at the start. Clicking add-bucket adds 1, saves and shows it; reset sets 0, saves and shows it.",
+   "starter": "function loadCount() {\n  return 0;\n}\n\nfunction saveCount(n) {\n}\n\nfunction totalText(n) {\n  return \"\";\n}\n\nvar buckets = loadCount();\n\n// show the total now, and wire up #add-bucket and #reset\n",
+   "tests": [
+    {
+     "call": "[totalText(1), totalText(3), totalText(0)]",
+     "expect": [
+      "1 bucket (20 L)",
+      "3 buckets (60 L)",
+      "0 buckets (0 L)"
+     ],
+     "name": "totalText()"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst add = document.getElementById(\"add-bucket\");\nadd.click(); add.click();\n__eq(localStorage.getItem(\"water.buckets\"), \"2\", \"the saved count after two clicks\");\n__eq(document.getElementById(\"total\").textContent, \"2 buckets (40 L)\", \"#total\");\n})();",
+     "name": "each bucket is saved"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\ndocument.getElementById(\"reset\").click();\n__eq(localStorage.getItem(\"water.buckets\"), \"0\", \"the saved count after reset\");\n__eq(document.getElementById(\"total\").textContent, \"0 buckets (0 L)\", \"#total\");\n})();",
+     "name": "reset"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nlocalStorage.setItem(\"water.buckets\", \"7\");\n__eq(loadCount(), 7, \"loadCount() with 7 saved\");\n})();",
+     "name": "loads a saved count"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst out = [];\nfor (const v of [\"-3\", \"abc\", \"2.5\"]) { localStorage.setItem(\"water.buckets\", v); out.push(loadCount()); }\nlocalStorage.removeItem(\"water.buckets\"); out.push(loadCount());\n__eq(out, [0, 0, 0, 0], \"loadCount() for -3, abc, 2.5 and nothing saved\");\n})();",
+     "name": "bad saved values give 0",
+     "hidden": true,
+     "hint_if_fail": "Number.isInteger(n) && n >= 0 ? n : 0"
+    }
+   ],
+   "hints": [
+    "loadCount: const n = Number(localStorage.getItem(\"water.buckets\")); return Number.isInteger(n) && n >= 0 ? n : 0;",
+    "saveCount: localStorage.setItem(\"water.buckets\", String(n));",
+    "add-bucket: buckets++; saveCount(buckets); show(); where show() sets #total to totalText(buckets)."
+   ],
+   "solution": "var KEY = \"water.buckets\";\n\nfunction loadCount() {\n  const n = Number(localStorage.getItem(KEY));   // Number(null) is 0\n  return Number.isInteger(n) && n >= 0 ? n : 0;\n}\n\nfunction saveCount(n) {\n  localStorage.setItem(KEY, String(n));\n}\n\nfunction totalText(n) {\n  return `${n} ${n === 1 ? \"bucket\" : \"buckets\"} (${n * 20} L)`;\n}\n\nvar buckets = loadCount();            // load on start\n\nfunction show() {\n  document.getElementById(\"total\").textContent = totalText(buckets);\n}\n\ndocument.getElementById(\"add-bucket\").addEventListener(\"click\", () => {\n  buckets++;\n  saveCount(buckets);                 // save on every change\n  show();\n});\n\ndocument.getElementById(\"reset\").addEventListener(\"click\", () => {\n  buckets = 0;\n  saveCount(buckets);\n  show();\n});\n\nshow();\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "localStorage.setItem(\"todos\", [{ text: \"water\" }]) saves…",
+   "choices": [
+    "the array",
+    "the text \"[object Object]\"",
+    "nothing",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "localStorage holds text only; use JSON.stringify first."
+  },
+  {
+   "q": "What does localStorage.getItem(\"never-saved\") give?",
+   "choices": [
+    "\"\"",
+    "undefined",
+    "null",
+    "an error"
+   ],
+   "answer": 2,
+   "why": "Missing keys give null."
+  },
+  {
+   "q": "Why wrap JSON.parse of saved data in try/catch?",
+   "choices": [
+    "It's slow",
+    "Broken saved text makes it throw, which would stop the app on load",
+    "It returns strings",
+    "Required by localStorage"
+   ],
+   "answer": 1,
+   "why": "Fall back to a fresh start instead of a blank page."
+  },
+  {
+   "q": "When should an app save its state?",
+   "choices": [
+    "Only when the tab closes",
+    "Every time the state changes",
+    "Once an hour",
+    "Never"
+   ],
+   "answer": 1,
+   "why": "Saving on each change means nothing is lost if the tab closes or crashes."
+  },
+  {
+   "q": "Which is a poor use of localStorage?",
+   "choices": [
+    "A game's high score",
+    "A to-do list",
+    "Someone's password",
+    "A chosen theme"
+   ],
+   "answer": 2,
+   "why": "Anyone using that browser can read it; it isn't for secrets."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Save an array?",
+   "a": "localStorage.setItem(key, JSON.stringify(arr))"
+  },
+  {
+   "q": "Load it back?",
+   "a": "JSON.parse(localStorage.getItem(key)), inside try/catch"
+  },
+  {
+   "q": "Missing key gives?",
+   "a": "null"
+  },
+  {
+   "q": "Defaults plus saved values?",
+   "a": "{ ...DEFAULTS, ...saved }"
+  }
+ ],
+ "explain": "Explain how you'd make an app remember its data between visits, and what could go wrong when loading it, with a made-up app."
+}

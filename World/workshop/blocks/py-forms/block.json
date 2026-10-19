@@ -1,0 +1,8 @@
+{"name": "Forms with checks", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Describe your fields once (text, number with limits, date, choice, phone) and get a form in the window that tells people exactly what to fix. The checking also works on its own for web apps.",
+ "tags": ["form", "input", "validation", "fields", "data-entry", "tkinter"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/forms.py": "forms.py"},
+ "imports": {"py": ["from lib.forms import Form, validate"]},
+ "use": "form = Form(parent, FIELDS).pack(fill='x'); values, errors = form.values()",
+ "test": {"run": ["python", "test_forms.py"], "files": ["test_forms.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

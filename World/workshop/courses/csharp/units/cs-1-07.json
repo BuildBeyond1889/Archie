@@ -1,0 +1,128 @@
+{
+ "id": "cs-1-07",
+ "level": 1,
+ "title": "Arrays and List<T>",
+ "concepts": [
+  "lists"
+ ],
+ "skills": [
+  "lists",
+  "linq"
+ ],
+ "bridge": "Fixed arrays: `int[] kg = { 40, 12, 55 };` with `kg.Length`. Growable: `var crops = new List<string>();` with `Add`, `Remove`, `Count`, `[0]`. **LINQ** gives one-liners: `kg.Sum()`, `kg.Average()`, `kg.Where(k => k > 20)`, `kg.Select(k => k * 2)`, `.ToList()`.",
+ "lesson": "```\nint[] kg = { 40, 12, 55 };          // fixed size\nConsole.WriteLine(kg.Length);\nvar crops = new List<string> { \"maize\", \"beans\" };\ncrops.Add(\"kale\");\ncrops.Remove(\"beans\");\nConsole.WriteLine(crops.Count + \" \" + crops[0]);\n```\n\n**LINQ** (`using System.Linq;`) works on any array or list and reads like a sentence:\n\n```\nkg.Sum()                       // 107\nkg.Max()\nkg.Average()                   // 35.666...\nkg.Where(k => k > 20)          // keep some\n  .Select(k => k * 2)          // change each\n  .ToList();                   // make a list\n```\n\n`k => k > 20` is a **lambda**: a tiny function written inline. In games you'll use lists for enemies on screen, items in an inventory, waypoints on a path.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\nclass Program\n{\n    static void Main()\n    {\n        int[] kg = { 40, 12, 55 };\n        Console.WriteLine($\"{kg.Sum()} {kg.Max()} {kg.Average():F1}\");\n        var big = kg.Where(k => k > 20).Select(k => k * 2).ToList();\n        Console.WriteLine(string.Join(\", \", big));\n        var crops = new List<string> { \"maize\", \"beans\" };\n        crops.Add(\"kale\");\n        Console.WriteLine(crops.Count);\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Average",
+   "file": "Avg.cs",
+   "prompt": "Write Average(int[] nums) in class Avg: the average rounded to 1 decimal (Math.Round(x, 1)), 0 for an empty array.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Avg\n{\n    public static double Average(int[] nums)\n    {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Avg.Average(new[] { 40, 12, 55 })",
+     "expect": "35.7"
+    },
+    {
+     "call": "Avg.Average(new[] { 10 })",
+     "expect": "10"
+    },
+    {
+     "call": "Avg.Average(new int[0])",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "if (nums.Length == 0) return 0;",
+    "return Math.Round(nums.Average(), 1);"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Avg\n{\n    public static double Average(int[] nums)\n    {\n        if (nums.Length == 0) return 0;\n        return Math.Round(nums.Average(), 1);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Above average",
+   "file": "Above.cs",
+   "prompt": "Write AboveAverage(int[] nums) in class Above returning a List<int> of the numbers above the average, in order. Use LINQ's Where.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Above\n{\n    public static List<int> AboveAverage(int[] nums)\n    {\n        return new List<int>();\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Above.AboveAverage(new[] { 40, 12, 55, 30 })",
+     "expect": "[40, 55]"
+    },
+    {
+     "call": "Above.AboveAverage(new[] { 5, 5 })",
+     "expect": "[]"
+    },
+    {
+     "call": "Above.AboveAverage(new int[0])",
+     "expect": "[]",
+     "hidden": true
+    },
+    {
+     "src_has": ".Where(",
+     "why": "Use LINQ's Where."
+    }
+   ],
+   "hints": [
+    "Guard the empty array, then double avg = nums.Average();",
+    "return nums.Where(n => n > avg).ToList();"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Above\n{\n    public static List<int> AboveAverage(int[] nums)\n    {\n        if (nums.Length == 0) return new List<int>();\n        double avg = nums.Average();\n        return nums.Where(n => n > avg).ToList();\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Array length vs List count?",
+   "choices": [
+    "a.Length / list.Count",
+    "a.Count / list.Length",
+    "both Length",
+    "both Count()"
+   ],
+   "answer": 0,
+   "why": "Arrays: Length; Lists: Count."
+  },
+  {
+   "q": "k => k > 20 is…",
+   "choices": [
+    "a comparison",
+    "a lambda: a small inline function",
+    "a pointer",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Used by Where, Select…"
+  },
+  {
+   "q": "Keep only some items with LINQ?",
+   "choices": [
+    "Select",
+    "Where",
+    "Sum",
+    "Add"
+   ],
+   "answer": 1,
+   "why": "Where filters."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Growable list?",
+   "a": "var list = new List<int>(); list.Add(x);"
+  },
+  {
+   "q": "LINQ filter / map?",
+   "a": ".Where(x => …) / .Select(x => …)"
+  },
+  {
+   "q": "Average with LINQ?",
+   "a": "nums.Average()"
+  }
+ ],
+ "explain": "Explain arrays and list<t> to someone who has never programmed, in your own words, with an example you make up."
+}

@@ -1,0 +1,297 @@
+{
+ "id": "web-2-05",
+ "level": 2,
+ "title": "Array methods for data",
+ "concepts": [
+  "iteration",
+  "collections",
+  "sorting",
+  "lambdas"
+ ],
+ "skills": [
+  "map",
+  "filter",
+  "reduce",
+  "sort"
+ ],
+ "lesson": "Apps are mostly data in, summaries out: total kg per crop, the five top scorers, which medicines are running low. You met `map`, `filter` and `reduce` in Level 1. Here they become your everyday tools, joined by `find`, `some`, `every` and `sort`. Each takes a small function and does the looping for you, which means fewer off-by-one bugs and code that says *what* it does.\n\n```\nconst harvests = [{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, ...];\n\nharvests.map((h) => h.kg)                  // change each: [120, 45, ...]\nharvests.filter((h) => h.crop === \"maize\") // keep some\nharvests.find((h) => h.farmer === \"Juma\")  // the FIRST match, or undefined\nharvests.some((h) => h.kg > 100)           // is any true?\nharvests.every((h) => h.kg > 0)            // are all true?\nharvests.reduce((sum, h) => sum + h.kg, 0) // combine into one value\n```\n\n**reduce into an object** groups and totals in one pass:\n\n```\nconst perCrop = harvests.reduce((totals, h) => {\n  totals[h.crop] = (totals[h.crop] || 0) + h.kg;\n  return totals;                 // always return the running value\n}, {});                          // start with an empty object\n```\n\nAlways give `reduce` a starting value (`0`, `{}`, `[]`). Without one, an empty array throws an error, and that's the day the clinic has no data yet.\n\n**Sorting** needs a *compare function* that returns a negative number if a comes first, positive if b comes first, and 0 if they tie:\n\n```\n[...rows].sort((a, b) => a.kg - b.kg)                 // small to big\n[...rows].sort((a, b) => b.kg - a.kg)                 // big to small\n[...rows].sort((a, b) => a.name.localeCompare(b.name))  // A to Z\n[...rows].sort((a, b) => b.kg - a.kg || a.name.localeCompare(b.name))  // ties broken by name\n```\n\nTwo traps: without a compare function, `sort` compares as *text*, so `[10, 9, 100]` becomes `[10, 100, 9]`. And `sort` **changes the array it's called on**. Copy first with `[...rows]` so you don't reorder data other code relies on.\n\n**Chaining** reads like a sentence: `harvests.filter((h) => h.crop === \"beans\").map((h) => h.farmer)` is \"the farmers who grew beans\". `Object.entries(perCrop)` turns `{ maize: 200 }` into `[[\"maize\", 200]]`, so an object of totals can be sorted and mapped too.\n\nOne more trap: an arrow with braces needs `return`. `(h) => { h.kg * 2 }` returns undefined; write `(h) => h.kg * 2`, or `{ return h.kg * 2; }`. For an object, wrap it in brackets: `(h) => ({ crop: h.crop })`.",
+ "example": {
+  "file": "example.js",
+  "code": "const scores = [\n  { player: \"Wanjiru\", level: 3, points: 420 },\n  { player: \"Otieno\", level: 5, points: 980 },\n  { player: \"Amina\", level: 5, points: 980 },\n  { player: \"Juma\", level: 1, points: 90 },\n];\n\nconst total = scores.reduce((sum, s) => sum + s.points, 0);\nconst perLevel = scores.reduce((t, s) => {\n  t[s.level] = (t[s.level] || 0) + s.points;\n  return t;\n}, {});\n\nconst leaderboard = [...scores]                    // copy: sort changes the array\n  .sort((a, b) => b.points - a.points || a.player.localeCompare(b.player))\n  .map((s, i) => `${i + 1}. ${s.player} ${s.points}`);\n\nconst juma = scores.find((s) => s.player === \"Juma\");\nconsole.log(total, perLevel, leaderboard, juma.level, scores.some((s) => s.points > 900));\n",
+  "notes": [
+   "reduce with 0 sums; reduce with {} groups.",
+   "Copy with [...] before sort; ties are broken by name with ||.",
+   "map also gives the position (i), handy for ranks.",
+   "find returns the first match; some answers yes or no."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Totals per crop",
+   "file": "ex1_totals.js",
+   "prompt": "Harvests look like [{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, ...]. Write totalsPerCrop(harvests) returning an object of total kg per crop (use reduce), grandTotal(harvests) returning all the kg added up, and cropsOver(harvests, kg) returning the names of crops whose TOTAL is more than kg, sorted A to Z.",
+   "starter": "function totalsPerCrop(harvests) {\n  return {};\n}\n\nfunction grandTotal(harvests) {\n  return 0;\n}\n\nfunction cropsOver(harvests, kg) {\n  return [];\n}\n",
+   "tests": [
+    {
+     "call": "totalsPerCrop([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }])",
+     "expect": {
+      "maize": 200,
+      "beans": 75,
+      "potatoes": 60
+     },
+     "name": "totals per crop"
+    },
+    {
+     "call": "grandTotal([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }])",
+     "expect": 335,
+     "name": "grand total"
+    },
+    {
+     "call": "cropsOver([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }], 60)",
+     "expect": [
+      "beans",
+      "maize"
+     ],
+     "name": "crops over 60 kg, A to Z",
+     "hint_if_fail": "More than, not equal: potatoes has exactly 60."
+    },
+    {
+     "call": "[totalsPerCrop([]), grandTotal([]), cropsOver([], 0)]",
+     "expect": [
+      {},
+      0,
+      []
+     ],
+     "name": "no harvests yet",
+     "hidden": true,
+     "hint_if_fail": "Give reduce a starting value: 0 or {}."
+    },
+    {
+     "src_has": "reduce(",
+     "why": "Use reduce for the totals."
+    }
+   ],
+   "hints": [
+    "harvests.reduce((totals, h) => { totals[h.crop] = (totals[h.crop] || 0) + h.kg; return totals; }, {})",
+    "grandTotal: harvests.reduce((sum, h) => sum + h.kg, 0)",
+    "cropsOver: Object.entries(totalsPerCrop(harvests)).filter(([crop, total]) => total > kg).map(([crop]) => crop).sort()"
+   ],
+   "solution": "function totalsPerCrop(harvests) {\n  return harvests.reduce((totals, h) => {\n    totals[h.crop] = (totals[h.crop] || 0) + h.kg;\n    return totals;\n  }, {});\n}\n\nfunction grandTotal(harvests) {\n  return harvests.reduce((sum, h) => sum + h.kg, 0);\n}\n\nfunction cropsOver(harvests, kg) {\n  return Object.entries(totalsPerCrop(harvests))\n    .filter(([, total]) => total > kg)\n    .map(([crop]) => crop)\n    .sort((a, b) => a.localeCompare(b));\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Sort and find",
+   "file": "ex2_sort.js",
+   "prompt": "Write sortByKg(harvests): a NEW array (the original keeps its order) sorted by kg from most to least, with ties sorted by farmer name A to Z. Write findFarmer(harvests, name): the first harvest whose farmer matches name ignoring upper/lower case and spaces around name, or null if there is none.",
+   "starter": "function sortByKg(harvests) {\n  return harvests.sort();\n}\n\nfunction findFarmer(harvests, name) {\n  return null;\n}\n",
+   "tests": [
+    {
+     "call": "sortByKg([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }]).map((h) => h.farmer)",
+     "expect": [
+      "Amina",
+      "Wanjiru",
+      "Otieno",
+      "Juma",
+      "Juma"
+     ],
+     "name": "most to least"
+    },
+    {
+     "call": "findFarmer([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }], \"juma\")",
+     "expect": {
+      "farmer": "Juma",
+      "crop": "beans",
+      "kg": 45
+     },
+     "name": "find ignoring case"
+    },
+    {
+     "call": "findFarmer([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }], \"Zawadi\")",
+     "expect": null,
+     "name": "not found gives null",
+     "hint_if_fail": "find gives undefined when nothing matches; turn that into null."
+    },
+    {
+     "call": "sortByKg([{ farmer: \"Wanjiru\", kg: 50 }, { farmer: \"Amina\", kg: 50 }, { farmer: \"Juma\", kg: 70 }]).map((h) => h.farmer)",
+     "expect": [
+      "Juma",
+      "Amina",
+      "Wanjiru"
+     ],
+     "name": "ties A to Z",
+     "hidden": true,
+     "hint_if_fail": "b.kg - a.kg || a.farmer.localeCompare(b.farmer)"
+    },
+    {
+     "check": "function __live(el) {\n  if (el.__isLive) return el;\n  el.__isLive = true;\n  let t = \"\", h = \"\";\n  Object.defineProperty(el, \"textContent\", { get() { return t + this.children.map((c) => c.textContent).join(\"\"); }, set(v) { this.children.length = 0; t = String(v); }, configurable: true });\n  Object.defineProperty(el, \"innerHTML\", { get() { return h; }, set(v) { this.children.length = 0; h = String(v); }, configurable: true });\n  Object.defineProperty(el, \"firstChild\", { get() { return this.children[0] || null; }, configurable: true });\n  el.replaceChildren = function (...k) { this.children.length = 0; t = \"\"; k.forEach((c) => this.appendChild(c)); };\n  el.removeChild = function (c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; };\n  return el;\n}\nfunction __fire(el, type, extra) {\n  const ev = Object.assign({ type, target: el, currentTarget: el, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra || {});\n  (el._l[type] || []).forEach((f) => f(ev));\n  if (typeof el[\"on\" + type] === \"function\") el[\"on\" + type](ev);\n  return ev;\n}\nfunction __eq(got, want, what) {\n  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(what + \": expected \" + JSON.stringify(want) + \", got \" + JSON.stringify(got));\n}\n(async () => {\nconst rows = [{ farmer: \"Juma\", kg: 1 }, { farmer: \"Amina\", kg: 9 }];\nsortByKg(rows);\n__eq(rows.map((r) => r.farmer), [\"Juma\", \"Amina\"], \"the original array should keep its order\");\n})();",
+     "name": "the original isn't reordered",
+     "hidden": true,
+     "hint_if_fail": "Copy first: [...harvests].sort(...)"
+    },
+    {
+     "call": "findFarmer([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }], \"  WANJIRU \").kg",
+     "expect": 80,
+     "name": "spaces and capitals",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "return [...harvests].sort((a, b) => b.kg - a.kg || a.farmer.localeCompare(b.farmer));",
+    "const want = name.trim().toLowerCase();",
+    "return harvests.find((h) => h.farmer.toLowerCase() === want) || null;"
+   ],
+   "solution": "function sortByKg(harvests) {\n  // copy first: sort() reorders the array it is called on\n  return [...harvests].sort((a, b) => b.kg - a.kg || a.farmer.localeCompare(b.farmer));\n}\n\nfunction findFarmer(harvests, name) {\n  const want = name.trim().toLowerCase();\n  return harvests.find((h) => h.farmer.toLowerCase() === want) || null;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "A season report",
+   "file": "ex3_report.js",
+   "prompt": "Write report(harvests, prices). prices is an object of KSh per kg, like { maize: 50, beans: 120 }. Return an array with one object per crop: { crop, kg, ksh } where kg is the crop's total and ksh = kg times its price (0 if the crop has no price). Sort by ksh from most to least, ties by crop A to Z. Also write topFarmers(harvests, n): the names of the n farmers with the most total kg (one farmer can have several harvests), most first, ties A to Z.",
+   "starter": "function report(harvests, prices) {\n  return [];\n}\n\nfunction topFarmers(harvests, n) {\n  return [];\n}\n",
+   "tests": [
+    {
+     "call": "report([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }], { maize: 50, beans: 120 }).map((r) => [r.crop, r.kg, r.ksh])",
+     "expect": [
+      [
+       "maize",
+       200,
+       10000
+      ],
+      [
+       "beans",
+       75,
+       9000
+      ],
+      [
+       "potatoes",
+       60,
+       0
+      ]
+     ],
+     "name": "the report"
+    },
+    {
+     "call": "topFarmers([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }], 2)",
+     "expect": [
+      "Amina",
+      "Wanjiru"
+     ],
+     "name": "top two farmers",
+     "hint_if_fail": "Juma has two harvests: 45 + 30 = 75, less than Wanjiru's 80."
+    },
+    {
+     "call": "topFarmers([{ farmer: \"Amina\", crop: \"maize\", kg: 120 }, { farmer: \"Juma\", crop: \"beans\", kg: 45 }, { farmer: \"Wanjiru\", crop: \"maize\", kg: 80 }, { farmer: \"Otieno\", crop: \"potatoes\", kg: 60 }, { farmer: \"Juma\", crop: \"beans\", kg: 30 }], 10)",
+     "expect": [
+      "Amina",
+      "Wanjiru",
+      "Juma",
+      "Otieno"
+     ],
+     "name": "asking for more than there are",
+     "hidden": true
+    },
+    {
+     "call": "[report([], {}), topFarmers([], 3)]",
+     "expect": [
+      [],
+      []
+     ],
+     "name": "no data",
+     "hidden": true
+    },
+    {
+     "call": "report([{ farmer: \"A\", crop: \"beans\", kg: 10 }, { farmer: \"B\", crop: \"rice\", kg: 5 }], { beans: 20, rice: 40 }).map((r) => r.crop)",
+     "expect": [
+      "beans",
+      "rice"
+     ],
+     "name": "ties by crop name",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "First total the kg per crop with reduce into an object.",
+    "Object.entries(kgByCrop).map(([crop, kg]) => ({ crop, kg, ksh: kg * (prices[crop] || 0) }))",
+    "topFarmers: total per farmer, Object.entries, sort, slice(0, n), map to the name."
+   ],
+   "solution": "function totalBy(harvests, key) {\n  return harvests.reduce((t, h) => {\n    t[h[key]] = (t[h[key]] || 0) + h.kg;\n    return t;\n  }, {});\n}\n\nfunction report(harvests, prices) {\n  return Object.entries(totalBy(harvests, \"crop\"))\n    .map(([crop, kg]) => ({ crop, kg, ksh: kg * (prices[crop] || 0) }))\n    .sort((a, b) => b.ksh - a.ksh || a.crop.localeCompare(b.crop));\n}\n\nfunction topFarmers(harvests, n) {\n  return Object.entries(totalBy(harvests, \"farmer\"))\n    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))\n    .slice(0, n)\n    .map(([name]) => name);\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "[10, 9, 100].sort() gives…",
+   "choices": [
+    "[9, 10, 100]",
+    "[10, 100, 9]",
+    "[100, 10, 9]",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "With no compare function, sort compares as text."
+  },
+  {
+   "q": "Why write [...rows].sort(...) instead of rows.sort(...)?",
+   "choices": [
+    "It's faster",
+    "sort changes the array it's called on; the copy protects the original",
+    "rows.sort doesn't exist",
+    "To remove duplicates"
+   ],
+   "answer": 1,
+   "why": "Sorting in place can surprise other code using the same array."
+  },
+  {
+   "q": "[].reduce((s, x) => s + x) with no starting value…",
+   "choices": [
+    "gives 0",
+    "throws an error",
+    "gives undefined",
+    "gives []"
+   ],
+   "answer": 1,
+   "why": "Always pass a starting value: reduce(fn, 0)."
+  },
+  {
+   "q": "rows.map((r) => { r.kg * 2 }) gives…",
+   "choices": [
+    "the doubled kg",
+    "an array of undefined",
+    "an error",
+    "the original rows"
+   ],
+   "answer": 1,
+   "why": "With braces you need return; or drop the braces."
+  },
+  {
+   "q": "You need the first patient older than 70, or nothing. Which method?",
+   "choices": [
+    "filter",
+    "find",
+    "some",
+    "map"
+   ],
+   "answer": 1,
+   "why": "find stops at the first match and returns it (or undefined)."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Sort numbers big to small?",
+   "a": "[...arr].sort((a, b) => b - a)"
+  },
+  {
+   "q": "Sort text A to Z?",
+   "a": "arr.sort((a, b) => a.localeCompare(b))"
+  },
+  {
+   "q": "Group totals with reduce?",
+   "a": "rows.reduce((t, r) => { t[r.k] = (t[r.k] || 0) + r.v; return t; }, {})"
+  },
+  {
+   "q": "Object to pairs?",
+   "a": "Object.entries(obj) gives [[key, value], ...]"
+  }
+ ],
+ "explain": "Explain what a compare function for sort returns, and write one for a made-up leaderboard."
+}

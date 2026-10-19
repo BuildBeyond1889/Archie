@@ -1,0 +1,8 @@
+{"name": "Bigger text and high contrast (web)", "kind": "feature", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "Two buttons: bigger text and high contrast, remembered on each phone. For older eyes, cracked screens and bright sunlight.",
+ "tags": ["accessibility", "big-text", "contrast", "eyesight", "sunlight", "elderly"],
+ "files": {"js/access.js": "access.js"},
+ "imports": {"js": ["<script src=\"js/access.js\"></script>"]},
+ "use": "addAccessButtons(document.querySelector('header'))",
+ "test": {"run": ["node", "-e", "const a=require('./js/access.js');if(!a.css.includes('contrast'))process.exit(1);console.log('web access ok')"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

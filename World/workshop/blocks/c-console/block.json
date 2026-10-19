@@ -1,0 +1,36 @@
+{
+ "name": "C console program",
+ "kind": "shell",
+ "lang": "C",
+ "version": "1.0.0",
+ "summary": "A menu program in C with safe input (no buffer overflows, asks again on bad numbers). The pattern for small tools and the bridge to Arduino and embedded C.",
+ "tags": [
+  "c",
+  "console",
+  "terminal",
+  "menu",
+  "embedded"
+ ],
+ "files": {
+  "main.c": "main.c"
+ },
+ "test": {
+  "run": [
+   "gcc",
+   "-Wall",
+   "-Wextra",
+   "-Werror",
+   "main.c",
+   "-o",
+   "t.exe"
+  ],
+  "then": "t.exe",
+  "input": "1\nAmy\n2\n3\nx\n4\n0\n"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ]
+}

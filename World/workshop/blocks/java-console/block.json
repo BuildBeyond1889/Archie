@@ -1,0 +1,6 @@
+{"name": "Java console program", "kind": "shell", "lang": "Java", "version": "1.0.0",
+ "summary": "A menu program in Java with a list and safe input. The same language as AP Computer Science and Android's roots.",
+ "tags": ["java", "console", "menu", "ap-cs"],
+ "files": {"Main.java": "Main.java"},
+ "test": {"run": ["javac", "-Xlint:all", "-Werror", "Main.java"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

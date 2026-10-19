@@ -1,0 +1,236 @@
+{
+ "id": "java-2-03",
+ "level": 2,
+ "title": "Interfaces",
+ "concepts": [
+  "interfaces",
+  "polymorphism",
+  "design"
+ ],
+ "skills": [
+  "interfaces",
+  "contracts",
+  "default methods"
+ ],
+ "lesson": "An **interface** is a contract: a list of methods a class promises to have, without saying how they work.\n\n```\ninterface Damageable {\n    void takeDamage(int amount);\n    int getHealth();\n}\n```\n\nAny class can sign it with `implements Damageable`, and the compiler makes sure it really has those methods. A player, a wooden crate and a stone wall are very different things, but all three can take damage:\n\n```\nclass Crate implements Damageable {\n    private int health = 30;\n    public void takeDamage(int amount) { health = Math.max(0, health - amount); }\n    public int getHealth() { return health; }\n}\n```\n\n**Why bother?** Because the rest of your program can now work with \"anything damageable\" without knowing what it is:\n\n```\nstatic void explode(List<Damageable> nearby) {\n    for (Damageable d : nearby) d.takeDamage(40);\n}\n```\n\nThis is **programming to the interface**. When you add a new kind of thing next month (a barrel, a door), `explode` doesn't change at all. You write the new class, it implements the interface, done. Large programs stay manageable this way.\n\nA few rules:\n- Interface methods are public and (normally) have no body. The implementing class must mark them `public`.\n- A class can implement **several** interfaces: `class Barrel implements Damageable, Burnable`.\n- You can't do `new Damageable()`; you make objects of the classes, but variables and lists can have the interface type: `Damageable d = new Crate();`.\n- A **default method** has a body that every implementer gets for free, built from the other methods: `default boolean isDestroyed() { return getHealth() <= 0; }`. A class may still override it.\n- An interface with exactly one abstract method is a **functional interface**, so you can pass a lambda: `Notifier n = (to, msg) -> System.out.println(to + \": \" + msg);`.\n\nA very practical use: a clinic reminder program needs to send messages. Define `interface Notifier { void send(String to, String message); }`. The real program uses an SMS class; your tests use a `MemoryNotifier` that just stores messages in a list so you can check them. Same code, swapped part. Robots do this with sensors and motors: code talks to `DistanceSensor`, and you can plug in a real one or a fake one.\n\nThe common mistake is making interfaces too big. Keep them small and about one ability (\"can take damage\", \"can send a message\").",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.List;\n\ninterface Sensor {\n    double read();\n    String unit();\n    default String report() { return read() + \" \" + unit(); }\n}\n\nclass TankLevel implements Sensor {\n    public double read() { return 320.5; }\n    public String unit() { return \"litres\"; }\n}\n\nclass SoilMoisture implements Sensor {\n    public double read() { return 41.0; }\n    public String unit() { return \"%\"; }\n    @Override public String report() { return \"soil \" + read() + unit(); }\n}\n\npublic class Example {\n    public static void main(String[] args) {\n        List<Sensor> sensors = List.of(new TankLevel(), new SoilMoisture());\n        for (Sensor s : sensors) System.out.println(s.report());\n\n        Sensor fake = new Sensor() {          // a quick test double\n            public double read() { return 0; }\n            public String unit() { return \"test\"; }\n        };\n        System.out.println(fake.report());\n    }\n}\n",
+  "notes": [
+   "Sensor is the contract: read() and unit().",
+   "report() is a default method built from the other two.",
+   "SoilMoisture overrides the default with its own wording.",
+   "The loop only knows about Sensor, not the real classes.",
+   "An anonymous class makes a fake sensor for testing in two lines."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Field shapes",
+   "file": "Shapes.java",
+   "prompt": "Plots of land come in shapes. interface Shape has area(), name() and a default describe() (done). Circle is done. Finish Rect(double w, double h) with name \"rect\" and Triangle(double base, double height) with name \"triangle\" (area = base × height / 2). In class Shapes write static double totalArea(List<Shape> shapes) rounded to 2 decimals, and static String largest(List<Shape> shapes) giving the name of the biggest shape, or \"none\" for an empty list.",
+   "starter": "import java.util.List;\n\ninterface Shape {\n    double area();\n    String name();\n    default String describe() { return name() + \" \" + Math.round(area() * 100) / 100.0; }\n}\n\nclass Circle implements Shape {\n    private final double r;\n    Circle(double r) { this.r = r; }\n    public double area() { return Math.PI * r * r; }\n    public String name() { return \"circle\"; }\n}\n\nclass Rect implements Shape {\n    Rect(double w, double h) { }\n    public double area() { return 0; }\n    public String name() { return \"rect\"; }\n}\n\nclass Triangle implements Shape {\n    Triangle(double base, double height) { }\n    public double area() { return 0; }\n    public String name() { return \"triangle\"; }\n}\n\npublic class Shapes {\n    public static double totalArea(List<Shape> shapes) {\n        return 0;\n    }\n\n    public static String largest(List<Shape> shapes) {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "new Rect(3, 4).area()",
+     "expect": "12.0"
+    },
+    {
+     "call": "new Triangle(4, 3).describe()",
+     "expect": "triangle 6.0"
+    },
+    {
+     "call": "Shapes.totalArea(java.util.List.of(new Circle(1), new Rect(2, 2)))",
+     "expect": "7.14"
+    },
+    {
+     "call": "Shapes.largest(java.util.List.of(new Rect(1, 1), new Circle(1), new Triangle(2, 2)))",
+     "expect": "circle"
+    },
+    {
+     "call": "Shapes.largest(java.util.List.of())",
+     "expect": "none",
+     "hidden": true,
+     "name": "no shapes"
+    },
+    {
+     "call": "Shapes.totalArea(java.util.List.of())",
+     "expect": "0.0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Give Rect and Triangle private final fields and set them in the constructors.",
+    "totalArea: loop with for (Shape s : shapes) and add s.area().",
+    "largest: keep the best Shape so far; if the list is empty return \"none\"."
+   ],
+   "solution": "import java.util.List;\n\ninterface Shape {\n    double area();\n    String name();\n    default String describe() { return name() + \" \" + Math.round(area() * 100) / 100.0; }\n}\n\nclass Circle implements Shape {\n    private final double r;\n    Circle(double r) { this.r = r; }\n    public double area() { return Math.PI * r * r; }\n    public String name() { return \"circle\"; }\n}\n\nclass Rect implements Shape {\n    private final double w, h;\n    Rect(double w, double h) { this.w = w; this.h = h; }\n    public double area() { return w * h; }\n    public String name() { return \"rect\"; }\n}\n\nclass Triangle implements Shape {\n    private final double base, height;\n    Triangle(double base, double height) { this.base = base; this.height = height; }\n    public double area() { return base * height / 2; }\n    public String name() { return \"triangle\"; }\n}\n\npublic class Shapes {\n    // Works for any Shape, including ones written later.\n    public static double totalArea(List<Shape> shapes) {\n        double total = 0;\n        for (Shape s : shapes) total += s.area();\n        return Math.round(total * 100) / 100.0;\n    }\n\n    public static String largest(List<Shape> shapes) {\n        if (shapes.isEmpty()) return \"none\";\n        Shape best = shapes.get(0);\n        for (Shape s : shapes) if (s.area() > best.area()) best = s;\n        return best.name();\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Things that take damage",
+   "file": "Combat.java",
+   "prompt": "interface Damageable has takeDamage(int amount) and getHealth(). Make its default method isDestroyed() return true when health is 0 or less. Write three classes: Player (starts at 100 health; armour halves damage using integer division, amount / 2), Crate (30 health, takes full damage), Wall (200 health, ignores any hit below 10, otherwise full damage). Health never goes below 0. In Combat write static int hitAll(List<Damageable> things, int amount): hit every thing once and return how many are destroyed afterwards.",
+   "starter": "import java.util.List;\n\ninterface Damageable {\n    void takeDamage(int amount);\n    int getHealth();\n    default boolean isDestroyed() { return false; }   // TODO\n}\n\nclass Player implements Damageable {\n    public void takeDamage(int amount) { }\n    public int getHealth() { return 0; }\n}\n\nclass Crate implements Damageable {\n    public void takeDamage(int amount) { }\n    public int getHealth() { return 0; }\n}\n\nclass Wall implements Damageable {\n    public void takeDamage(int amount) { }\n    public int getHealth() { return 0; }\n}\n\npublic class Combat {\n    public static int hitAll(List<Damageable> things, int amount) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Player p = new Player(); p.takeDamage(30); return p.getHealth() + \"\"; }).get()",
+     "expect": "85",
+     "name": "armour halves damage"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Crate c = new Crate(); c.takeDamage(50); return c.getHealth() + \" \" + c.isDestroyed(); }).get()",
+     "expect": "0 true",
+     "name": "crate breaks"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Wall w = new Wall(); w.takeDamage(5); String a = w.getHealth() + \"\"; w.takeDamage(50); return a + \" \" + w.getHealth(); }).get()",
+     "expect": "200 150",
+     "name": "wall ignores small hits"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { java.util.List<Damageable> xs = java.util.List.of(new Player(), new Crate(), new Wall()); return Combat.hitAll(xs, 40) + \"\"; }).get()",
+     "expect": "1",
+     "name": "hitAll"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Player p = new Player(); p.takeDamage(300); return p.getHealth() + \" \" + p.isDestroyed(); }).get()",
+     "expect": "0 true",
+     "hidden": true,
+     "name": "health never negative"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { return Combat.hitAll(new java.util.ArrayList<Damageable>(), 40) + \"\"; }).get()",
+     "expect": "0",
+     "hidden": true,
+     "name": "nothing to hit"
+    }
+   ],
+   "hints": [
+    "Each class keeps private int health = 100 (or 30, 200).",
+    "health = Math.max(0, health - amount / 2); keeps it at 0 or more.",
+    "default boolean isDestroyed() { return getHealth() <= 0; }"
+   ],
+   "solution": "import java.util.List;\n\ninterface Damageable {\n    void takeDamage(int amount);\n    int getHealth();\n    default boolean isDestroyed() { return getHealth() <= 0; }\n}\n\nclass Player implements Damageable {\n    private int health = 100;\n    public void takeDamage(int amount) { health = Math.max(0, health - amount / 2); }   // armour\n    public int getHealth() { return health; }\n}\n\nclass Crate implements Damageable {\n    private int health = 30;\n    public void takeDamage(int amount) { health = Math.max(0, health - amount); }\n    public int getHealth() { return health; }\n}\n\nclass Wall implements Damageable {\n    private int health = 200;\n    public void takeDamage(int amount) {\n        if (amount < 10) return;   // too weak to scratch it\n        health = Math.max(0, health - amount);\n    }\n    public int getHealth() { return health; }\n}\n\npublic class Combat {\n    public static int hitAll(List<Damageable> things, int amount) {\n        int destroyed = 0;\n        for (Damageable d : things) {\n            d.takeDamage(amount);\n            if (d.isDestroyed()) destroyed++;\n        }\n        return destroyed;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Clinic reminders",
+   "file": "Reminder.java",
+   "prompt": "interface Notifier { void send(String to, String message); } is given. Write class MemoryNotifier implements Notifier: it stores each message as \"to: message\" in a list returned by getSent(). Write class Reminder with constructor Reminder(Notifier notifier) and int remindLate(Map<String, Integer> daysLate): for every patient whose days late is above 0 (in the map's order), send them \"visit 3 days late\" (\"visit 1 day late\" for exactly 1) and return how many were sent. Reminder must only use the Notifier interface.",
+   "starter": "import java.util.*;\n\ninterface Notifier {\n    void send(String to, String message);\n}\n\nclass MemoryNotifier implements Notifier {\n    private final List<String> sent = new ArrayList<>();\n    public void send(String to, String message) { }\n    public List<String> getSent() { return sent; }\n}\n\npublic class Reminder {\n    public Reminder(Notifier notifier) {\n    }\n\n    public int remindLate(Map<String, Integer> daysLate) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { MemoryNotifier mem = new MemoryNotifier(); java.util.Map<String, Integer> m = new java.util.LinkedHashMap<>(); m.put(\"Amina\", 3); m.put(\"Juma\", 0); m.put(\"Otieno\", 1); int n = new Reminder(mem).remindLate(m); return n + \" \" + mem.getSent(); }).get()",
+     "expect": "2 [Amina: visit 3 days late, Otieno: visit 1 day late]",
+     "name": "reminders sent"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { int[] count = {0}; java.util.Map<String, Integer> m = new java.util.LinkedHashMap<>(); m.put(\"Wanjiru\", 5); m.put(\"Akinyi\", 2); new Reminder((to, msg) -> count[0]++).remindLate(m); return count[0] + \"\"; }).get()",
+     "expect": "2",
+     "name": "works with any Notifier (a lambda)"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { MemoryNotifier mem = new MemoryNotifier(); mem.send(\"Ali\", \"hello\"); return mem.getSent().toString(); }).get()",
+     "expect": "[Ali: hello]",
+     "name": "MemoryNotifier"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { MemoryNotifier mem = new MemoryNotifier(); int n = new Reminder(mem).remindLate(new java.util.HashMap<>()); return n + \" \" + mem.getSent().size(); }).get()",
+     "expect": "0 0",
+     "hidden": true,
+     "name": "no patients"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { MemoryNotifier mem = new MemoryNotifier(); java.util.Map<String, Integer> m = new java.util.LinkedHashMap<>(); m.put(\"Juma\", -2); return new Reminder(mem).remindLate(m) + \"\"; }).get()",
+     "expect": "0",
+     "hidden": true,
+     "name": "negative days are not late"
+    }
+   ],
+   "hints": [
+    "Reminder keeps the notifier in a private final Notifier field.",
+    "Loop with for (var e : daysLate.entrySet()) and skip values <= 0.",
+    "String msg = \"visit \" + d + (d == 1 ? \" day late\" : \" days late\"); notifier.send(e.getKey(), msg);"
+   ],
+   "solution": "import java.util.*;\n\ninterface Notifier {\n    void send(String to, String message);\n}\n\n// A fake notifier for tests: remembers instead of sending.\nclass MemoryNotifier implements Notifier {\n    private final List<String> sent = new ArrayList<>();\n    public void send(String to, String message) { sent.add(to + \": \" + message); }\n    public List<String> getSent() { return sent; }\n}\n\npublic class Reminder {\n    private final Notifier notifier;   // SMS, email or a fake: Reminder doesn't care\n\n    public Reminder(Notifier notifier) {\n        this.notifier = notifier;\n    }\n\n    public int remindLate(Map<String, Integer> daysLate) {\n        int sent = 0;\n        for (var e : daysLate.entrySet()) {\n            int d = e.getValue();\n            if (d <= 0) continue;\n            notifier.send(e.getKey(), \"visit \" + d + (d == 1 ? \" day late\" : \" days late\"));\n            sent++;\n        }\n        return sent;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does an interface give you?",
+   "choices": [
+    "Fields shared by classes",
+    "A contract of methods; any class can promise to have them",
+    "A faster class",
+    "A way to make objects without new"
+   ],
+   "answer": 1,
+   "why": "It lists what implementers must provide."
+  },
+  {
+   "q": "`Damageable d = new Damageable();`",
+   "choices": [
+    "Makes a default object",
+    "Compile error: you can't instantiate an interface",
+    "Works if it has default methods",
+    "Gives null"
+   ],
+   "answer": 1,
+   "why": "Make objects of implementing classes instead."
+  },
+  {
+   "q": "You add a new Barrel class that implements Damageable. What must change in hitAll(List<Damageable>)?",
+   "choices": [
+    "Add a case for Barrel",
+    "Nothing",
+    "Change the parameter type",
+    "Recompile with a flag"
+   ],
+   "answer": 1,
+   "why": "That's the point of programming to the interface."
+  },
+  {
+   "q": "A default method in an interface…",
+   "choices": [
+    "must be overridden",
+    "has a body that implementers get for free (and may override)",
+    "is static",
+    "can read the class's private fields"
+   ],
+   "answer": 1,
+   "why": "Defaults are built from the interface's other methods."
+  },
+  {
+   "q": "Why use a MemoryNotifier in tests instead of real SMS?",
+   "choices": [
+    "It is required by Java",
+    "Tests can check what was sent without sending anything real",
+    "SMS can't be an interface",
+    "It's faster to type"
+   ],
+   "answer": 1,
+   "why": "Swap the part behind the interface for a fake you can inspect."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Keyword to sign an interface's contract?",
+   "a": "implements"
+  },
+  {
+   "q": "How many interfaces can a class implement?",
+   "a": "As many as it needs: implements A, B, C"
+  },
+  {
+   "q": "Programming to the interface?",
+   "a": "Variables and parameters use the interface type, so any implementation fits."
+  },
+  {
+   "q": "Functional interface?",
+   "a": "An interface with one abstract method: you can pass a lambda for it."
+  }
+ ],
+ "explain": "Explain an interface as a contract, using an example from a game or a farm tool you'd like to build. What does the code that USES the interface gain?"
+}

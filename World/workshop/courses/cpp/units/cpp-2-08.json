@@ -1,0 +1,240 @@
+{
+ "id": "cpp-2-08",
+ "level": 2,
+ "title": "Building a linked structure",
+ "concepts": [
+  "linked-lists",
+  "stacks",
+  "queues",
+  "smart-pointers"
+ ],
+ "skills": [
+  "linked lists",
+  "stacks",
+  "queues"
+ ],
+ "lesson": "Time to build a data structure that owns memory, using everything so far. A **singly linked list** is a chain of **nodes**. Each node holds a value and a pointer to the next node; the last node's `next` is empty.\n\n```\nhead -> [ \"jump\" ] -> [ \"move\" ] -> [ \"build\" ] -> (nothing)\n```\n\nWho owns the nodes? The list owns the first node, and **each node owns the next one**. That is a perfect fit for `unique_ptr`:\n\n```\nstruct Node\n{\n    std::string action;\n    std::unique_ptr<Node> next;   // owns the rest of the chain\n};\n\nstd::unique_ptr<Node> head;       // the list owns the first node\n```\n\n**Push to the front** (O(1), no matter how long the list is):\n\n```\nauto n = std::make_unique<Node>(\"jump\");\nn->next = std::move(head);   // the new node takes over the old chain\nhead = std::move(n);         // the list now owns the new node\n```\n\n**Pop from the front:**\n\n```\nstd::string a = head->action;\nhead = std::move(head->next);   // the old head is deleted automatically\n```\n\n**Walking the list** uses plain non-owning pointers, since you are only looking:\n\n```\nfor (const Node* n = head.get(); n; n = n->next.get())\n    std::cout << n->action << \"\\n\";\n```\n\nA list where you only push and pop at the front is a **stack** (last in, first out): an undo history, a pathfinding backtrack, a stack of open menus. Add a raw `Node* tail` pointing at the last node and push at the back while popping at the front, and you have a **queue** (first in, first out): patients waiting at a clinic, orders waiting for a robot arm, enemies waiting to spawn. The tail pointer doesn't own anything; it just remembers where the end is. When the queue empties, set it back to `nullptr`.\n\n**Removing from the middle** is neat with a pointer to the link you are standing on:\n\n```\nstd::unique_ptr<Node>* link = &head;\nwhile (*link && (*link)->action != target) link = &(*link)->next;\nif (*link) *link = std::move((*link)->next);   // unlink and delete\n```\n\n**Clean destruction.** When the list is destroyed, `head` deletes node 1, which deletes node 2, and so on: no leaks, no destructor needed. One catch: that chain is a recursion, and a list of a million nodes can overflow the stack. Long-lived lists give themselves a simple loop destructor: `while (head) head = std::move(head->next);`.\n\nIn real game code you'll use `std::vector`, `std::deque` and Unreal's `TArray`/`TQueue` much more than hand-made lists. Building one yourself is how you learn ownership properly, and the same node-and-link idea is behind trees, scene graphs and behaviour trees.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <memory>\n#include <string>\n\nstruct Node\n{\n    std::string action;\n    std::unique_ptr<Node> next;\n    Node(std::string a) : action(a) {}\n};\n\nint main()\n{\n    std::unique_ptr<Node> head;\n    for (std::string a : {\"build\", \"move\", \"jump\"}) {\n        auto n = std::make_unique<Node>(a);\n        n->next = std::move(head);\n        head = std::move(n);\n    }\n\n    for (const Node* n = head.get(); n; n = n->next.get())\n        std::cout << n->action << \" \";\n    std::cout << \"\\n\";\n\n    std::cout << \"undo \" << head->action << \"\\n\";\n    head = std::move(head->next);              // pop: the old head is deleted\n    std::cout << \"top is now \" << head->action << \"\\n\";\n    return 0;                                  // the rest of the chain cleans itself up\n}\n",
+  "notes": [
+   "Each node owns the next through a unique_ptr, and head owns the first node.",
+   "Pushing to the front moves the old chain into the new node, then moves the new node into head.",
+   "The walk uses .get(): plain pointers for looking, because the loop doesn't own anything.",
+   "head = std::move(head->next) pops: the old head is deleted when head is reassigned."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Undo stack",
+   "file": "undo.cpp",
+   "prompt": "Write class UndoStack, a stack of action names built from Nodes linked by unique_ptr (Node is given):\n- void push(const std::string& action) puts an action on top.\n- std::string pop() removes and returns the top action, or \"\" if the stack is empty.\n- std::string peek() const returns the top action without removing it, or \"\".\n- int size() const and bool empty() const.\nPopped nodes must be deleted, and destroying the stack must delete every node.",
+   "starter": "#include <memory>\n#include <string>\n\nstruct Node\n{\n    inline static int alive = 0;\n    std::string action;\n    std::unique_ptr<Node> next;\n    Node(std::string action) : action(action) { alive++; }\n    ~Node() { alive--; }\n};\n\nclass UndoStack\n{\npublic:\n    void push(const std::string& action) {}\n    std::string pop() { return \"\"; }\n    std::string peek() const { return \"\"; }\n    int size() const { return 0; }\n    bool empty() const { return true; }\nprivate:\n    std::unique_ptr<Node> head;\n    int count = 0;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ UndoStack s; s.push(\"move\"); s.push(\"jump\"); return s.peek() + \",\" + std::to_string(s.size()); }()",
+     "expect": "jump,2"
+    },
+    {
+     "call": "[]{ UndoStack s; s.push(\"build\"); s.push(\"move\"); s.push(\"jump\"); std::string a = s.pop(); std::string b = s.pop(); return a + \",\" + b + \",\" + std::to_string(s.size()); }()",
+     "expect": "jump,move,1"
+    },
+    {
+     "call": "[]{ UndoStack s; s.push(\"x\"); s.pop(); return std::to_string(s.empty()) + s.pop() + s.peek(); }()",
+     "expect": "1",
+     "hidden": true,
+     "hint_if_fail": "Popping or peeking an empty stack returns \"\" and must not crash."
+    },
+    {
+     "call": "[]{ int before = Node::alive; UndoStack s; s.push(\"a\"); s.push(\"b\"); s.push(\"c\"); s.pop(); return Node::alive - before; }()",
+     "expect": "2",
+     "hint_if_fail": "The popped node must be deleted: head = std::move(head->next);"
+    },
+    {
+     "call": "[]{ int before = Node::alive; { UndoStack s; for (int i = 0; i < 50; i++) s.push(\"step\"); } return Node::alive - before; }()",
+     "expect": "0"
+    },
+    {
+     "call": "UndoStack().empty()",
+     "expect": "true",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "push: auto n = std::make_unique<Node>(action); n->next = std::move(head); head = std::move(n); count++;",
+    "pop: if (!head) return \"\"; std::string a = head->action; head = std::move(head->next); count--; return a;",
+    "A loop destructor is a nice touch: ~UndoStack() { while (head) head = std::move(head->next); }"
+   ],
+   "solution": "#include <memory>\n#include <string>\n\nstruct Node\n{\n    inline static int alive = 0;\n    std::string action;\n    std::unique_ptr<Node> next;\n    Node(std::string action) : action(action) { alive++; }\n    ~Node() { alive--; }\n};\n\nclass UndoStack\n{\npublic:\n    UndoStack() = default;\n    ~UndoStack() { while (head) head = std::move(head->next); }   // one node at a time, no deep recursion\n    UndoStack(const UndoStack&) = delete;\n    UndoStack& operator=(const UndoStack&) = delete;\n\n    void push(const std::string& action)\n    {\n        auto n = std::make_unique<Node>(action);\n        n->next = std::move(head);   // the new node owns the old chain\n        head = std::move(n);\n        count++;\n    }\n    std::string pop()\n    {\n        if (!head) return \"\";\n        std::string a = head->action;\n        head = std::move(head->next);   // the old top is deleted here\n        count--;\n        return a;\n    }\n    std::string peek() const { return head ? head->action : \"\"; }\n    int size() const { return count; }\n    bool empty() const { return !head; }\nprivate:\n    std::unique_ptr<Node> head;\n    int count = 0;\n};\n"
+  },
+  {
+   "id": "e2",
+   "title": "Clinic queue",
+   "file": "clinic_queue.cpp",
+   "prompt": "Write class PatientQueue, a first-in-first-out queue of names built from QNodes (given). Keep std::unique_ptr<QNode> head (the front, which owns the chain) and a plain QNode* tail (the back, not owning).\n- void join(const std::string& name) adds a patient at the back.\n- std::string next() removes and returns the patient at the front, or \"\" if nobody is waiting.\n- std::string front() const returns the front name without removing it, or \"\".\n- int size() const.\nThe queue must keep working after it has been emptied, and served patients' nodes must be deleted.",
+   "starter": "#include <memory>\n#include <string>\n\nstruct QNode\n{\n    inline static int alive = 0;\n    std::string name;\n    std::unique_ptr<QNode> next;\n    QNode(std::string name) : name(name) { alive++; }\n    ~QNode() { alive--; }\n};\n\nclass PatientQueue\n{\npublic:\n    void join(const std::string& name) {}\n    std::string next() { return \"\"; }\n    std::string front() const { return \"\"; }\n    int size() const { return 0; }\nprivate:\n    std::unique_ptr<QNode> head;\n    QNode* tail = nullptr;\n    int count = 0;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ PatientQueue q; q.join(\"Amina\"); q.join(\"Juma\"); q.join(\"Otieno\"); return q.front() + \",\" + std::to_string(q.size()); }()",
+     "expect": "Amina,3"
+    },
+    {
+     "call": "[]{ PatientQueue q; q.join(\"Amina\"); q.join(\"Juma\"); q.join(\"Otieno\"); std::string a = q.next(); std::string b = q.next(); return a + \",\" + b + \",\" + q.front(); }()",
+     "expect": "Amina,Juma,Otieno",
+     "hint_if_fail": "First in, first out: join at the tail, serve from the head."
+    },
+    {
+     "call": "[]{ PatientQueue q; q.join(\"Amina\"); q.next(); std::string a = q.next(); return a + \"|\" + q.front() + \"|\" + std::to_string(q.size()); }()",
+     "expect": "||0",
+     "hidden": true
+    },
+    {
+     "call": "[]{ PatientQueue q; q.join(\"Amina\"); q.join(\"Juma\"); q.next(); q.next(); q.join(\"Wanjiru\"); q.join(\"Otieno\"); std::string a = q.next(); std::string b = q.next(); return a + \",\" + b; }()",
+     "expect": "Wanjiru,Otieno",
+     "hidden": true,
+     "hint_if_fail": "When the queue becomes empty, set tail back to nullptr, and when joining an empty queue the new node is both head and tail."
+    },
+    {
+     "call": "[]{ int before = QNode::alive; PatientQueue q; q.join(\"a\"); q.join(\"b\"); q.join(\"c\"); q.next(); return QNode::alive - before; }()",
+     "expect": "2"
+    },
+    {
+     "call": "[]{ int before = QNode::alive; { PatientQueue q; q.join(\"a\"); q.join(\"b\"); } return QNode::alive - before; }()",
+     "expect": "0"
+    }
+   ],
+   "hints": [
+    "join: auto n = std::make_unique<QNode>(name); QNode* raw = n.get(); if (tail) tail->next = std::move(n); else head = std::move(n); tail = raw; count++;",
+    "Take raw = n.get() BEFORE moving n, because after the move n is empty.",
+    "next: if (!head) return \"\"; read the name; head = std::move(head->next); if (!head) tail = nullptr; count--;"
+   ],
+   "solution": "#include <memory>\n#include <string>\n\nstruct QNode\n{\n    inline static int alive = 0;\n    std::string name;\n    std::unique_ptr<QNode> next;\n    QNode(std::string name) : name(name) { alive++; }\n    ~QNode() { alive--; }\n};\n\nclass PatientQueue\n{\npublic:\n    PatientQueue() = default;\n    ~PatientQueue() { while (head) head = std::move(head->next); }\n    PatientQueue(const PatientQueue&) = delete;\n    PatientQueue& operator=(const PatientQueue&) = delete;\n\n    void join(const std::string& name)\n    {\n        auto n = std::make_unique<QNode>(name);\n        QNode* raw = n.get();              // remember it before moving the owner away\n        if (tail) tail->next = std::move(n);\n        else head = std::move(n);          // empty queue: the new node is the front too\n        tail = raw;\n        count++;\n    }\n    std::string next()\n    {\n        if (!head) return \"\";\n        std::string name = head->name;\n        head = std::move(head->next);      // the served node is deleted\n        if (!head) tail = nullptr;         // empty again: tail must not dangle\n        count--;\n        return name;\n    }\n    std::string front() const { return head ? head->name : \"\"; }\n    int size() const { return count; }\nprivate:\n    std::unique_ptr<QNode> head;   // owns the chain\n    QNode* tail = nullptr;         // just points at the last node\n    int count = 0;\n};\n"
+  },
+  {
+   "id": "e3",
+   "title": "Find and remove waypoints",
+   "file": "route.cpp",
+   "prompt": "Route (a linked list of Waypoints) can already pushFront, size and list. Add:\n- bool contains(const std::string& name) const;\n- int indexOf(const std::string& name) const: the position of the first match counting from 0 at the front, or -1;\n- bool remove(const std::string& name): unlinks and deletes the first waypoint with that name, returns true, or false if there is none. It must work for the first, a middle and the last waypoint, and size() must stay right.",
+   "starter": "#include <memory>\n#include <string>\n\nstruct Waypoint\n{\n    inline static int alive = 0;\n    std::string name;\n    std::unique_ptr<Waypoint> next;\n    Waypoint(std::string name) : name(name) { alive++; }\n    ~Waypoint() { alive--; }\n};\n\nclass Route\n{\npublic:\n    void pushFront(const std::string& name)\n    {\n        auto w = std::make_unique<Waypoint>(name);\n        w->next = std::move(head);\n        head = std::move(w);\n        count++;\n    }\n    int size() const { return count; }\n    std::string list() const\n    {\n        std::string out;\n        for (const Waypoint* w = head.get(); w; w = w->next.get())\n            out += (out.empty() ? \"\" : \" > \") + w->name;\n        return out;\n    }\n\n    bool contains(const std::string& name) const { return false; }\n    int indexOf(const std::string& name) const { return -1; }\n    bool remove(const std::string& name) { return false; }\nprivate:\n    std::unique_ptr<Waypoint> head;\n    int count = 0;\n};\n",
+   "tests": [
+    {
+     "call": "[]{ Route r; r.pushFront(\"well\"); r.pushFront(\"farm\"); r.pushFront(\"gate\"); return std::to_string(r.contains(\"farm\")) + std::to_string(r.indexOf(\"well\")) + std::to_string(r.indexOf(\"cave\")); }()",
+     "expect": "12-1"
+    },
+    {
+     "call": "[]{ Route r; r.pushFront(\"well\"); r.pushFront(\"farm\"); r.pushFront(\"gate\"); bool ok = r.remove(\"farm\"); return std::to_string(ok) + \" \" + r.list() + \" \" + std::to_string(r.size()); }()",
+     "expect": "1 gate > well 2"
+    },
+    {
+     "call": "[]{ Route r; r.pushFront(\"well\"); r.pushFront(\"farm\"); r.pushFront(\"gate\"); r.remove(\"gate\"); r.remove(\"well\"); return r.list(); }()",
+     "expect": "farm",
+     "hint_if_fail": "Removing the first one means changing head itself; removing the last one means changing the previous node's next."
+    },
+    {
+     "call": "[]{ Route r; r.pushFront(\"well\"); return std::to_string(r.remove(\"cave\")) + std::to_string(r.size()); }()",
+     "expect": "01",
+     "hidden": true
+    },
+    {
+     "call": "[]{ Route r; return std::to_string(r.remove(\"x\")) + std::to_string(r.contains(\"x\")) + std::to_string(r.indexOf(\"x\")); }()",
+     "expect": "00-1",
+     "hidden": true
+    },
+    {
+     "call": "[]{ Route r; r.pushFront(\"a\"); r.pushFront(\"b\"); r.pushFront(\"a\"); r.remove(\"a\"); return r.list(); }()",
+     "expect": "b > a",
+     "hidden": true,
+     "hint_if_fail": "Remove only the first match."
+    },
+    {
+     "call": "[]{ int before = Waypoint::alive; Route r; r.pushFront(\"a\"); r.pushFront(\"b\"); r.remove(\"a\"); return Waypoint::alive - before; }()",
+     "expect": "1",
+     "hint_if_fail": "Removing must delete the waypoint: move its next into the link that owned it."
+    }
+   ],
+   "hints": [
+    "contains can just be: return indexOf(name) != -1;",
+    "indexOf: walk with const Waypoint* w = head.get() and a counter.",
+    "remove: std::unique_ptr<Waypoint>* link = &head; while (*link) { if ((*link)->name == name) { *link = std::move((*link)->next); count--; return true; } link = &(*link)->next; } return false;"
+   ],
+   "solution": "#include <memory>\n#include <string>\n\nstruct Waypoint\n{\n    inline static int alive = 0;\n    std::string name;\n    std::unique_ptr<Waypoint> next;\n    Waypoint(std::string name) : name(name) { alive++; }\n    ~Waypoint() { alive--; }\n};\n\nclass Route\n{\npublic:\n    void pushFront(const std::string& name)\n    {\n        auto w = std::make_unique<Waypoint>(name);\n        w->next = std::move(head);\n        head = std::move(w);\n        count++;\n    }\n    int size() const { return count; }\n    std::string list() const\n    {\n        std::string out;\n        for (const Waypoint* w = head.get(); w; w = w->next.get())\n            out += (out.empty() ? \"\" : \" > \") + w->name;\n        return out;\n    }\n\n    bool contains(const std::string& name) const { return indexOf(name) != -1; }\n    int indexOf(const std::string& name) const\n    {\n        int i = 0;\n        for (const Waypoint* w = head.get(); w; w = w->next.get(), i++)\n            if (w->name == name) return i;\n        return -1;\n    }\n    bool remove(const std::string& name)\n    {\n        // link points at whichever unique_ptr owns the current waypoint (head, or a next)\n        std::unique_ptr<Waypoint>* link = &head;\n        while (*link) {\n            if ((*link)->name == name) {\n                *link = std::move((*link)->next);   // skip over it; it is deleted\n                count--;\n                return true;\n            }\n            link = &(*link)->next;\n        }\n        return false;\n    }\nprivate:\n    std::unique_ptr<Waypoint> head;\n    int count = 0;\n};\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "In a unique_ptr linked list, who owns node 3?",
+   "choices": [
+    "The list directly",
+    "Node 2, through its next pointer",
+    "Nobody",
+    "All nodes share it"
+   ],
+   "answer": 1,
+   "why": "Each node owns the next one; the list owns only the head."
+  },
+  {
+   "q": "head = std::move(head->next); does what?",
+   "choices": [
+    "Copies the list",
+    "Pops the front node, which gets deleted",
+    "Leaks the old head",
+    "Crashes always"
+   ],
+   "answer": 1,
+   "why": "The old head loses its owner and is deleted."
+  },
+  {
+   "q": "Why is a queue's tail a plain pointer, not a unique_ptr?",
+   "choices": [
+    "Speed",
+    "The node is already owned by the node before it; two unique_ptrs can't own one node",
+    "unique_ptr can't point at the end",
+    "Style"
+   ],
+   "answer": 1,
+   "why": "The tail only remembers where the end is; it doesn't own."
+  },
+  {
+   "q": "Which is a stack (last in, first out)?",
+   "choices": [
+    "A clinic waiting line",
+    "An undo history",
+    "A printer queue",
+    "Orders for a robot arm"
+   ],
+   "answer": 1,
+   "why": "Undo takes the most recent action first."
+  },
+  {
+   "q": "A queue is emptied by next(). What must happen to tail?",
+   "choices": [
+    "Nothing",
+    "Set it to nullptr, or it dangles at a deleted node",
+    "delete tail",
+    "Point it at head"
+   ],
+   "answer": 1,
+   "why": "The node it pointed at was deleted."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Node in a unique_ptr list?",
+   "a": "struct Node { T value; std::unique_ptr<Node> next; };"
+  },
+  {
+   "q": "Push to the front?",
+   "a": "n->next = std::move(head); head = std::move(n);"
+  },
+  {
+   "q": "Walk the list?",
+   "a": "for (const Node* n = head.get(); n; n = n->next.get())"
+  },
+  {
+   "q": "Stack vs queue?",
+   "a": "Stack: last in, first out. Queue: first in, first out."
+  }
+ ],
+ "explain": "Explain how a linked list built from unique_ptrs cleans itself up, and why a queue's tail pointer must not own its node."
+}

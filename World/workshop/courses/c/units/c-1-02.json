@@ -1,0 +1,127 @@
+{
+ "id": "c-1-02",
+ "level": 1,
+ "title": "Variables and types",
+ "concepts": [
+  "variables",
+  "types"
+ ],
+ "skills": [
+  "variables",
+  "types"
+ ],
+ "bridge": "C has `int`, `double`, `char` and (with `<stdbool.h>`) `bool`. There's no string type: text is an array of `char` (coming in a later unit). Integer division drops the remainder: `7 / 2` is `3`; write `(double)7 / 2` for `3.5`. Uninitialised variables hold garbage.",
+ "lesson": "```\nint harvestKg = 40;\ndouble pricePerKg = 55.5;\nchar grade = 'A';\n#include <stdbool.h>      // (at the top) for bool, true, false\nbool sold = false;\nconst double RATE = 130.0;\n```\n\nC's types are about **memory size**: an `int` is usually 4 bytes, a `double` 8, a `char` 1. `sizeof(int)` tells you. On an Arduino Uno an `int` is only 2 bytes and tops out at 32767, which surprises people.\n\n**The integer division trap** is the same as C++ and Java:\n\n```\nint total = 7, count = 2;\ndouble a = total / count;           /* 3.0: the .5 was already lost */\ndouble b = (double)total / count;   /* 3.5: convert first */\n```\n\n`%` is the remainder. And always give variables a starting value: an uninitialised local holds whatever was in that memory.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\nint main(void)\n{\n    int total = 7, count = 2;\n    printf(\"%d\\n\", total / count);\n    printf(\"%.1f\\n\", (double)total / count);\n    printf(\"%d\\n\", total % count);\n    printf(\"an int is %zu bytes, a double %zu\\n\", sizeof(int), sizeof(double));\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Total weight",
+   "file": "total.c",
+   "prompt": "Write int total_kg(int bags, int kg_per_bag) that returns the total weight.",
+   "starter": "int total_kg(int bags, int kg_per_bag)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "total_kg(3, 50)",
+     "expect": "150"
+    },
+    {
+     "call": "total_kg(0, 50)",
+     "expect": "0"
+    },
+    {
+     "call": "total_kg(7, 25)",
+     "expect": "175"
+    }
+   ],
+   "hints": [
+    "Multiply.",
+    "return bags * kg_per_bag;"
+   ],
+   "solution": "int total_kg(int bags, int kg_per_bag)\n{\n    return bags * kg_per_bag;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Exact average",
+   "file": "average.c",
+   "prompt": "Write double average(int total, int count) that returns the exact average: average(7, 2) is 3.50.",
+   "starter": "double average(int total, int count)\n{\n    return total / count;\n}\n",
+   "tests": [
+    {
+     "call": "average(7, 2)",
+     "fmt": "%.2f",
+     "expect": "3.50",
+     "hint_if_fail": "7 / 2 with ints is 3. Cast one side to double first."
+    },
+    {
+     "call": "average(9, 3)",
+     "fmt": "%.2f",
+     "expect": "3.00"
+    },
+    {
+     "call": "average(1, 4)",
+     "fmt": "%.2f",
+     "expect": "0.25"
+    }
+   ],
+   "hints": [
+    "Both are int, so / drops the .5.",
+    "return (double)total / count;"
+   ],
+   "solution": "double average(int total, int count)\n{\n    return (double)total / count;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is 7 / 2 in C with two ints?",
+   "choices": [
+    "3.5",
+    "3",
+    "4",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Whole-number division."
+  },
+  {
+   "q": "Does C have a built-in string type?",
+   "choices": [
+    "Yes, string",
+    "No: text is an array of char",
+    "Yes, String",
+    "Only in C11"
+   ],
+   "answer": 1,
+   "why": "Strings are char arrays ending in \\0."
+  },
+  {
+   "q": "Biggest int on an Arduino Uno?",
+   "choices": [
+    "2,147,483,647",
+    "32,767",
+    "255",
+    "No limit"
+   ],
+   "answer": 1,
+   "why": "int is 2 bytes there."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Exact division of ints?",
+   "a": "(double)a / b"
+  },
+  {
+   "q": "bool in C?",
+   "a": "#include <stdbool.h>"
+  },
+  {
+   "q": "Size of a type in bytes?",
+   "a": "sizeof(type)"
+  }
+ ],
+ "explain": "Explain variables and types to someone who has never programmed, in your own words, with an example you make up."
+}

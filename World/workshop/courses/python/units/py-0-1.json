@@ -1,0 +1,146 @@
+{
+ "id": "py-0-1",
+ "level": 0,
+ "title": "What a program is",
+ "skills": [
+  "running code",
+  "print",
+  "debugging"
+ ],
+ "lesson": "A computer does exactly what it's told, one instruction at a time, very fast. It never guesses what you meant. A **program** is a list of those instructions written in a language both you and the computer can read. Python is one of the easiest to read, which is why it's a good first language, and it's also used for real work: AI, science, websites, robots, automation.\n\nWhen you run a Python file, a program called the **interpreter** reads your file from the top, line by line, and does each instruction. If a line makes no sense to it, it stops and shows an **error** with the line number. Errors aren't failure: they're the computer telling you exactly where it got confused. Every programmer reads errors all day.\n\nThe first instruction most people learn is `print`, which shows text on the screen:\n\n```\nprint(\"Hello\")\n```\n\nThe text goes inside quotes (that makes it a **string**, a piece of text) and the quotes go inside round brackets. Forget a quote or a bracket and Python stops with a `SyntaxError`: grammar mistake.\n\nHow to run your code: save the file, then press **check** (Ctrl+Alt+K in VSCodium) to have Archie run it against the tests, or run it yourself in a terminal with `python ex1_hello.py`.",
+ "example": {
+  "code": "print(\"Hello, world!\")\nprint(\"I am learning Python.\")\nprint(2 + 3)\n",
+  "notes": [
+   "Line 1 shows the text between the quotes.",
+   "Line 2 runs after line 1: programs run top to bottom.",
+   "Line 3 has no quotes, so Python works out 2 + 3 and prints 5."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Say hello",
+   "file": "ex1_hello.py",
+   "prompt": "Make the program print exactly: Hello, Archie!",
+   "starter": "# Print: Hello, Archie!\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Hello, Archie!"
+     ],
+     "case": true,
+     "name": "prints the greeting"
+    }
+   ],
+   "hints": [
+    "Use print with the text in quotes.",
+    "print(\"Hello, Archie!\") with the comma and the exclamation mark."
+   ],
+   "solution": "print(\"Hello, Archie!\")\n"
+  },
+  {
+   "id": "e2",
+   "title": "Three lines",
+   "file": "ex2_three.py",
+   "prompt": "Print three lines: your name on the first, the place you live on the second, and the number 2026 on the third (as a number, not in quotes).",
+   "starter": "# Line 1: your name\n# Line 2: where you live\n# Line 3: the number 2026 (no quotes)\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "2026"
+     ],
+     "name": "prints 2026"
+    },
+    {
+     "check": "src = CODE\nassert src.count('print(') >= 3, 'Use three print lines.'\nassert 'print(2026)' in src.replace(' ', ''), 'Print 2026 as a number: print(2026)'",
+     "name": "three prints, 2026 as a number"
+    }
+   ],
+   "hints": [
+    "Each print makes its own line.",
+    "Numbers don't need quotes: print(2026)."
+   ],
+   "solution": "print(\"Sam\")\nprint(\"Springfield\")\nprint(2026)\n"
+  },
+  {
+   "id": "e3",
+   "title": "Fix it (debugging drill)",
+   "file": "ex3_fix.py",
+   "prompt": "This program has three mistakes. Read each error Python gives you, fix that line, and run again until it prints:\nGood morning\nToday is a good day\n10",
+   "starter": "print(\"Good morning)\nprint(\"Today is a good day\"\nPrint(5 + 5)\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Good morning",
+      "Today is a good day",
+      "10"
+     ],
+     "case": true,
+     "name": "all three lines"
+    }
+   ],
+   "hints": [
+    "Run it and read the error: which line, and what does it say?",
+    "Line 1 is missing a closing quote, line 2 a closing bracket, and Python cares about capital letters: print, not Print."
+   ],
+   "solution": "print(\"Good morning\")\nprint(\"Today is a good day\")\nprint(5 + 5)\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does the Python interpreter do with your file?",
+   "choices": [
+    "Guesses what you meant and fixes small mistakes",
+    "Reads it from the top and does each instruction in order",
+    "Runs the last line first",
+    "Turns it into a website"
+   ],
+   "answer": 1,
+   "why": "It runs top to bottom, exactly as written."
+  },
+  {
+   "q": "Python stops with SyntaxError. What does that usually mean?",
+   "choices": [
+    "The computer is broken",
+    "A grammar mistake, like a missing quote or bracket",
+    "The program is too long",
+    "You need the internet"
+   ],
+   "answer": 1,
+   "why": "SyntaxError means the line isn't valid Python, most often a missing quote, bracket or colon."
+  },
+  {
+   "q": "What does print(3 * 4) show?",
+   "choices": [
+    "3 * 4",
+    "12",
+    "34",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Without quotes Python calculates it: 12."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What is a string?",
+   "a": "A piece of text, written between quotes."
+  },
+  {
+   "q": "Where does Python start running a file?",
+   "a": "At the top, one line at a time."
+  },
+  {
+   "q": "What's the first thing to do with an error?",
+   "a": "Read it: it names the line and what confused Python."
+  }
+ ],
+ "concepts": [
+  "output"
+ ],
+ "bridge": "Python needs no class or main: the file runs from the top. `print(...)` prints a line, and there are no semicolons or braces.",
+ "explain": "Explain what a program is to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

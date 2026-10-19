@@ -1,0 +1,51 @@
+{
+ "name": "Save data and settings",
+ "kind": "feature",
+ "lang": "Python",
+ "version": "1.0.0",
+ "summary": "Keeps your app's data in JSON files that survive power cuts (safe saves, last 5 versions kept). Lists of records get ids automatically.",
+ "tags": [
+  "save",
+  "data",
+  "settings",
+  "json",
+  "storage",
+  "records",
+  "offline"
+ ],
+ "files": {
+  "lib/__init__.py": "__init__.py",
+  "lib/store.py": "store.py"
+ },
+ "imports": {
+  "py": [
+   "from lib.store import Store"
+  ]
+ },
+ "use": "s = Store('farm'); s.add('harvests', {'crop': 'maize', 'kg': 40}); s.get('harvests')",
+ "test": {
+  "run": [
+   "python",
+   "test_store.py"
+  ],
+  "files": [
+   "test_store.py"
+  ]
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "os.replace(tmp, self.path)",
+   "note": "Write a new file, then swap it in: if the power cuts out halfway, the old file is still whole."
+  },
+  {
+   "find": "def _load(self):",
+   "note": "If the file is damaged, it falls back to the newest good copy from .old/."
+  }
+ ]
+}

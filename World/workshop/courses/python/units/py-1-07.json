@@ -1,0 +1,157 @@
+{
+ "id": "py-1-07",
+ "level": 1,
+ "title": "Loops with for and range",
+ "skills": [
+  "loops",
+  "for",
+  "range"
+ ],
+ "lesson": "`for` goes through things one at a time:\n\n```\nfor crop in [\"maize\", \"beans\", \"kale\"]:\n    print(crop)\n```\n\nand `range` makes number sequences: `range(5)` is 0, 1, 2, 3, 4 (five numbers, starting at 0); `range(1, 6)` is 1 to 5; `range(0, 20, 5)` is 0, 5, 10, 15 (step 5). `for i in range(10):` repeats something exactly 10 times.\n\nA for loop over a string goes letter by letter. Loops can go inside loops (**nested**): the inner one runs completely for every round of the outer one, which is how you make tables and grids.\n\nUse `for` when you know what you're going through (a list, a range, a word); use `while` when you repeat until something happens.",
+ "example": {
+  "code": "for n in range(1, 6):\n    print(n, n * n)\nfor letter in \"Habari\":\n    print(letter, end=\" \")\nprint()\nfor row in range(1, 4):\n    for col in range(1, 4):\n        print(row * col, end=\"\\t\")\n    print()\n",
+  "notes": [
+   "Numbers and their squares.",
+   "Letter by letter; end=\" \" stays on one line.",
+   "A small times table: a loop inside a loop."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Times table",
+   "file": "ex1_table.py",
+   "prompt": "Ask for a number and print its times table from 1 to 12, like: 7 x 3 = 21",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "7\n",
+     "out": [
+      "7 x 1 = 7",
+      "7 x 12 = 84"
+     ]
+    },
+    {
+     "stdin": "9\n",
+     "out": [
+      "9 x 7 = 63"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "for i in range(1, 13):",
+    "print(f\"{n} x {i} = {n * i}\")"
+   ],
+   "solution": "n = int(input(\"Number? \"))\nfor i in range(1, 13):\n    print(f\"{n} x {i} = {n * i}\")\n"
+  },
+  {
+   "id": "e2",
+   "title": "Count the vowels",
+   "file": "ex2_vowels.py",
+   "prompt": "Write count_vowels(text): how many a, e, i, o, u it has (capitals count too).",
+   "starter": "def count_vowels(text):\n    return 0\n",
+   "tests": [
+    {
+     "call": "count_vowels(\"Kilimanjaro\")",
+     "expect": 5
+    },
+    {
+     "call": "count_vowels(\"AEIOU xyz\")",
+     "expect": 5
+    },
+    {
+     "call": "count_vowels(\"\")",
+     "expect": 0,
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Loop over text.lower() letter by letter.",
+    "if letter in \"aeiou\": count += 1"
+   ],
+   "solution": "def count_vowels(text):\n    count = 0\n    for ch in text.lower():\n        if ch in \"aeiou\":\n            count += 1\n    return count\n"
+  },
+  {
+   "id": "e3",
+   "title": "A triangle",
+   "file": "ex3_triangle.py",
+   "prompt": "Write triangle(n) that returns (not prints) a string with n lines: line 1 has one *, line 2 has two, up to n, joined by newlines. triangle(3) is \"*\\n**\\n***\".",
+   "starter": "def triangle(n):\n    lines = []\n    return \"\\n\".join(lines)\n",
+   "tests": [
+    {
+     "call": "triangle(3)",
+     "expect": "*\n**\n***"
+    },
+    {
+     "call": "triangle(1)",
+     "expect": "*"
+    },
+    {
+     "call": "triangle(0)",
+     "expect": "",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "for i in range(1, n + 1): lines.append(\"*\" * i)",
+    "\"*\" * 3 is \"***\""
+   ],
+   "solution": "def triangle(n):\n    lines = []\n    for i in range(1, n + 1):\n        lines.append(\"*\" * i)\n    return \"\\n\".join(lines)\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does range(2, 10, 3) give?",
+   "choices": [
+    "2, 5, 8",
+    "2, 3, 4 … 10",
+    "3, 6, 9",
+    "2, 5, 8, 11"
+   ],
+   "answer": 0,
+   "why": "Start 2, step 3, stop before 10."
+  },
+  {
+   "q": "How many times does the inner line run?\nfor a in range(3):\n    for b in range(4):\n        x",
+   "choices": [
+    "7",
+    "12",
+    "3",
+    "4"
+   ],
+   "answer": 1,
+   "why": "4 for each of 3: 12."
+  },
+  {
+   "q": "range(5) starts at…",
+   "choices": [
+    "1",
+    "0",
+    "5",
+    "-1"
+   ],
+   "answer": 1,
+   "why": "0 to 4."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Repeat something exactly 10 times?",
+   "a": "for i in range(10):"
+  },
+  {
+   "q": "range(1, 6) gives?",
+   "a": "1, 2, 3, 4, 5"
+  },
+  {
+   "q": "Nested loops?",
+   "a": "The inner loop runs fully for every round of the outer one."
+  }
+ ],
+ "concepts": [
+  "loops"
+ ],
+ "bridge": "`for i in range(1, 13):` counts 1 to 12; `for crop in crops:` goes through items (like for-each / for…of).",
+ "explain": "Explain loops with for and range to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

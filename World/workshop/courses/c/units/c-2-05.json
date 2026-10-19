@@ -1,0 +1,248 @@
+{
+ "id": "c-2-05",
+ "level": 2,
+ "title": "Strings on the heap",
+ "concepts": [
+  "malloc",
+  "memory",
+  "copying"
+ ],
+ "skills": [
+  "strings",
+  "copying",
+  "splitting"
+ ],
+ "lesson": "A C string is an array of `char` that ends with a zero byte, `'\\0'`. That zero is how every string function knows where the text stops. `\"maize\"` takes **6** bytes: five letters and the `'\\0'`.\n\n`strlen` counts the letters but **not** the `'\\0'`. So when you put a copy of a string on the heap, you need `strlen(s) + 1` bytes. Forgetting the `+ 1` is the classic C string bug: the copy works most of the time, then one day the missing zero lets `printf` run off into whatever is next in memory.\n\n```\nchar *str_copy(const char *s)\n{\n    size_t n = strlen(s);\n    char *copy = malloc(n + 1);       /* + 1 for the '\\0' */\n    if (copy == NULL) return NULL;\n    memcpy(copy, s, n + 1);           /* copies the '\\0' too */\n    return copy;                      /* caller frees it */\n}\n```\n\nWhy copy at all? A name typed by the user often sits in a buffer that gets reused for the next line. If you only keep a pointer to that buffer, your saved name changes under you. A heap copy belongs to you.\n\n**strdup isn't standard C.** Linux has `strdup`, Windows calls it `_strdup`, and C11 doesn't promise either. Writing your own `str_copy` is five lines and works everywhere, so that's what we do.\n\n**Joining strings** works the same way: add up the lengths, allocate once with `+ 1`, then copy each piece in at the right place. `memcpy(dest + offset, piece, len)` is cleaner than chains of `strcat`, which re-scan the string every time.\n\n**Splitting a line** like `Amina,maize,40` into fields:\n1. Count the separators: fields = separators + 1.\n2. Allocate an array of `char *`, one per field.\n3. For each field, find where it ends (the next separator or `'\\0'`), allocate `length + 1`, copy the letters, add the `'\\0'`.\n\nThe result is a block holding pointers to other blocks, so freeing takes two steps: free every field, *then* the array. Do it the other way round and you can no longer reach the fields.\n\n**Who frees?** Every function that returns new memory should say so in its comment: \"the caller frees it\". That one line of documentation prevents most leaks in real C projects.\n\n**Don't return a local buffer.** `char buf[64]; ... return buf;` hands back memory that disappears when the function ends. Return heap memory, or have the caller pass in a buffer and its size.\n\nCSV logs, config files, commands arriving over a serial line from a robot: they all start with copying and splitting strings like this.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Returns a new heap copy of s. The caller frees it. */\nchar *str_copy(const char *s)\n{\n    size_t n = strlen(s);\n    char *copy = malloc(n + 1);\n    if (copy == NULL) return NULL;\n    memcpy(copy, s, n + 1);\n    return copy;\n}\n\nint main(void)\n{\n    char line[32] = \"Wanjiru\";\n    char *saved = str_copy(line);\n    strcpy(line, \"Otieno\");        /* the buffer gets reused */\n    printf(\"buffer: %s, saved copy: %s\\n\", line, saved);\n    printf(\"\\\"%s\\\" is %zu letters and needs %zu bytes\\n\", saved, strlen(saved), strlen(saved) + 1);\n    free(saved);\n    return 0;\n}\n",
+  "notes": [
+   "str_copy allocates strlen(s) + 1 bytes: the + 1 is for the '\\0'.",
+   "memcpy with n + 1 copies the letters and the terminating zero in one go.",
+   "The comment says who frees the result: the caller.",
+   "Reusing line doesn't change saved, because saved is its own copy.",
+   "main frees saved once it's done with it."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Your own strdup",
+   "file": "strcopy.c",
+   "prompt": "Write char *str_copy(const char *s): a new heap copy of s, allocated with my_alloc using exactly strlen(s) + 1 bytes, including the '\\0'. The caller frees it. If s is NULL, return NULL.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\nchar *str_copy(const char *s)\n{\n    return NULL;\n}\n",
+   "tests": [
+    {
+     "call": "({ char *c = str_copy(\"Amina\"); static char b[64]; strcpy(b, c); my_free(c); b; })",
+     "fmt": "%s",
+     "expect": "Amina",
+     "name": "copies the text"
+    },
+    {
+     "call": "({ char *c = str_copy(\"maize\"); int r = (int)last_alloc_size; my_free(c); r; })",
+     "fmt": "%d",
+     "expect": "6",
+     "name": "exactly strlen + 1 bytes",
+     "hint_if_fail": "5 letters need 6 bytes: one more for the '\\0'."
+    },
+    {
+     "call": "({ char src[] = \"beans\"; char *c = str_copy(src); src[0] = 'X'; static char b[64]; strcpy(b, c); my_free(c); b; })",
+     "fmt": "%s",
+     "expect": "beans",
+     "name": "a separate copy"
+    },
+    {
+     "call": "({ char *c = str_copy(\"\"); int r = (int)last_alloc_size * 10 + (c[0] == 0); my_free(c); r; })",
+     "expect": "11",
+     "hidden": true,
+     "name": "empty string still needs 1 byte"
+    },
+    {
+     "call": "str_copy(NULL) == NULL",
+     "expect": "1",
+     "hidden": true,
+     "name": "NULL in, NULL out"
+    }
+   ],
+   "hints": [
+    "size_t n = strlen(s); then my_alloc(n + 1).",
+    "Check for NULL (both s and the result).",
+    "memcpy(copy, s, n + 1); copies the '\\0' too."
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\n/* Returns a new heap copy of s. The caller frees it. */\nchar *str_copy(const char *s)\n{\n    if (s == NULL) return NULL;\n    size_t n = strlen(s);\n    char *copy = my_alloc(n + 1);     /* + 1 for the '\\0' */\n    if (copy == NULL) return NULL;\n    memcpy(copy, s, n + 1);\n    return copy;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Join with a separator",
+   "file": "join.c",
+   "prompt": "Write char *join(const char *a, const char *sep, const char *b): a new heap string a + sep + b, made with ONE my_alloc of exactly the right size (all three lengths + 1). The caller frees it. join(\"Juma\", \", \", \"Otieno\") gives \"Juma, Otieno\".",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\nchar *join(const char *a, const char *sep, const char *b)\n{\n    return NULL;\n}\n",
+   "tests": [
+    {
+     "call": "({ char *j = join(\"Juma\", \", \", \"Otieno\"); static char b[64]; strcpy(b, j); my_free(j); b; })",
+     "fmt": "%s",
+     "expect": "Juma, Otieno",
+     "name": "joins three parts"
+    },
+    {
+     "call": "({ char *j = join(\"Juma\", \", \", \"Otieno\"); int r = (int)last_alloc_size; my_free(j); r; })",
+     "expect": "13",
+     "name": "exactly the right size",
+     "hint_if_fail": "4 + 2 + 6 letters plus 1 for the '\\0' is 13."
+    },
+    {
+     "call": "({ int before = live_allocs; char *j = join(\"tank\", \"_\", \"7\"); int r = live_allocs - before; my_free(j); r; })",
+     "expect": "1",
+     "name": "one allocation"
+    },
+    {
+     "call": "({ char *j = join(\"\", \"-\", \"\"); static char b[8]; strcpy(b, j); my_free(j); b; })",
+     "fmt": "%s",
+     "expect": "-",
+     "hidden": true,
+     "name": "empty parts"
+    },
+    {
+     "call": "({ char *j = join(\"maize\", \"\", \"\"); static char b[16]; strcpy(b, j); my_free(j); b; })",
+     "fmt": "%s",
+     "expect": "maize",
+     "hidden": true,
+     "name": "empty separator"
+    }
+   ],
+   "hints": [
+    "Get la, ls, lb with strlen, then my_alloc(la + ls + lb + 1).",
+    "memcpy(out, a, la); memcpy(out + la, sep, ls); memcpy(out + la + ls, b, lb);",
+    "Finish with out[la + ls + lb] = '\\0';"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\n/* Returns a new heap string a + sep + b. The caller frees it. */\nchar *join(const char *a, const char *sep, const char *b)\n{\n    size_t la = strlen(a), ls = strlen(sep), lb = strlen(b);\n    char *out = my_alloc(la + ls + lb + 1);\n    if (out == NULL) return NULL;\n    memcpy(out, a, la);\n    memcpy(out + la, sep, ls);\n    memcpy(out + la + ls, b, lb);\n    out[la + ls + lb] = '\\0';\n    return out;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Split a CSV line",
+   "file": "split.c",
+   "prompt": "Write char **split(const char *line, char sep, int *count). Return a new heap array of new heap strings, one per field, and store the number of fields in *count. There is always one more field than there are separators, so \"a,,b\" gives 3 fields (the middle one is \"\") and \"\" gives 1 empty field. Use my_alloc for everything; free_fields (given) frees the result. If memory runs out, free what you made, set *count to 0 and return NULL.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\nvoid free_fields(char **fields, int count)\n{\n    if (fields == NULL) return;\n    for (int i = 0; i < count; i++)\n        my_free(fields[i]);       /* each field first... */\n    my_free(fields);              /* ...then the array that held them */\n}\n\nchar **split(const char *line, char sep, int *count)\n{\n    *count = 0;\n    return NULL;\n}\n",
+   "tests": [
+    {
+     "call": "({ int n; char **f = split(\"Amina,maize,40\", ',', &n); free_fields(f, n); n; })",
+     "expect": "3",
+     "name": "counts the fields"
+    },
+    {
+     "call": "({ int n; char **f = split(\"Amina,maize,40\", ',', &n); static char b[64]; strcpy(b, f[1]); free_fields(f, n); b; })",
+     "fmt": "%s",
+     "expect": "maize",
+     "name": "middle field"
+    },
+    {
+     "call": "({ int n; char **f = split(\"Amina,maize,40\", ',', &n); static char b[64]; strcpy(b, f[2]); free_fields(f, n); b; })",
+     "fmt": "%s",
+     "expect": "40",
+     "name": "last field",
+     "hint_if_fail": "The last field ends at the '\\0', not at a separator."
+    },
+    {
+     "call": "({ int n; char **f = split(\"a,,b\", ',', &n); int r = n * 10 + (f[1][0] == 0); free_fields(f, n); r; })",
+     "expect": "31",
+     "hidden": true,
+     "name": "empty field in the middle"
+    },
+    {
+     "call": "({ int n; char **f = split(\"Wanjiru\", ';', &n); int r = n * 10 + (strcmp(f[0], \"Wanjiru\") == 0); free_fields(f, n); r; })",
+     "expect": "11",
+     "hidden": true,
+     "name": "no separator: one field"
+    },
+    {
+     "call": "({ int before = live_allocs; int n; char **f = split(\"x;y\", ';', &n); int during = live_allocs - before; free_fields(f, n); during * 10 + (live_allocs - before); })",
+     "expect": "30",
+     "hidden": true,
+     "name": "one block per field plus the array, all freed"
+    }
+   ],
+   "hints": [
+    "First loop: count separators; fields = that + 1. Allocate n * sizeof(char *).",
+    "For each field: find its end (the next sep or '\\0'), length = end - start, my_alloc(length + 1), memcpy, add '\\0'.",
+    "Next field starts at end + 1. If an allocation fails, free_fields(fields, i) and return NULL."
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\nvoid free_fields(char **fields, int count)\n{\n    if (fields == NULL) return;\n    for (int i = 0; i < count; i++)\n        my_free(fields[i]);       /* each field first... */\n    my_free(fields);              /* ...then the array that held them */\n}\n\n/* Splits line at sep. Returns a heap array of heap strings; free it with free_fields. */\nchar **split(const char *line, char sep, int *count)\n{\n    int n = 1;\n    for (const char *p = line; *p != '\\0'; p++)\n        if (*p == sep) n++;\n\n    char **fields = my_alloc(n * sizeof *fields);\n    if (fields == NULL) {\n        *count = 0;\n        return NULL;\n    }\n\n    const char *start = line;\n    for (int i = 0; i < n; i++) {\n        const char *end = start;\n        while (*end != '\\0' && *end != sep) end++;\n        size_t len = (size_t)(end - start);\n        fields[i] = my_alloc(len + 1);\n        if (fields[i] == NULL) {          /* undo what we made so far */\n            free_fields(fields, i);\n            *count = 0;\n            return NULL;\n        }\n        memcpy(fields[i], start, len);\n        fields[i][len] = '\\0';\n        start = end + 1;                  /* skip the separator */\n    }\n    *count = n;\n    return fields;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "How many bytes does a heap copy of \"tank\" need?",
+   "choices": [
+    "4",
+    "5",
+    "8",
+    "It depends on the computer"
+   ],
+   "answer": 1,
+   "why": "Four letters plus the '\\0'."
+  },
+  {
+   "q": "Why copy a name instead of keeping a pointer to the input buffer?",
+   "choices": [
+    "Copies are faster",
+    "The buffer gets reused for the next line, so the saved name would change",
+    "Pointers can't point at text",
+    "printf needs a copy"
+   ],
+   "answer": 1,
+   "why": "A heap copy belongs to you."
+  },
+  {
+   "q": "You split a line into a char ** of heap strings. How do you free it?",
+   "choices": [
+    "free(fields) is enough",
+    "Free each field, then free the array",
+    "Free the array, then each field",
+    "It frees itself"
+   ],
+   "answer": 1,
+   "why": "Free the array last, or you lose the way to reach the fields."
+  },
+  {
+   "q": "Why write your own str_copy instead of strdup?",
+   "choices": [
+    "strdup is slow",
+    "strdup isn't part of standard C11, so it's missing or named differently on some compilers",
+    "strdup doesn't copy the '\\0'",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Five lines of portable code beats a missing function."
+  },
+  {
+   "q": "A function does char buf[64]; ... return buf;. What's the problem?",
+   "choices": [
+    "None",
+    "buf disappears when the function returns",
+    "64 is too small",
+    "It returns a copy"
+   ],
+   "answer": 1,
+   "why": "Return heap memory, or let the caller pass a buffer."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Bytes for a copy of s?",
+   "a": "strlen(s) + 1"
+  },
+  {
+   "q": "What ends every C string?",
+   "a": "The zero byte '\\0'."
+  },
+  {
+   "q": "Fields in a line with k separators?",
+   "a": "k + 1"
+  },
+  {
+   "q": "Comment to put on a function returning new memory?",
+   "a": "\"The caller frees it.\""
+  }
+ ],
+ "explain": "Explain in your own words why a string copy needs strlen + 1 bytes, using a word you choose and counting its bytes."
+}

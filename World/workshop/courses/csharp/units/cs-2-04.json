@@ -1,0 +1,237 @@
+{
+ "id": "cs-2-04",
+ "level": 2,
+ "title": "Polymorphism and pattern matching",
+ "concepts": [
+  "polymorphism",
+  "inheritance"
+ ],
+ "skills": [
+  "polymorphism",
+  "patterns",
+  "switch"
+ ],
+ "lesson": "**Polymorphism** (\"many shapes\") is the payoff of the last two units. You hold a `List<Enemy>`, call the same method on each, and each one does its own thing:\n\n```\nforeach (Enemy e in wave)\n    log.Add(e.Act(distance));\n```\n\nA goblin runs closer, an archer shoots, a healer heals. The loop has no `if (e is Goblin)` in it, and when you add a `Bomber` next week the loop doesn't change. That's the habit to build: **put the behaviour in the class, not in a big if-chain outside it.**\n\n**The common mistake** is the type-checking chain:\n\n```\nif (e is Goblin) ... else if (e is Archer) ... else if (e is Healer) ...\n```\n\nEvery new enemy means hunting down every chain like this. If you catch yourself writing one over your own classes, an overridden method is usually the better answer.\n\n**But sometimes you don't own the classes.** Loot on the ground might be a `Coin`, a `Potion`, a `Key` or a plain string note, with no shared base. Then C#'s **pattern matching** is the clean tool:\n\n```\nstring Describe(object item) => item switch\n{\n    null => \"Nothing\",\n    Coin { Value: >= 100 } c => $\"Treasure! {c.Value} gold\",\n    Coin c => $\"{c.Value} gold\",\n    Potion p => $\"Potion (+{p.Heal} HP)\",\n    string note => $\"Note: {note}\",\n    _ => \"Unknown item\"\n};\n```\n\n- `Coin c` is a **type pattern**: \"if it's a Coin, call it c\".\n- `{ Value: >= 100 }` is a **property pattern**: also check a property.\n- Order matters: the first matching arm wins, so put the special case (big coin) **before** the general one (any coin).\n- `_` is the catch-all. Without it, an unexpected item throws at runtime.\n\nThe `is` keyword does the same check inside an `if`:\n\n```\nif (item is Key k && k.Door == \"crypt\") ...\n```\n\n`is` both checks the type and gives you a typed variable, so you never need a risky cast like `(Key)item`, which crashes if you're wrong.\n\nIn Unity you'll use both: virtual methods for your own enemy types, and `if (other.TryGetComponent(out IDamageable d))` or `is` checks for whatever a raycast happened to hit.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\n\npublic abstract class Enemy\n{\n    public string Name { get; }\n    protected Enemy(string name) { Name = name; }\n    public abstract string Act(int distance);\n}\n\npublic class Goblin : Enemy\n{\n    public Goblin(string name) : base(name) { }\n    public override string Act(int distance) => distance <= 1 ? $\"{Name} attacks\" : $\"{Name} runs closer\";\n}\n\npublic class Archer : Enemy\n{\n    public Archer(string name) : base(name) { }\n    public override string Act(int distance) => distance >= 3 ? $\"{Name} shoots\" : $\"{Name} steps back\";\n}\n\nclass Program\n{\n    static string Weigh(object thing) => thing switch\n    {\n        int n when n > 100 => \"heavy number\",\n        int n => $\"number {n}\",\n        string s => $\"text of {s.Length} letters\",\n        null => \"nothing\",\n        _ => \"something else\"\n    };\n\n    static void Main()\n    {\n        var wave = new List<Enemy> { new Goblin(\"Snik\"), new Archer(\"Kip\") };\n        foreach (Enemy e in wave) Console.WriteLine(e.Act(4));\n        Console.WriteLine(Weigh(500) + \", \" + Weigh(\"maize\") + \", \" + Weigh(null));\n    }\n}\n",
+  "notes": [
+   "Each enemy class decides its own action; the loop just calls Act.",
+   "Adding a new enemy means adding a class, not editing the loop.",
+   "The switch expression checks types top to bottom; the first match wins.",
+   "`when` adds an extra condition to a pattern; `_` catches anything left."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Every enemy acts",
+   "file": "Wave.cs",
+   "prompt": "Enemy is given. Write three kinds, each with a constructor taking the name:\n- Goblin: Act(distance) is \"{Name} attacks\" when distance <= 1, else \"{Name} runs closer\".\n- Archer: \"{Name} shoots\" when distance >= 3, else \"{Name} steps back\".\n- Healer: always \"{Name} heals the wave\".\nThen Wave.TakeTurn(enemies, distance) returns each enemy's action in order. TakeTurn must not check types: let each class decide.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic abstract class Enemy\n{\n    public string Name { get; }\n\n    protected Enemy(string name)\n    {\n        Name = name;\n    }\n\n    public abstract string Act(int distance);\n}\n\n// Goblin, Archer and Healer go here.\n\npublic static class Wave\n{\n    public static List<string> TakeTurn(List<Enemy> enemies, int distance)\n    {\n        return new List<string>();\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Wave.TakeTurn(new List<Enemy> { new Goblin(\"Snik\"), new Archer(\"Kip\"), new Healer(\"Mo\") }, 1)",
+     "expect": "[Snik attacks, Kip steps back, Mo heals the wave]",
+     "name": "close up"
+    },
+    {
+     "call": "Wave.TakeTurn(new List<Enemy> { new Goblin(\"Snik\"), new Archer(\"Kip\"), new Healer(\"Mo\") }, 5)",
+     "expect": "[Snik runs closer, Kip shoots, Mo heals the wave]",
+     "name": "far away"
+    },
+    {
+     "call": "new Archer(\"A\").Act(3) + \", \" + new Goblin(\"G\").Act(2)",
+     "expect": "A shoots, G runs closer",
+     "hidden": true,
+     "name": "the exact boundaries"
+    },
+    {
+     "call": "Wave.TakeTurn(new List<Enemy>(), 2)",
+     "expect": "[]",
+     "hidden": true,
+     "name": "an empty wave"
+    },
+    {
+     "src_not": "is Goblin",
+     "why": "TakeTurn shouldn't check types: call e.Act(distance) and let each class decide."
+    }
+   ],
+   "hints": [
+    "public class Goblin : Enemy { public Goblin(string name) : base(name) { } public override string Act(int distance) => ...; }",
+    "Use a ternary: distance <= 1 ? $\"{Name} attacks\" : $\"{Name} runs closer\"",
+    "TakeTurn: return enemies.Select(e => e.Act(distance)).ToList();"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic abstract class Enemy\n{\n    public string Name { get; }\n\n    protected Enemy(string name)\n    {\n        Name = name;\n    }\n\n    public abstract string Act(int distance);\n}\n\npublic class Goblin : Enemy\n{\n    public Goblin(string name) : base(name) { }\n\n    public override string Act(int distance) => distance <= 1 ? $\"{Name} attacks\" : $\"{Name} runs closer\";\n}\n\npublic class Archer : Enemy\n{\n    public Archer(string name) : base(name) { }\n\n    public override string Act(int distance) => distance >= 3 ? $\"{Name} shoots\" : $\"{Name} steps back\";\n}\n\npublic class Healer : Enemy\n{\n    public Healer(string name) : base(name) { }\n\n    public override string Act(int distance) => $\"{Name} heals the wave\";\n}\n\npublic static class Wave\n{\n    // No type checks here: each enemy knows what it does.\n    public static List<string> TakeTurn(List<Enemy> enemies, int distance) =>\n        enemies.Select(e => e.Act(distance)).ToList();\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "What did I pick up?",
+   "file": "Pickup.cs",
+   "prompt": "Coin, Potion and Key are given (they share no base class). Write Pickup.Describe(object item) with a switch expression:\n- null: \"Nothing\"\n- a Coin worth 100 or more: \"Treasure! {Value} gold\"\n- any other Coin: \"{Value} gold\"\n- a Potion: \"Potion (+{Heal} HP)\"\n- a Key: \"Key to the {Door}\"\n- a string: \"Note: {text}\"\n- anything else: \"Unknown item\"",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Coin\n{\n    public int Value { get; }\n    public Coin(int value) { Value = value; }\n}\n\npublic class Potion\n{\n    public int Heal { get; }\n    public Potion(int heal) { Heal = heal; }\n}\n\npublic class Key\n{\n    public string Door { get; }\n    public Key(string door) { Door = door; }\n}\n\npublic static class Pickup\n{\n    public static string Describe(object item)\n    {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Pickup.Describe(new Coin(5)) + \" | \" + Pickup.Describe(new Coin(250))",
+     "expect": "5 gold | Treasure! 250 gold",
+     "name": "coins"
+    },
+    {
+     "call": "Pickup.Describe(new Potion(25))",
+     "expect": "Potion (+25 HP)",
+     "name": "potion"
+    },
+    {
+     "call": "Pickup.Describe(new Key(\"crypt\")) + \" | \" + Pickup.Describe(\"Go north\")",
+     "expect": "Key to the crypt | Note: Go north",
+     "name": "key and note"
+    },
+    {
+     "call": "Pickup.Describe(null) + \" | \" + Pickup.Describe(42)",
+     "expect": "Nothing | Unknown item",
+     "hidden": true,
+     "name": "null and strange things"
+    },
+    {
+     "call": "Pickup.Describe(new Coin(100))",
+     "expect": "Treasure! 100 gold",
+     "hidden": true,
+     "name": "exactly 100"
+    },
+    {
+     "src_has": "switch",
+     "why": "Use a switch expression."
+    }
+   ],
+   "hints": [
+    "public static string Describe(object item) => item switch { ... };",
+    "Put the special coin first: Coin { Value: >= 100 } c => $\"Treasure! {c.Value} gold\",",
+    "End with null => \"Nothing\", and _ => \"Unknown item\""
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Coin\n{\n    public int Value { get; }\n    public Coin(int value) { Value = value; }\n}\n\npublic class Potion\n{\n    public int Heal { get; }\n    public Potion(int heal) { Heal = heal; }\n}\n\npublic class Key\n{\n    public string Door { get; }\n    public Key(string door) { Door = door; }\n}\n\npublic static class Pickup\n{\n    // First matching arm wins, so the special big coin comes before any coin.\n    public static string Describe(object item) => item switch\n    {\n        null => \"Nothing\",\n        Coin { Value: >= 100 } c => $\"Treasure! {c.Value} gold\",\n        Coin c => $\"{c.Value} gold\",\n        Potion p => $\"Potion (+{p.Heal} HP)\",\n        Key k => $\"Key to the {k.Door}\",\n        string note => $\"Note: {note}\",\n        _ => \"Unknown item\"\n    };\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Counting the loot",
+   "file": "Loot.cs",
+   "prompt": "Using `is` patterns (no casts), write in static class Loot:\n- int TotalGold(List<object> items): coins count their Value, each Potion is worth 10, everything else (keys, nulls, strings, numbers) is worth 0.\n- bool CanOpen(List<object> items, string door): true if there is a Key for that door (door names match ignoring case).",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Coin\n{\n    public int Value { get; }\n    public Coin(int value) { Value = value; }\n}\n\npublic class Potion\n{\n    public int Heal { get; }\n    public Potion(int heal) { Heal = heal; }\n}\n\npublic class Key\n{\n    public string Door { get; }\n    public Key(string door) { Door = door; }\n}\n\npublic static class Loot\n{\n    public static int TotalGold(List<object> items)\n    {\n        return 0;\n    }\n\n    public static bool CanOpen(List<object> items, string door)\n    {\n        return false;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Loot.TotalGold(new List<object> { new Coin(5), new Potion(30), new Coin(20), new Key(\"gate\") })",
+     "expect": "35",
+     "name": "coins and a potion"
+    },
+    {
+     "call": "Loot.CanOpen(new List<object> { new Coin(5), new Key(\"Gate\") }, \"gate\").ToString()",
+     "expect": "True",
+     "name": "the key fits"
+    },
+    {
+     "call": "Loot.CanOpen(new List<object> { new Coin(5), new Key(\"crypt\") }, \"gate\").ToString()",
+     "expect": "False",
+     "name": "wrong key"
+    },
+    {
+     "call": "Loot.TotalGold(new List<object> { null, \"map\", 7, new Potion(1) })",
+     "expect": "10",
+     "hidden": true,
+     "name": "junk is ignored",
+     "hint_if_fail": "`is` is false for null, so null items are safe to skip."
+    },
+    {
+     "call": "Loot.TotalGold(new List<object>())",
+     "expect": "0",
+     "hidden": true,
+     "name": "empty bag"
+    },
+    {
+     "src_has": "is Coin",
+     "why": "Use an `is` pattern: if (item is Coin c) ..."
+    }
+   ],
+   "hints": [
+    "foreach (object item in items) { if (item is Coin c) total += c.Value; else if (item is Potion) total += 10; }",
+    "CanOpen: if (item is Key k && string.Equals(k.Door, door, StringComparison.OrdinalIgnoreCase)) return true;",
+    "No casts like (Coin)item: `is` checks and names it in one go."
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Coin\n{\n    public int Value { get; }\n    public Coin(int value) { Value = value; }\n}\n\npublic class Potion\n{\n    public int Heal { get; }\n    public Potion(int heal) { Heal = heal; }\n}\n\npublic class Key\n{\n    public string Door { get; }\n    public Key(string door) { Door = door; }\n}\n\npublic static class Loot\n{\n    public static int TotalGold(List<object> items)\n    {\n        int total = 0;\n        foreach (object item in items)\n        {\n            if (item is Coin c) total += c.Value;      // checks the type AND names it\n            else if (item is Potion) total += 10;      // a type check without a name\n        }\n        return total;                                   // null is never \"is\" anything, so it's skipped\n    }\n\n    public static bool CanOpen(List<object> items, string door)\n    {\n        foreach (object item in items)\n            if (item is Key k && string.Equals(k.Door, door, StringComparison.OrdinalIgnoreCase)) return true;\n        return false;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "List<Enemy> holds a Goblin and an Archer. e.Act(5) on each runs…",
+   "choices": [
+    "Enemy's Act twice",
+    "Each object's own override",
+    "Only the first",
+    "Nothing: abstract methods can't run"
+   ],
+   "answer": 1,
+   "why": "That's polymorphism."
+  },
+  {
+   "q": "You add a Bomber enemy. With polymorphism, what changes in Wave.TakeTurn?",
+   "choices": [
+    "A new else-if",
+    "Nothing",
+    "Its return type",
+    "It must be deleted"
+   ],
+   "answer": 1,
+   "why": "The behaviour lives in the new class."
+  },
+  {
+   "q": "In a switch expression, Coin c is listed before Coin { Value: >= 100 }. What happens with a 500 coin?",
+   "choices": [
+    "Treasure arm runs",
+    "The general Coin arm wins, the treasure arm never runs",
+    "Compile always succeeds silently and both run",
+    "It throws"
+   ],
+   "answer": 1,
+   "why": "First match wins; put specific cases first (the compiler even warns)."
+  },
+  {
+   "q": "Why is `item is Key k` better than `(Key)item`?",
+   "choices": [
+    "It's shorter",
+    "It checks safely; the cast crashes if item isn't a Key",
+    "Casts don't exist in C#",
+    "It is slower"
+   ],
+   "answer": 1,
+   "why": "is checks, then names."
+  },
+  {
+   "q": "When is a type-pattern switch the right tool rather than a virtual method?",
+   "choices": [
+    "Always",
+    "When the types aren't yours or share no base class (loot, messages, raycast hits)",
+    "Never",
+    "Only for numbers"
+   ],
+   "answer": 1,
+   "why": "Own the classes: override. Don't: match."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Polymorphism?",
+   "a": "Same call, each object runs its own version"
+  },
+  {
+   "q": "Type pattern with a name?",
+   "a": "if (item is Coin c) total += c.Value;"
+  },
+  {
+   "q": "Property pattern?",
+   "a": "Coin { Value: >= 100 } c =>"
+  },
+  {
+   "q": "Catch-all arm in a switch expression?",
+   "a": "_ => ..."
+  }
+ ],
+ "explain": "Explain polymorphism in your own words, with an example of a list of things that each act differently."
+}

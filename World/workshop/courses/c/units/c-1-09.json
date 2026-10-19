@@ -1,0 +1,120 @@
+{
+ "id": "c-1-09",
+ "level": 1,
+ "title": "Pointers",
+ "concepts": [
+  "pointers"
+ ],
+ "skills": [
+  "pointers",
+  "addresses"
+ ],
+ "bridge": "A pointer holds the **address** of a variable. `&x` gets x's address; `int *p = &x;` stores it; `*p` reads or changes the value at that address. Passing a pointer is how C lets a function change the caller's variables (what C++ does with `int&`). That's also why `scanf` needs `&`.",
+ "lesson": "Every variable lives somewhere in memory, at an **address**. A pointer is a variable that holds an address.\n\n```\nint health = 50;\nint *p = &health;     /* p holds health's address. Read: \"p points to health\" */\n*p = 40;              /* change the value p points to: health is now 40 */\nprintf(\"%d\\n\", *p);  /* 40 */\n```\n\n- `&x` means \"the address of x\".\n- `int *p` declares \"p is a pointer to an int\".\n- `*p` (in normal code) means \"the thing p points to\".\n\n**Why bother?** C parameters are copies. To let a function change the caller's variables, pass their addresses:\n\n```\nvoid hit(int *health, int dmg)\n{\n    *health -= dmg;\n    if (*health < 0) *health = 0;\n}\n\nint h = 50;\nhit(&h, 10);          /* h is now 40 */\n```\n\nThat's also how a function returns several results (`void min_max(const int a[], int n, int *lo, int *hi)`), and why `scanf(\"%d\", &n)` needs the `&`.\n\nAn array name works like a pointer to its first item, which is why arrays get passed without copying. `NULL` is a pointer to nothing; using `*p` when `p` is `NULL` crashes the program, so check first: `if (p != NULL)`.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\nvoid hit(int *health, int dmg)\n{\n    *health -= dmg;\n    if (*health < 0) *health = 0;\n}\n\nint main(void)\n{\n    int h = 50;\n    int *p = &h;\n    printf(\"h is %d, *p is %d\\n\", h, *p);\n    *p = 45;\n    printf(\"after *p = 45, h is %d\\n\", h);\n    hit(&h, 10);\n    printf(\"after hit(&h, 10), h is %d\\n\", h);\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Swap",
+   "file": "swap.c",
+   "prompt": "Write void swap(int *a, int *b) that swaps the two values it points to.",
+   "starter": "void swap(int *a, int *b)\n{\n    int *t = a;\n    a = b;\n    b = t;\n}\n",
+   "tests": [
+    {
+     "call": "({ int a = 1, b = 2; swap(&a, &b); a * 10 + b; })",
+     "expect": "21",
+     "hint_if_fail": "Swapping the pointers changes nothing outside. Swap the values: *a and *b."
+    },
+    {
+     "call": "({ int a = 7, b = 3; swap(&a, &b); a * 10 + b; })",
+     "expect": "37"
+    }
+   ],
+   "hints": [
+    "You need to change *a and *b, not a and b.",
+    "int t = *a; *a = *b; *b = t;"
+   ],
+   "solution": "void swap(int *a, int *b)\n{\n    int t = *a;\n    *a = *b;\n    *b = t;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Min and max at once",
+   "file": "minmax.c",
+   "prompt": "Write void min_max(const int a[], int n, int *lo, int *hi) (n is at least 1): store the smallest value in *lo and the largest in *hi.",
+   "starter": "void min_max(const int a[], int n, int *lo, int *hi)\n{\n}\n",
+   "tests": [
+    {
+     "call": "({ int lo, hi; min_max((int[]){4, 9, 1, 7}, 4, &lo, &hi); lo * 100 + hi; })",
+     "expect": "109"
+    },
+    {
+     "call": "({ int lo, hi; min_max((int[]){-3, -8}, 2, &lo, &hi); lo * 100 + hi; })",
+     "expect": "-803",
+     "hint_if_fail": "Start both lo and hi at a[0], not at 0."
+    },
+    {
+     "call": "({ int lo, hi; min_max((int[]){5}, 1, &lo, &hi); lo * 100 + hi; })",
+     "expect": "505"
+    }
+   ],
+   "hints": [
+    "*lo = a[0]; *hi = a[0]; then loop from 1.",
+    "if (a[i] < *lo) *lo = a[i]; if (a[i] > *hi) *hi = a[i];"
+   ],
+   "solution": "void min_max(const int a[], int n, int *lo, int *hi)\n{\n    *lo = a[0];\n    *hi = a[0];\n    for (int i = 1; i < n; i++) {\n        if (a[i] < *lo) *lo = a[i];\n        if (a[i] > *hi) *hi = a[i];\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is &x?",
+   "choices": [
+    "x's value",
+    "x's address",
+    "x and something",
+    "a copy of x"
+   ],
+   "answer": 1,
+   "why": "& gives the address."
+  },
+  {
+   "q": "int *p = &x; *p = 5; changes...",
+   "choices": [
+    "p",
+    "x",
+    "nothing",
+    "the address"
+   ],
+   "answer": 1,
+   "why": "*p is the thing p points to: x."
+  },
+  {
+   "q": "Using *p when p is NULL...",
+   "choices": [
+    "gives 0",
+    "crashes the program",
+    "is allowed",
+    "returns -1"
+   ],
+   "answer": 1,
+   "why": "NULL points at nothing."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Address of x?",
+   "a": "&x"
+  },
+  {
+   "q": "Value p points to?",
+   "a": "*p"
+  },
+  {
+   "q": "Let a C function change the caller's variable?",
+   "a": "Pass its address: f(&x), with an int *x parameter."
+  }
+ ],
+ "explain": "Explain pointers to someone who has never programmed, in your own words, with an example you make up."
+}

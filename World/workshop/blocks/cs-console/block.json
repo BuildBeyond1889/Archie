@@ -1,0 +1,38 @@
+{
+ "name": "C# console program",
+ "kind": "shell",
+ "lang": "C#",
+ "version": "1.0.0",
+ "summary": "A menu program in C# with its project file, ready for dotnet run, and set up to build with no internet. The language of Unity games and Windows apps.",
+ "tags": [
+  "c#",
+  "csharp",
+  "dotnet",
+  "console",
+  "unity"
+ ],
+ "files": {
+  "Program.cs": "Program.cs",
+  "App.csproj": "App.csproj",
+  "nuget.config": "nuget.config"
+ },
+ "test": {
+  "run": [
+   "dotnet",
+   "build",
+   "App.csproj",
+   "-nologo",
+   "-v",
+   "q",
+   "-o",
+   "out"
+  ],
+  "input": "1\n80\n1\n90\n2\n0\n"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ]
+}

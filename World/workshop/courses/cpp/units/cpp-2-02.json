@@ -1,0 +1,207 @@
+{
+ "id": "cpp-2-02",
+ "level": 2,
+ "title": "Pointers and arrays",
+ "concepts": [
+  "pointers",
+  "memory"
+ ],
+ "skills": [
+  "pointer arithmetic",
+  "arrays",
+  "const"
+ ],
+ "lesson": "A plain C++ array is a row of values packed side by side in memory:\n\n```\nint readings[4] = {40, 75, 90, 20};   // a water tank sensor, 4 samples\n```\n\nThe name `readings` turns into a pointer to the **first** item whenever you use it. Because the items sit next to each other, you can step through them with **pointer arithmetic**:\n\n```\nint* p = readings;   // points at 40\np + 1;               // points at 75 (one int further, not one byte)\n*(p + 2);            // 90\np[2];                // exactly the same thing: p[i] means *(p + i)\n```\n\n**Passing arrays to functions.** An array passed to a function arrives as just a pointer. The function has no idea how long it is, so you must pass the length too:\n\n```\nint total(const int* values, int count)\n{\n    int sum = 0;\n    for (int i = 0; i < count; i++) sum += values[i];\n    return sum;\n}\n```\n\nThe standard library often uses a **range** instead: a pointer to the first item and a pointer **one past the last**. `begin == end` means empty.\n\n```\nfor (const int* p = begin; p != end; ++p) ...\n```\n\n**const and pointers.** Read the type from right to left:\n\n- `const int* p`: a pointer to a const int. You can move `p`, but not change `*p`. Use it for \"read-only input\", like the sensor readings above.\n- `int* const p`: a const pointer to an int. `p` always points at the same place, but you may change `*p`.\n- `const int* const p`: neither.\n\n**Why bounds matter.** C++ does not check that `p[i]` is inside the array. `readings[10]` reads whatever happens to be next in memory, or crashes, or overwrites another variable. This kind of bug, a **buffer overflow**, has caused real security holes and very confusing game crashes. The professional habit: always pass and check the length, keep loops at `i < count`, and prefer `std::vector` (with `.size()` and `.at()`) or `std::array` in new code.\n\nRaw arrays still matter because they are what is underneath: `std::vector` keeps a pointer to a heap array, image pixels and audio samples are arrays, and Unreal's `TArray::GetData()` hands you a raw pointer for fast loops.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n\n// read-only input: a pointer to const plus a length\ndouble average(const int* values, int count)\n{\n    if (count <= 0) return 0;\n    int sum = 0;\n    for (int i = 0; i < count; i++) sum += values[i];\n    return static_cast<double>(sum) / count;\n}\n\nint main()\n{\n    int readings[4] = {40, 75, 90, 20};\n    int* p = readings;                  // the array becomes a pointer to readings[0]\n    std::cout << *(p + 2) << \" \" << p[2] << \"\\n\";\n\n    std::cout << \"average \" << average(readings, 4) << \"\\n\";\n    std::cout << \"middle two \" << average(readings + 1, 2) << \"\\n\";\n\n    // a range: begin and one-past-the-end\n    for (const int* q = readings; q != readings + 4; ++q)\n        std::cout << *q << \" \";\n    std::cout << \"\\n\";\n    return 0;\n}\n",
+  "notes": [
+   "readings turns into a pointer to its first item, so int* p = readings needs no &.",
+   "*(p + 2) and p[2] are the same: step two ints along, then read.",
+   "average takes const int* because it only reads, and a count because a pointer doesn't know its length.",
+   "readings + 1 with count 2 passes just the middle of the array: no copying.",
+   "The last loop walks a range from the first item to one past the last."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Sum a sensor array",
+   "file": "sum_array.cpp",
+   "prompt": "Write int sumArray(const int* values, int count): the total of the first count values. A count of 0 (or less) gives 0, even if values is nullptr.",
+   "starter": "int sumArray(const int* values, int count)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int a[] = {1, 2, 3}; return sumArray(a, 3); }()",
+     "expect": "6"
+    },
+    {
+     "call": "[]{ int a[] = {10, 20, 30, 40}; return sumArray(a + 1, 2); }()",
+     "expect": "50",
+     "hint_if_fail": "Start at the pointer you are given and read count items from there."
+    },
+    {
+     "call": "[]{ int a[] = {-5, 5, 7}; return sumArray(a, 3); }()",
+     "expect": "7"
+    },
+    {
+     "call": "sumArray(nullptr, 0)",
+     "expect": "0",
+     "hidden": true,
+     "hint_if_fail": "With count 0, don't read anything at all."
+    }
+   ],
+   "hints": [
+    "Loop i from 0 while i < count and add values[i].",
+    "int sum = 0; for (int i = 0; i < count; i++) sum += values[i]; return sum;"
+   ],
+   "solution": "int sumArray(const int* values, int count)\n{\n    int sum = 0;\n    for (int i = 0; i < count; i++)   // i < count: never past the end\n        sum += values[i];\n    return sum;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Count high readings in a range",
+   "file": "count_range.cpp",
+   "prompt": "Write int countAbove(const int* begin, const int* end, int limit): how many values in the range [begin, end) are greater than limit. end points one past the last value; begin == end means an empty range.",
+   "starter": "int countAbove(const int* begin, const int* end, int limit)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int r[] = {40, 75, 90, 20}; return countAbove(r, r + 4, 50); }()",
+     "expect": "2"
+    },
+    {
+     "call": "[]{ int r[] = {40, 75, 90, 20}; return countAbove(r + 1, r + 3, 80); }()",
+     "expect": "1"
+    },
+    {
+     "call": "[]{ int r[] = {50, 51}; return countAbove(r, r + 2, 50); }()",
+     "expect": "1",
+     "hint_if_fail": "Greater than, not greater-or-equal."
+    },
+    {
+     "call": "[]{ int r[] = {99}; return countAbove(r, r, 0); }()",
+     "expect": "0",
+     "hidden": true,
+     "hint_if_fail": "begin == end is an empty range: don't read *begin."
+    }
+   ],
+   "hints": [
+    "Walk a pointer p from begin while p != end.",
+    "for (const int* p = begin; p != end; ++p) if (*p > limit) n++;"
+   ],
+   "solution": "int countAbove(const int* begin, const int* end, int limit)\n{\n    int n = 0;\n    for (const int* p = begin; p != end; ++p)   // stop at one-past-the-end\n        if (*p > limit) n++;\n    return n;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Reverse in place",
+   "file": "reverse.cpp",
+   "prompt": "Write void reverseInPlace(int* values, int count) that reverses the first count values in the array itself (no new array). Use two pointers that walk towards each other.",
+   "starter": "void reverseInPlace(int* values, int count)\n{\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int a[] = {1, 2, 3, 4}; reverseInPlace(a, 4); return a[0] * 1000 + a[1] * 100 + a[2] * 10 + a[3]; }()",
+     "expect": "4321"
+    },
+    {
+     "call": "[]{ int a[] = {1, 2, 3}; reverseInPlace(a, 3); return a[0] * 100 + a[1] * 10 + a[2]; }()",
+     "expect": "321"
+    },
+    {
+     "call": "[]{ int a[] = {1, 2, 3, 4}; reverseInPlace(a, 2); return a[0] * 1000 + a[1] * 100 + a[2] * 10 + a[3]; }()",
+     "expect": "2134",
+     "hint_if_fail": "Only the first count values are reversed."
+    },
+    {
+     "call": "[]{ int a[] = {7}; reverseInPlace(a, 1); reverseInPlace(a, 0); return a[0]; }()",
+     "expect": "7",
+     "hidden": true
+    },
+    {
+     "src_has": "*",
+     "why": "Use pointers: one at the start, one at the last item."
+    }
+   ],
+   "hints": [
+    "int* left = values; int* right = values + count - 1;",
+    "while (left < right) { swap *left and *right; ++left; --right; }",
+    "With count 0 or 1 there is nothing to do: return straight away."
+   ],
+   "solution": "void reverseInPlace(int* values, int count)\n{\n    if (count < 2) return;\n    int* left = values;\n    int* right = values + count - 1;   // the last item, not one past it\n    while (left < right) {\n        int t = *left;\n        *left = *right;\n        *right = t;\n        ++left;\n        --right;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "int a[] = {5, 6, 7}; int* p = a; What is *(p + 1)?",
+   "choices": [
+    "5",
+    "6",
+    "The address + 1 byte",
+    "7"
+   ],
+   "answer": 1,
+   "why": "p + 1 steps one int along, to a[1]."
+  },
+  {
+   "q": "Why does sumArray(const int* values, int count) need count?",
+   "choices": [
+    "Style only",
+    "A pointer doesn't know how many items follow it",
+    "To make it faster",
+    "Arrays can't be passed"
+   ],
+   "answer": 1,
+   "why": "The array becomes a bare pointer; its length is lost."
+  },
+  {
+   "q": "Which can you NOT do with const int* p?",
+   "choices": [
+    "p = otherArray;",
+    "++p;",
+    "*p = 5;",
+    "int x = *p;"
+   ],
+   "answer": 2,
+   "why": "It points to const ints: you can move p but not change what it points at."
+  },
+  {
+   "q": "int a[4]; a[10] = 1; What does C++ do?",
+   "choices": [
+    "Throws an error",
+    "Grows the array",
+    "Nothing checks it: it may corrupt memory or crash",
+    "Ignores the line"
+   ],
+   "answer": 2,
+   "why": "Raw arrays have no bounds checks; that's a buffer overflow."
+  },
+  {
+   "q": "In a range [begin, end), end points at...",
+   "choices": [
+    "the last item",
+    "one past the last item",
+    "the first item",
+    "nullptr"
+   ],
+   "answer": 1,
+   "why": "One past the end, so begin == end means empty."
+  }
+ ],
+ "cards": [
+  {
+   "q": "p[i] is the same as...?",
+   "a": "*(p + i)"
+  },
+  {
+   "q": "const int* p vs int* const p?",
+   "a": "Pointer to const (can't change *p) vs const pointer (can't move p)."
+  },
+  {
+   "q": "Pass a raw array to a function?",
+   "a": "Pass a pointer and the count (or a begin/end range)."
+  },
+  {
+   "q": "Safer than raw arrays in new code?",
+   "a": "std::vector or std::array, with .size() and .at()."
+  }
+ ],
+ "explain": "Explain why a function that receives an array as a pointer also needs its length, and what can go wrong without it."
+}

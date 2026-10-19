@@ -1,0 +1,164 @@
+{
+ "id": "java-1-06",
+ "level": 1,
+ "title": "Loops",
+ "concepts": [
+  "loops"
+ ],
+ "skills": [
+  "loops",
+  "for",
+  "while"
+ ],
+ "bridge": "Java's counting loop is `for (int i = 0; i < 10; i++) { ... }`: start, keep-going condition, step. `while (condition) { ... }` repeats until false, and `for (String crop : crops)` goes through every item (the \"for-each\" loop). `break` and `continue` work as elsewhere.",
+ "lesson": "Three loops:\n\n```\nfor (int i = 1; i <= 5; i++) {      // counting: start; keep going while; step\n    System.out.println(i);\n}\n\nint total = 0;\nwhile (total < 100) {                // until something happens\n    total += 30;\n}\n\nfor (String crop : crops) {          // every item in an array or list\n    System.out.println(crop);\n}\n```\n\n`i++` adds 1 (`i--` subtracts, `i += 5` steps by 5). The variable `i` made in the for exists only inside the loop.\n\nAs everywhere, something must make a `while` condition false, or it never ends. `break` leaves the loop; `continue` jumps to the next round.\n\nPatterns you'll use forever: **accumulate** (start `total = 0` before, add inside, use after), **count** (`count++` when something matches), **find the biggest** (start with the first item, replace when you see bigger), and **nested loops** for grids and tables (the inner loop runs fully for each round of the outer).",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    public static void main(String[] args) {\n        for (int i = 1; i <= 3; i++) {\n            for (int j = 1; j <= 3; j++) {\n                System.out.print(i * j + \"\\t\");\n            }\n            System.out.println();\n        }\n        int saved = 0, months = 0;\n        while (saved < 1000) {\n            saved += 300;\n            months++;\n        }\n        System.out.println(months + \" months\");\n        for (String c : new String[] {\"maize\", \"beans\"}) System.out.println(c);\n    }\n}\n",
+  "notes": [
+   "Nested loops make a times table.",
+   "while until the goal is reached.",
+   "for-each over an array."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Times table",
+   "file": "Table.java",
+   "prompt": "Read a number and print its times table from 1 to 12, like: 7 x 3 = 21",
+   "starter": "import java.util.Scanner;\n\npublic class Table {\n    public static void main(String[] args) {\n        Scanner in = new Scanner(System.in);\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "7\n",
+     "out": [
+      "7 x 1 = 7",
+      "7 x 12 = 84"
+     ]
+    },
+    {
+     "stdin": "9\n",
+     "out": [
+      "9 x 7 = 63"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "int n = Integer.parseInt(in.nextLine().trim());",
+    "for (int i = 1; i <= 12; i++) System.out.println(n + \" x \" + i + \" = \" + n * i);"
+   ],
+   "solution": "import java.util.Scanner;\n\npublic class Table {\n    public static void main(String[] args) {\n        Scanner in = new Scanner(System.in);\n        int n = Integer.parseInt(in.nextLine().trim());\n        for (int i = 1; i <= 12; i++) System.out.println(n + \" x \" + i + \" = \" + n * i);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Count the vowels",
+   "file": "Vowels.java",
+   "prompt": "Write countVowels(String text): how many a, e, i, o, u (capitals count).",
+   "starter": "public class Vowels {\n    public static int countVowels(String text) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Vowels.countVowels(\"Kilimanjaro\")",
+     "expect": "5"
+    },
+    {
+     "call": "Vowels.countVowels(\"AEIOU xyz\")",
+     "expect": "5"
+    },
+    {
+     "call": "Vowels.countVowels(\"\")",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Loop i from 0 to text.length() - 1 and look at text.charAt(i).",
+    "\"aeiou\".indexOf(Character.toLowerCase(c)) >= 0 means it's a vowel."
+   ],
+   "solution": "public class Vowels {\n    public static int countVowels(String text) {\n        int n = 0;\n        for (char c : text.toLowerCase().toCharArray()) {\n            if (\"aeiou\".indexOf(c) >= 0) n++;\n        }\n        return n;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Savings goal",
+   "file": "Goal.java",
+   "prompt": "Write monthsToGoal(int goal, int monthly) with a while loop: months of saving until at least goal. If monthly is 0 or less, return -1.",
+   "starter": "public class Goal {\n    public static int monthsToGoal(int goal, int monthly) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Goal.monthsToGoal(1000, 300)",
+     "expect": "4"
+    },
+    {
+     "call": "Goal.monthsToGoal(900, 300)",
+     "expect": "3"
+    },
+    {
+     "call": "Goal.monthsToGoal(500, 0)",
+     "expect": "-1",
+     "hidden": true,
+     "hint_if_fail": "With 0 a month the loop never ends: check monthly <= 0 first."
+    },
+    {
+     "call": "Goal.monthsToGoal(0, 50)",
+     "expect": "0",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Guard first: if (monthly <= 0) return -1;",
+    "int saved = 0, months = 0; while (saved < goal) { saved += monthly; months++; }"
+   ],
+   "solution": "public class Goal {\n    public static int monthsToGoal(int goal, int monthly) {\n        if (monthly <= 0) return -1;\n        int saved = 0, months = 0;\n        while (saved < goal) {\n            saved += monthly;\n            months++;\n        }\n        return months;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "How many times does for (int i = 0; i < 5; i++) run?",
+   "choices": [
+    "4",
+    "5",
+    "6",
+    "forever"
+   ],
+   "answer": 1,
+   "why": "0, 1, 2, 3, 4."
+  },
+  {
+   "q": "Which loop goes through every item of an array most simply?",
+   "choices": [
+    "while",
+    "for (int i...)",
+    "for (Type x : array)",
+    "do-while"
+   ],
+   "answer": 2,
+   "why": "The for-each loop."
+  },
+  {
+   "q": "i++ means…",
+   "choices": [
+    "i = i + 1",
+    "i = i * 2",
+    "i = 1",
+    "print i"
+   ],
+   "answer": 0,
+   "why": "Add one."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Java counting loop?",
+   "a": "for (int i = 0; i < n; i++) { }"
+  },
+  {
+   "q": "Every item in an array?",
+   "a": "for (Type x : array) { }"
+  },
+  {
+   "q": "Leave a loop early?",
+   "a": "break"
+  }
+ ],
+ "explain": "Explain loops to someone who has never programmed, in your own words, with an example you make up."
+}

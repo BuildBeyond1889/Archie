@@ -1,0 +1,56 @@
+{
+ "name": "Push button",
+ "kind": "hardware",
+ "lang": "Arduino",
+ "version": "1.0.0",
+ "summary": "Reads a push button cleanly (one press = one press, no flicker). Wire it between a pin and GND; no resistor needed.",
+ "tags": [
+  "button",
+  "switch",
+  "input",
+  "debounce",
+  "arduino"
+ ],
+ "parts": [
+  "push button",
+  "2 jumper wires"
+ ],
+ "files": {
+  "sketch/button.h": "button.h"
+ },
+ "imports": {
+  "ino": [
+   "#include \"button.h\""
+  ]
+ },
+ "use": "Button btn(2); setup: btn.begin(); loop: if (btn.pressed()) {...}",
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-Wall",
+   "-x",
+   "c++",
+   "test_button.cpp",
+   "-o",
+   "t.exe"
+  ],
+  "files": [
+   "test_button.cpp"
+  ],
+  "stub": true,
+  "then": "t.exe"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "millis() - changed_ >= ms_",
+   "note": "Debouncing: a button's metal contacts bounce for a few milliseconds, so the reading must be steady for 30 ms before it counts."
+  }
+ ]
+}

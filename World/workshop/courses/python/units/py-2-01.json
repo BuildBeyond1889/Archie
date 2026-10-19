@@ -1,0 +1,223 @@
+{
+ "id": "py-2-01",
+ "level": 2,
+ "title": "Classes and objects",
+ "concepts": [
+  "classes",
+  "objects",
+  "methods",
+  "constructors"
+ ],
+ "skills": [
+  "classes",
+  "methods",
+  "state"
+ ],
+ "lesson": "In Level 1 you kept data in variables, lists and dictionaries, and wrote functions that work on that data. That works, until the data and the functions drift apart. A tank is a dict over here, `fill_tank(tank, litres)` is a function over there, and nothing stops some other line from doing `tank[\"level\"] = -50`. A **class** bundles the data and the functions that belong to it into one thing.\n\nA class is a blueprint. An **object** (also called an instance) is one real thing built from it. One `WaterTank` class, many tanks:\n\n```\nclass WaterTank:\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.level = 0\n\n    def fill(self, litres):\n        self.level = min(self.capacity, self.level + litres)\n\nschool = WaterTank(5000)\nclinic = WaterTank(1000)\nschool.fill(800)\nprint(school.level, clinic.level)   # 800 0\n```\n\n- `__init__` runs when you make an object: `WaterTank(5000)`. It sets the starting state. It's called the **constructor**.\n- `self` is the object the method is working on right now. Python passes it for you: `school.fill(800)` really means `WaterTank.fill(school, 800)`.\n- `self.level` is an **attribute**: a variable that lives inside one object. Each tank has its own level.\n- A **method** is a function written inside the class. It can read and change `self`.\n\nWhy bother? The rule \"never above capacity\" now lives in one place, inside `fill`. Every tank in the program follows it, and when the rule changes you change one method.\n\n**Common mistakes**\n- Forgetting `self` as the first parameter: `def fill(litres):`. Calling `tank.fill(10)` then fails with \"takes 1 positional argument but 2 were given\".\n- Writing `level = 0` in `__init__` instead of `self.level = 0`. That makes a local variable that vanishes when `__init__` ends.\n- Putting a list or dict directly under `class` (not inside `__init__`). That one list is **shared by every object**: add a member to one savings group and it shows up in all of them. Make lists and dicts inside `__init__`.\n\n**In real programs** almost everything is an object. In a game, every enemy, bullet and chest is an object with its own health or position, and the game loop calls `enemy.update()` on each one. In robotics, a `Motor` object remembers its pin and speed. Class names use CapitalWords (`WaterTank`), methods and attributes use lower_case.",
+ "example": {
+  "file": "example.py",
+  "code": "class WaterTank:\n    \"\"\"A tank that knows its size and how full it is.\"\"\"\n\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.level = 0\n\n    def fill(self, litres):\n        space = self.capacity - self.level\n        added = min(litres, space)\n        self.level += added\n        return added\n\n    def percent(self):\n        return self.level / self.capacity * 100\n\n\nschool = WaterTank(5000)\nclinic = WaterTank(1000)\nprint(school.fill(800), clinic.fill(1500))\nprint(school.level, clinic.level)\nprint(f\"clinic tank is {clinic.percent():.0f}% full\")\n",
+  "notes": [
+   "The class is the blueprint; the docstring says what one object is.",
+   "__init__ sets each new tank's starting state on self.",
+   "fill works out how much really fits, changes self.level and reports it.",
+   "Two objects, two separate levels: filling one doesn't touch the other.",
+   "clinic.fill(1500) only adds 1000 because the rule lives inside the method."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A water tank",
+   "file": "ex1_tank.py",
+   "prompt": "Finish the class WaterTank(capacity).\n- __init__ stores capacity in self.capacity and starts self.level at 0.\n- fill(litres): adds water but never above capacity. Returns the litres actually added.\n- use(litres): takes water out but never below 0. Returns the litres actually given out.\n- percent(): how full it is, level / capacity * 100.",
+   "starter": "class WaterTank:\n    def __init__(self, capacity):\n        # store the capacity and start the level at 0\n        pass\n\n    def fill(self, litres):\n        pass\n\n    def use(self, litres):\n        pass\n\n    def percent(self):\n        pass\n",
+   "solution": "class WaterTank:\n    \"\"\"A water tank that never overflows and never goes below empty.\"\"\"\n\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.level = 0\n\n    def fill(self, litres):\n        added = min(litres, self.capacity - self.level)\n        self.level += added\n        return added\n\n    def use(self, litres):\n        given = min(litres, self.level)\n        self.level -= given\n        return given\n\n    def percent(self):\n        return self.level / self.capacity * 100\n",
+   "tests": [
+    {
+     "check": "t = WaterTank(500)\nassert t.capacity == 500, 'capacity should be 500'\nassert t.level == 0, 'a new tank starts at level 0'",
+     "name": "a new tank"
+    },
+    {
+     "check": "t = WaterTank(500)\nassert t.fill(200) == 200, 'fill(200) should return 200'\nassert t.level == 200\nassert t.use(50) == 50, 'use(50) should return 50'\nassert t.level == 150, 'level should be 150, got %r' % t.level",
+     "name": "fill then use"
+    },
+    {
+     "check": "t = WaterTank(1000)\nt.fill(250)\nassert t.percent() == 25, 'percent() should be 25, got %r' % t.percent()",
+     "name": "percent"
+    },
+    {
+     "check": "t = WaterTank(100)\nt.fill(80)\ngot = t.fill(50)\nassert got == 20, 'only 20 more fits, so fill should return 20, got %r' % got\nassert t.level == 100, 'level should stop at capacity'",
+     "name": "no overflow",
+     "hidden": true,
+     "hint_if_fail": "Work out the space left (capacity - level) and add whichever is smaller."
+    },
+    {
+     "check": "t = WaterTank(100)\nt.fill(30)\ngot = t.use(50)\nassert got == 30, 'only 30 is there, so use should return 30, got %r' % got\nassert t.level == 0, 'level should stop at 0, got %r' % t.level",
+     "name": "can't go below empty",
+     "hidden": true
+    },
+    {
+     "check": "a = WaterTank(100)\nb = WaterTank(100)\na.fill(60)\nassert b.level == 0, 'filling one tank changed another one'",
+     "name": "each tank is separate",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Everything the object remembers goes on self: self.capacity = capacity, self.level = 0.",
+    "In fill, the space left is self.capacity - self.level. Add min(litres, space).",
+    "use is the mirror: given = min(litres, self.level), then self.level -= given and return given."
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "Player health",
+   "file": "ex2_player.py",
+   "prompt": "Write a class Player(name, max_hp=100).\n- Attributes: name, max_hp, and hp (starts equal to max_hp).\n- take_damage(amount): hp goes down by amount but never below 0. A negative amount raises ValueError.\n- heal(amount): hp goes up but never above max_hp.\n- is_alive(): True while hp is above 0.",
+   "starter": "class Player:\n    def __init__(self, name, max_hp=100):\n        self.name = name\n\n    def take_damage(self, amount):\n        pass\n\n    def heal(self, amount):\n        pass\n\n    def is_alive(self):\n        pass\n",
+   "solution": "class Player:\n    def __init__(self, name, max_hp=100):\n        self.name = name\n        self.max_hp = max_hp\n        self.hp = max_hp\n\n    def take_damage(self, amount):\n        if amount < 0:\n            raise ValueError(\"damage can't be negative\")\n        self.hp = max(0, self.hp - amount)\n\n    def heal(self, amount):\n        self.hp = min(self.max_hp, self.hp + amount)\n\n    def is_alive(self):\n        return self.hp > 0\n",
+   "tests": [
+    {
+     "check": "p = Player('Juma')\nassert p.name == 'Juma' and p.max_hp == 100 and p.hp == 100, 'a new Player should have hp == max_hp == 100'\nq = Player('Amina', 60)\nassert q.hp == 60",
+     "name": "new players"
+    },
+    {
+     "check": "p = Player('Juma')\np.take_damage(30)\nassert p.hp == 70, 'hp should be 70, got %r' % p.hp\np.heal(10)\nassert p.hp == 80\nassert p.is_alive() is True",
+     "name": "damage and heal"
+    },
+    {
+     "check": "p = Player('Juma', 50)\np.take_damage(80)\nassert p.hp == 0, 'hp should stop at 0, got %r' % p.hp\nassert p.is_alive() is False",
+     "name": "knocked out"
+    },
+    {
+     "check": "p = Player('Juma', 50)\np.take_damage(5)\np.heal(100)\nassert p.hp == 50, 'heal should stop at max_hp, got %r' % p.hp",
+     "name": "can't overheal",
+     "hidden": true
+    },
+    {
+     "check": "p = Player('Juma')\ntry:\n    p.take_damage(-10)\n    raise AssertionError('take_damage(-10) should raise ValueError (it would secretly heal)')\nexcept ValueError:\n    pass\nassert p.hp == 100",
+     "name": "negative damage",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "__init__ needs self.max_hp = max_hp and self.hp = max_hp.",
+    "max(0, ...) keeps a number from going below 0; min(self.max_hp, ...) keeps it from going above.",
+    "Check amount < 0 first and raise ValueError(\"...\") before changing hp."
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "A savings group",
+   "file": "ex3_savings.py",
+   "prompt": "Write a class SavingsGroup(name) for a chama (a savings group).\n- self.name, and self.members: a dict of member name -> balance, empty at the start.\n- add_member(person): adds them with balance 0. Adding someone already in the group raises ValueError.\n- deposit(person, amount): adds to their balance. Unknown person or amount <= 0 raises ValueError.\n- balance(person): their balance. total(): everyone's money added up.",
+   "starter": "class SavingsGroup:\n    def __init__(self, name):\n        self.name = name\n        # make the members dictionary here (name -> balance)\n\n    def add_member(self, person):\n        pass\n\n    def deposit(self, person, amount):\n        pass\n\n    def balance(self, person):\n        pass\n\n    def total(self):\n        pass\n",
+   "solution": "class SavingsGroup:\n    def __init__(self, name):\n        self.name = name\n        self.members = {}   # made here, so every group gets its own dict\n\n    def add_member(self, person):\n        if person in self.members:\n            raise ValueError(f\"{person} is already in {self.name}\")\n        self.members[person] = 0\n\n    def deposit(self, person, amount):\n        if person not in self.members:\n            raise ValueError(f\"{person} is not a member\")\n        if amount <= 0:\n            raise ValueError(\"a deposit must be more than 0\")\n        self.members[person] += amount\n\n    def balance(self, person):\n        return self.members[person]\n\n    def total(self):\n        return sum(self.members.values())\n",
+   "tests": [
+    {
+     "check": "g = SavingsGroup('Umoja')\nassert g.name == 'Umoja' and g.members == {}, 'a new group has no members'\ng.add_member('Amina')\nassert g.members == {'Amina': 0}, g.members",
+     "name": "add a member"
+    },
+    {
+     "check": "g = SavingsGroup('Umoja')\nfor p in ['Amina', 'Juma']:\n    g.add_member(p)\ng.deposit('Amina', 500)\ng.deposit('Juma', 200)\ng.deposit('Amina', 100)\nassert g.balance('Amina') == 600, g.balance('Amina')\nassert g.total() == 800, g.total()",
+     "name": "deposits and total"
+    },
+    {
+     "check": "g = SavingsGroup('Umoja')\ng.add_member('Amina')\nfor args in [('Otieno', 100), ('Amina', 0), ('Amina', -50)]:\n    try:\n        g.deposit(*args)\n        raise AssertionError('deposit%r should raise ValueError' % (args,))\n    except ValueError:\n        pass\nassert g.total() == 0",
+     "name": "refuses bad deposits"
+    },
+    {
+     "check": "g = SavingsGroup('Umoja')\ng.add_member('Amina')\ng.deposit('Amina', 300)\ntry:\n    g.add_member('Amina')\n    raise AssertionError('adding Amina twice should raise ValueError')\nexcept ValueError:\n    pass\nassert g.balance('Amina') == 300, 'adding her again must not reset her balance'",
+     "name": "no duplicates",
+     "hidden": true
+    },
+    {
+     "check": "a = SavingsGroup('Umoja')\nb = SavingsGroup('Tumaini')\na.add_member('Juma')\nassert b.members == {}, 'a member added to one group showed up in another: make the dict inside __init__, not under class'",
+     "name": "groups don't share members",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "self.members = {} goes inside __init__, so each group gets its own dictionary.",
+    "Check the bad cases first (person in self.members, amount <= 0) and raise ValueError, then change the balance.",
+    "total() is sum(self.members.values())."
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is self inside a method?",
+   "choices": [
+    "The class itself",
+    "The object the method was called on",
+    "A copy of the object",
+    "A keyword that does nothing"
+   ],
+   "answer": 1,
+   "why": "tank.fill(10) passes tank in as self."
+  },
+  {
+   "q": "a = WaterTank(100); b = WaterTank(100); a.fill(50). What is b.level?",
+   "choices": [
+    "50",
+    "0",
+    "100",
+    "An error"
+   ],
+   "answer": 1,
+   "why": "Each object has its own attributes."
+  },
+  {
+   "q": "You wrote def fill(litres): inside the class and call tank.fill(10). What happens?",
+   "choices": [
+    "It works",
+    "TypeError: takes 1 positional argument but 2 were given",
+    "litres is None",
+    "It fills the tank by 1"
+   ],
+   "answer": 1,
+   "why": "Python passes the object as the first argument, so self is missing."
+  },
+  {
+   "q": "Why does `members = []` written directly under `class Group:` cause trouble?",
+   "choices": [
+    "Lists aren't allowed in classes",
+    "Every Group object shares that one list",
+    "It is deleted after __init__",
+    "It makes the class slower"
+   ],
+   "answer": 1,
+   "why": "Class-level values are shared; make per-object lists in __init__ with self."
+  },
+  {
+   "q": "What is the main reason to use a class instead of a dict plus loose functions?",
+   "choices": [
+    "Classes run faster",
+    "The data and the rules that keep it valid live together",
+    "Dicts can't hold numbers",
+    "You can't loop over dicts"
+   ],
+   "answer": 1,
+   "why": "Bundling data with its behaviour keeps rules in one place."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What does __init__ do?",
+   "a": "Sets up a new object's starting attributes when you call the class."
+  },
+  {
+   "q": "Attribute vs method?",
+   "a": "An attribute is data on the object (self.level); a method is a function in the class (fill)."
+  },
+  {
+   "q": "What does tank.fill(5) turn into?",
+   "a": "WaterTank.fill(tank, 5): the object becomes self."
+  },
+  {
+   "q": "Where do you create a list each object needs?",
+   "a": "Inside __init__: self.items = []"
+  }
+ ],
+ "explain": "Explain the difference between a class and an object in your own words, using an example from a game or a farm that you make up."
+}

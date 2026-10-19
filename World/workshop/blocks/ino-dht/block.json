@@ -1,0 +1,10 @@
+{"name": "Temperature and humidity", "kind": "hardware", "lang": "Arduino", "version": "1.0.0",
+ "summary": "Air temperature, humidity and 'feels like' heat index from a DHT11/DHT22, and it notices when the sensor stops answering. For greenhouses, stores, vaccine fridges and weather stations.",
+ "tags": ["temperature", "humidity", "dht22", "dht11", "climate", "greenhouse", "weather", "fridge"],
+ "parts": ["DHT22 (or DHT11) sensor", "10k resistor (if not on a module)", "3 jumper wires"],
+ "needs": ["Arduino library: DHT sensor library (Adafruit)"],
+ "files": {"sketch/climate.h": "climate.h"},
+ "imports": {"ino": ["#include \"climate.h\""]},
+ "use": "Climate air(4, DHT22); setup: air.begin(); loop: if (air.read()) log.row(air.tempC, air.humidity);",
+ "test": {"run": ["g++", "-std=c++17", "-Wall", "-x", "c++", "test_climate.cpp", "-o", "t.exe"], "files": ["test_climate.cpp"], "stub": true, "then": "t.exe"},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

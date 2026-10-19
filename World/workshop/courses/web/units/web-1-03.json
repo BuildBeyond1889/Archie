@@ -1,0 +1,146 @@
+{
+ "id": "web-1-03",
+ "level": 1,
+ "title": "Forms",
+ "concepts": [
+  "html",
+  "input"
+ ],
+ "skills": [
+  "forms",
+  "accessibility",
+  "input"
+ ],
+ "bridge": "On the web, input comes from **forms**: `<input>`, `<select>`, `<textarea>` and a `<button>`, each with a `<label>`. The browser can check simple things itself (`required`, `type=\"number\"`, `min`), and JavaScript reads the values later in the course.",
+ "lesson": "Forms are how a page asks for information.\n\n```\n<form>\n  <label for=\"crop\">Crop</label>\n  <select id=\"crop\" name=\"crop\" required>\n    <option>maize</option>\n    <option>beans</option>\n  </select>\n\n  <label for=\"kg\">Weight (kg)</label>\n  <input id=\"kg\" name=\"kg\" type=\"number\" min=\"0\" step=\"0.1\" required>\n\n  <label for=\"day\">Date</label>\n  <input id=\"day\" name=\"day\" type=\"date\">\n\n  <button type=\"submit\">Save</button>\n</form>\n```\n\n- **Every input needs a label**, joined by `for` matching the input's `id`. Clicking the label focuses the box (a bigger target on a phone), and screen readers read the label out.\n- `type` changes the keyboard on phones and what's allowed: `number`, `date`, `email`, `tel`, `password`, `checkbox`.\n- The browser checks `required`, `min`, `max` and `maxlength` before sending, for free.\n- `name` is the key the value is sent under; `<textarea>` is for longer text; `<select>` for a fixed choice.\n\nGood forms ask for as little as possible, say exactly what's wrong, and never throw away what someone typed.",
+ "example": {
+  "file": "example.html",
+  "code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Record a harvest</title>\n</head>\n<body>\n<h1>Record a harvest</h1>\n<form>\n  <label for=\"crop\">Crop</label>\n  <select id=\"crop\" name=\"crop\" required><option>maize</option><option>beans</option></select>\n  <label for=\"kg\">Weight (kg)</label>\n  <input id=\"kg\" name=\"kg\" type=\"number\" min=\"0\" step=\"0.1\" required>\n  <label for=\"note\">Note</label>\n  <textarea id=\"note\" name=\"note\"></textarea>\n  <button type=\"submit\">Save</button>\n</form>\n</body>\n</html>\n",
+  "notes": [
+   "Each label's for matches an id.",
+   "A number box that can't go below 0.",
+   "A textarea for longer notes."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A sign-up form",
+   "file": "ex1_form.html",
+   "prompt": "Make a form with labelled inputs for name (text, required), phone (type tel), age (number, min 5, max 120) and a submit button. Every input must have an id and a label whose for matches it.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Join</title>\n</head>\n<body>\n<h1>Join the class</h1>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "form"
+      },
+      {
+       "has": "form button"
+      }
+     ],
+     "name": "a form with a button"
+    },
+    {
+     "html": [
+      {
+       "has": "input",
+       "min": 3
+      },
+      {
+       "has": "input[type=tel]"
+      },
+      {
+       "has": "input[type=number]"
+      }
+     ],
+     "name": "the three inputs"
+    },
+    {
+     "html": [
+      {
+       "has": "label",
+       "min": 3
+      },
+      {
+       "attr": "label",
+       "needs": "for"
+      },
+      {
+       "attr": "input",
+       "needs": "id"
+      }
+     ],
+     "name": "every input labelled"
+    },
+    {
+     "html": [
+      {
+       "has": "input[required]"
+      }
+     ],
+     "name": "name is required"
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "<label for=\"name\">Name</label> <input id=\"name\" name=\"name\" required>",
+    "Phone: type=\"tel\"; age: type=\"number\" min=\"5\" max=\"120\"."
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Join</title>\n</head>\n<body>\n<h1>Join the class</h1>\n<form>\n<label for=\"name\">Name</label>\n<input id=\"name\" name=\"name\" required>\n<label for=\"phone\">Phone</label>\n<input id=\"phone\" name=\"phone\" type=\"tel\">\n<label for=\"age\">Age</label>\n<input id=\"age\" name=\"age\" type=\"number\" min=\"5\" max=\"120\">\n<button type=\"submit\">Join</button>\n</form>\n</body>\n</html>\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "How is a label joined to its input?",
+   "choices": [
+    "By being next to it",
+    "label for=\"x\" matches input id=\"x\"",
+    "By name",
+    "It can't be"
+   ],
+   "answer": 1,
+   "why": "for ↔ id."
+  },
+  {
+   "q": "Why use type=\"tel\" for a phone number?",
+   "choices": [
+    "It validates the number",
+    "Phones show the number keypad",
+    "It's required",
+    "It hides the number"
+   ],
+   "answer": 1,
+   "why": "The right keyboard on phones."
+  },
+  {
+   "q": "What does required do?",
+   "choices": [
+    "Nothing",
+    "The browser won't submit until it's filled",
+    "Makes it bold",
+    "Saves it"
+   ],
+   "answer": 1,
+   "why": "A free check."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Label an input?",
+   "a": "<label for=\"kg\">…</label> <input id=\"kg\">"
+  },
+  {
+   "q": "Number box that can't go below 0?",
+   "a": "<input type=\"number\" min=\"0\">"
+  },
+  {
+   "q": "Fixed choice?",
+   "a": "<select> with <option>s"
+  }
+ ],
+ "explain": "Explain forms to someone who has never programmed, in your own words, with an example you make up."
+}

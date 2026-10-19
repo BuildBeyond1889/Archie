@@ -1,0 +1,8 @@
+{"name": "Searchable table (web)", "kind": "feature", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "Show records in a table with a search box, tap a column to sort, optional totals, and tap a row to open it.",
+ "tags": ["table", "list", "search", "sort", "records", "totals"],
+ "files": {"js/table.js": "table.js"},
+ "imports": {"js": ["<script src=\"js/table.js\"></script>"]},
+ "use": "makeTable(el, [{key:'crop',label:'Crop'},{key:'kg',label:'Kg',num:true}], {totals:['kg']}).show(rows)",
+ "test": {"run": ["node", "test_table.js"], "files": ["test_table.js"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

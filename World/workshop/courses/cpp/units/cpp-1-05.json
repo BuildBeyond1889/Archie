@@ -1,0 +1,134 @@
+{
+ "id": "cpp-1-05",
+ "level": 1,
+ "title": "Decisions",
+ "concepts": [
+  "conditions"
+ ],
+ "skills": [
+  "if/else",
+  "logic"
+ ],
+ "bridge": "C++ uses `if (...) { } else if (...) { } else { }` with `&&` (and), `||` (or), `!` (not). Comparisons are `== != < > <= >=`. `switch` works on whole numbers and chars. Careful: `if (x = 5)` *assigns* and is always true; you meant `==`.",
+ "lesson": "```\nstd::string grade(int score)\n{\n    if (score >= 80) return \"A\";\n    else if (score >= 65) return \"B\";\n    else if (score >= 50) return \"C\";\n    else return \"F\";\n}\n```\n\nThe conditions are checked top to bottom and the first true one wins, so order matters.\n\nCombine conditions with `&&` (and), `||` (or) and `!` (not):\n\n```\nbool canFire = ammo > 0 && !reloading;\nbool alarm = level < 10 || level > 95;\n```\n\n`switch` picks between fixed values of an `int` or `char`:\n\n```\nswitch (key) {\n    case 'w': y -= 1; break;\n    case 's': y += 1; break;\n    default: break;\n}\n```\n\nForgetting `break` makes it \"fall through\" into the next case. And the classic C++ bug: `if (health = 0)` sets health to 0. The compiler warns about it, which is one reason to read warnings.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n\nint main()\n{\n    int ammo = 3;\n    bool reloading = false;\n    if (ammo > 0 && !reloading) std::cout << \"fire\\n\";\n    else std::cout << \"wait\\n\";\n    char key = 'w';\n    switch (key) { case 'w': std::cout << \"up\\n\"; break; default: std::cout << \"?\\n\"; }\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Grades",
+   "file": "grade.cpp",
+   "prompt": "Write std::string grade(int score): A for 80+, B for 65+, C for 50+, otherwise F.",
+   "starter": "#include <string>\n\nstd::string grade(int score)\n{\n    return \"F\";\n}\n",
+   "tests": [
+    {
+     "call": "grade(91)",
+     "expect": "A"
+    },
+    {
+     "call": "grade(80)",
+     "expect": "A",
+     "hint_if_fail": "80 counts as an A: use >=."
+    },
+    {
+     "call": "grade(70)",
+     "expect": "B"
+    },
+    {
+     "call": "grade(50)",
+     "expect": "C"
+    },
+    {
+     "call": "grade(12)",
+     "expect": "F"
+    }
+   ],
+   "hints": [
+    "Check the highest band first.",
+    "if (score >= 80) return \"A\"; else if ..."
+   ],
+   "solution": "#include <string>\n\nstd::string grade(int score)\n{\n    if (score >= 80) return \"A\";\n    else if (score >= 65) return \"B\";\n    else if (score >= 50) return \"C\";\n    return \"F\";\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Leap years",
+   "file": "leap.cpp",
+   "prompt": "Write bool isLeap(int year): divisible by 4, except centuries, which must be divisible by 400.",
+   "starter": "\nbool isLeap(int year)\n{\n    return year % 4 == 0;\n}\n",
+   "tests": [
+    {
+     "call": "isLeap(2024)",
+     "expect": "true"
+    },
+    {
+     "call": "isLeap(2023)",
+     "expect": "false"
+    },
+    {
+     "call": "isLeap(1900)",
+     "expect": "false",
+     "hint_if_fail": "1900 is a century not divisible by 400."
+    },
+    {
+     "call": "isLeap(2000)",
+     "expect": "true"
+    }
+   ],
+   "hints": [
+    "Three rules: %4, %100, %400.",
+    "return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;"
+   ],
+   "solution": "\nbool isLeap(int year)\n{\n    return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does if (x = 5) do?",
+   "choices": [
+    "Compares x to 5",
+    "Sets x to 5, and is always true",
+    "Won't compile",
+    "Checks x is 5 or more"
+   ],
+   "answer": 1,
+   "why": "= assigns; == compares."
+  },
+  {
+   "q": "Forgetting break in a switch case...",
+   "choices": [
+    "is an error",
+    "falls through into the next case",
+    "skips the switch",
+    "loops"
+   ],
+   "answer": 1,
+   "why": "Execution carries on into the next case."
+  },
+  {
+   "q": "!true && false || true is?",
+   "choices": [
+    "true",
+    "false"
+   ],
+   "answer": 0,
+   "why": "(false && false) || true = true."
+  }
+ ],
+ "cards": [
+  {
+   "q": "And / or / not?",
+   "a": "&&  ||  !"
+  },
+  {
+   "q": "Compare for equality?",
+   "a": "== (one = assigns)"
+  },
+  {
+   "q": "End a switch case?",
+   "a": "break;"
+  }
+ ],
+ "explain": "Explain decisions to someone who has never programmed, in your own words, with an example you make up."
+}

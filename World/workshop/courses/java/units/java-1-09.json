@@ -1,0 +1,132 @@
+{
+ "id": "java-1-09",
+ "level": 1,
+ "title": "Maps: HashMap",
+ "concepts": [
+  "maps"
+ ],
+ "skills": [
+  "maps",
+  "data"
+ ],
+ "bridge": "Java's dictionary is the **HashMap**: `HashMap<String, Integer> kg = new HashMap<>();` then `kg.put(\"maize\", 40)`, `kg.get(\"maize\")`, `kg.containsKey(...)`, `kg.getOrDefault(key, 0)`. Loop with `for (var e : kg.entrySet())` and `e.getKey()`, `e.getValue()`.",
+ "lesson": "A **map** stores values by key. Java's everyday map is `HashMap`:\n\n```\nimport java.util.HashMap;\nHashMap<String, Integer> price = new HashMap<>();\nprice.put(\"maize\", 55);          // add or replace\nprice.get(\"maize\");              // 55\nprice.get(\"rice\");               // null: no such key\nprice.getOrDefault(\"rice\", 0);   // 0\nprice.containsKey(\"beans\");\nprice.remove(\"maize\");\nprice.size();\n```\n\nThe two types in `<>` are the key type and the value type, both classes (`Integer`, not `int`).\n\nLooping:\n\n```\nfor (String crop : price.keySet()) ...\nfor (var e : price.entrySet()) {\n    System.out.println(e.getKey() + \": \" + e.getValue());\n}\n```\n\nA `HashMap` doesn't keep any order. If you want keys sorted, use `TreeMap` (same methods); if you want the order you added them, `LinkedHashMap`.\n\nThe counting pattern is the same idea as everywhere: `counts.put(w, counts.getOrDefault(w, 0) + 1);`, or the shortcut `counts.merge(w, 1, Integer::sum);`.",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.TreeMap;\n\npublic class Example {\n    public static void main(String[] args) {\n        String[] crops = {\"maize\", \"beans\", \"maize\"};\n        int[] kg = {40, 12, 25};\n        TreeMap<String, Integer> totals = new TreeMap<>();\n        for (int i = 0; i < crops.length; i++) {\n            totals.put(crops[i], totals.getOrDefault(crops[i], 0) + kg[i]);\n        }\n        for (var e : totals.entrySet()) System.out.println(e.getKey() + \": \" + e.getValue() + \" kg\");\n    }\n}\n",
+  "notes": [
+   "Two arrays of records.",
+   "TreeMap keeps keys sorted.",
+   "getOrDefault for adding up.",
+   "Loop over entries."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Word counts",
+   "file": "Words.java",
+   "prompt": "Write wordCounts(String text) returning a TreeMap<String, Integer> of how often each word appears (lowercase, split on spaces). Empty text gives an empty map.",
+   "starter": "import java.util.TreeMap;\n\npublic class Words {\n    public static TreeMap<String, Integer> wordCounts(String text) {\n        TreeMap<String, Integer> counts = new TreeMap<>();\n        return counts;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Words.wordCounts(\"the cat and the hat\")",
+     "expect": "{and=1, cat=1, hat=1, the=2}"
+    },
+    {
+     "call": "Words.wordCounts(\"Rain rain RAIN\")",
+     "expect": "{rain=3}"
+    },
+    {
+     "call": "Words.wordCounts(\"\")",
+     "expect": "{}",
+     "hidden": true,
+     "hint_if_fail": "\"\".split(\" \") gives one empty word: skip empty words."
+    }
+   ],
+   "hints": [
+    "for (String w : text.toLowerCase().split(\"\\\\s+\"))",
+    "Skip empty w; counts.put(w, counts.getOrDefault(w, 0) + 1);"
+   ],
+   "solution": "import java.util.TreeMap;\n\npublic class Words {\n    public static TreeMap<String, Integer> wordCounts(String text) {\n        TreeMap<String, Integer> counts = new TreeMap<>();\n        for (String w : text.toLowerCase().split(\"\\\\s+\")) {\n            if (!w.isEmpty()) counts.put(w, counts.getOrDefault(w, 0) + 1);\n        }\n        return counts;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Translate",
+   "file": "Translate.java",
+   "prompt": "A small English to Swahili map is set up in the starter. Write translate(String sentence): translate each word it knows (ignore capitals), leave others as they are. \"the water is good\" gives \"the maji is nzuri\".",
+   "starter": "import java.util.HashMap;\nimport java.util.Map;\n\npublic class Translate {\n    static final Map<String, String> SW = new HashMap<>(Map.of(\"water\", \"maji\", \"good\", \"nzuri\", \"food\", \"chakula\", \"school\", \"shule\", \"friend\", \"rafiki\"));\n\n    public static String translate(String sentence) {\n        return sentence;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Translate.translate(\"the water is good\")",
+     "expect": "the maji is nzuri"
+    },
+    {
+     "call": "Translate.translate(\"school friend\")",
+     "expect": "shule rafiki"
+    },
+    {
+     "call": "Translate.translate(\"Good FOOD\")",
+     "expect": "nzuri chakula",
+     "hidden": true,
+     "hint_if_fail": "Look words up in lowercase."
+    }
+   ],
+   "hints": [
+    "Split into words, look each up with SW.getOrDefault(w.toLowerCase(), w).",
+    "Join back with String.join(\" \", ...) or a StringBuilder."
+   ],
+   "solution": "import java.util.HashMap;\nimport java.util.Map;\n\npublic class Translate {\n    static final Map<String, String> SW = new HashMap<>(Map.of(\"water\", \"maji\", \"good\", \"nzuri\", \"food\", \"chakula\", \"school\", \"shule\", \"friend\", \"rafiki\"));\n\n    public static String translate(String sentence) {\n        String[] w = sentence.trim().split(\"\\\\s+\");\n        for (int i = 0; i < w.length; i++) w[i] = SW.getOrDefault(w[i].toLowerCase(), w[i]);\n        return String.join(\" \", w);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "map.get(key) for a key that isn't there gives…",
+   "choices": [
+    "0",
+    "an exception",
+    "null",
+    "\"\""
+   ],
+   "answer": 2,
+   "why": "null; use getOrDefault to avoid it."
+  },
+  {
+   "q": "You need the keys in alphabetical order. Use…",
+   "choices": [
+    "HashMap",
+    "TreeMap",
+    "ArrayList",
+    "LinkedHashMap"
+   ],
+   "answer": 1,
+   "why": "TreeMap keeps keys sorted."
+  },
+  {
+   "q": "HashMap<String, int> …",
+   "choices": [
+    "works",
+    "doesn't compile: use Integer",
+    "is faster",
+    "is a TreeMap"
+   ],
+   "answer": 1,
+   "why": "Generic types must be classes."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Value or default in a HashMap?",
+   "a": "map.getOrDefault(key, default)"
+  },
+  {
+   "q": "Loop over keys and values?",
+   "a": "for (var e : map.entrySet()) e.getKey(), e.getValue()"
+  },
+  {
+   "q": "Sorted keys?",
+   "a": "TreeMap"
+  }
+ ],
+ "explain": "Explain maps: hashmap to someone who has never programmed, in your own words, with an example you make up."
+}

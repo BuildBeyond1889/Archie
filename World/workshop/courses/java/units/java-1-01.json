@@ -1,0 +1,152 @@
+{
+ "id": "java-1-01",
+ "level": 1,
+ "title": "Hello, Java",
+ "concepts": [
+  "output"
+ ],
+ "skills": [
+  "running code",
+  "output",
+  "classes"
+ ],
+ "bridge": "In Java every program lives inside a **class**, and it starts in a method called `main`. `System.out.println(...)` is Java's print. Statements end with a semicolon `;`, and blocks use curly braces `{ }` instead of indentation.",
+ "lesson": "Java is one of the most used languages in the world: Android apps, banks, Minecraft, and most university computer science courses (including AP Computer Science). It's stricter than Python, which feels slower at first and saves you from many mistakes later.\n\nEvery Java program is a **class**, and it starts running in a method called `main`:\n\n```\npublic class Hello {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, world!\");\n    }\n}\n```\n\n- The class name must match the file name: `Hello` lives in `Hello.java`.\n- `System.out.println(\"...\")` prints a line; `System.out.print` prints without starting a new line.\n- Every statement ends with a **semicolon** `;`. Forgetting one is the most common Java error.\n- Curly braces `{ }` mark where the class and the method start and end. Indent anyway, for people.\n\nJava is **compiled**: a tool called `javac` checks the whole file and turns it into bytecode *before* it runs, so many mistakes are caught before the program starts. Archie's checker runs `javac` on every save. For small programs, `java Hello.java` compiles and runs in one go.",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, world!\");\n        System.out.print(\"No new line... \");\n        System.out.println(\"now there is one.\");\n        System.out.println(2 + 3);\n        System.out.println(\"2 + 3 = \" + (2 + 3));\n    }\n}\n",
+  "notes": [
+   "println prints a line.",
+   "print stays on the same line.",
+   "Numbers are calculated.",
+   "+ joins text; the brackets make the sum happen first."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Hello from Java",
+   "file": "Hello.java",
+   "prompt": "Print exactly: Hello, Archie!",
+   "starter": "public class Hello {\n    public static void main(String[] args) {\n        // your line here\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Hello, Archie!"
+     ],
+     "case": true,
+     "name": "prints the greeting"
+    }
+   ],
+   "hints": [
+    "Inside main: System.out.println(\"...\");",
+    "Don't forget the semicolon at the end."
+   ],
+   "solution": "public class Hello {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, Archie!\");\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Fix it (compiler drill)",
+   "file": "Fix.java",
+   "prompt": "This program has three mistakes the compiler will point at. Fix them until it prints:\nJava is strict\nand that helps\n10",
+   "starter": "public class Fix {\n    public static void main(String[] args) {\n        System.out.println(\"Java is strict\")\n        system.out.println(\"and that helps\");\n        System.out.println(5 + 5;\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Java is strict",
+      "and that helps",
+      "10"
+     ],
+     "case": true,
+     "name": "all three lines"
+    }
+   ],
+   "hints": [
+    "Read the compiler's first error: which line, and what did it expect?",
+    "A missing ;, a lowercase s in System, and a missing )."
+   ],
+   "solution": "public class Fix {\n    public static void main(String[] args) {\n        System.out.println(\"Java is strict\");\n        System.out.println(\"and that helps\");\n        System.out.println(5 + 5);\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Joining text and numbers",
+   "file": "Join.java",
+   "prompt": "Print: Total: 42 (let Java add 40 + 2), and on the next line print 4 and 2 joined as text: 42 again but made by joining \"4\" + \"2\".",
+   "starter": "public class Join {\n    public static void main(String[] args) {\n    }\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Total: 42"
+     ],
+     "name": "adds 40 + 2"
+    },
+    {
+     "src_has": "40+2",
+     "why": "Let Java do the adding: (40 + 2)"
+    },
+    {
+     "src_has": "\"4\"+\"2\"",
+     "why": "Join two pieces of text: \"4\" + \"2\""
+    }
+   ],
+   "hints": [
+    "\"Total: \" + (40 + 2): the brackets make the sum happen before the joining.",
+    "System.out.println(\"4\" + \"2\");"
+   ],
+   "solution": "public class Join {\n    public static void main(String[] args) {\n        System.out.println(\"Total: \" + (40 + 2));\n        System.out.println(\"4\" + \"2\");\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Your class is called Farm. What must the file be called?",
+   "choices": [
+    "farm.java",
+    "Farm.java",
+    "Main.java",
+    "anything"
+   ],
+   "answer": 1,
+   "why": "The public class name and the file name must match exactly, capitals too."
+  },
+  {
+   "q": "What does System.out.println(\"1\" + 1 + 1) print?",
+   "choices": [
+    "3",
+    "111",
+    "12",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Once text is involved, + joins from left to right: \"1\"+1 is \"11\", then \"111\"."
+  },
+  {
+   "q": "What does javac do?",
+   "choices": [
+    "Runs the program",
+    "Checks the whole file and compiles it before it runs",
+    "Downloads Java",
+    "Formats the code"
+   ],
+   "answer": 1,
+   "why": "Compiling catches many mistakes before the program starts."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Where does a Java program start?",
+   "a": "In public static void main(String[] args) inside a class."
+  },
+  {
+   "q": "What ends a Java statement?",
+   "a": "A semicolon ;"
+  },
+  {
+   "q": "print vs println?",
+   "a": "println ends the line; print doesn't."
+  }
+ ],
+ "explain": "Explain hello, java to someone who has never programmed, in your own words, with an example you make up."
+}

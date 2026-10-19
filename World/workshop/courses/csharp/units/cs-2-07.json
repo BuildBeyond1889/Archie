@@ -1,0 +1,263 @@
+{
+ "id": "cs-2-07",
+ "level": 2,
+ "title": "LINQ in depth",
+ "concepts": [
+  "linq",
+  "lambdas",
+  "collections",
+  "sorting"
+ ],
+ "skills": [
+  "linq",
+  "grouping",
+  "reports"
+ ],
+ "lesson": "In Level 1 you met `Where`, `Select` and `Sum`. Now that you know lambdas are just functions passed as values, LINQ makes full sense: every LINQ method takes a lambda that says **what** you want, and LINQ does the looping.\n\nThe ones you'll use every week:\n\n```\nharvests.Where(h => h.Kg > 20)                 // keep some\n        .Select(h => h.Farmer)                 // turn each into something else\n        .Distinct()                            // drop repeats\n        .OrderBy(name => name)                 // sort (OrderByDescending for high first)\n        .ToList();                             // run it and make a list\n```\n\n- **Sorting by two things:** `.OrderByDescending(s => s.Points).ThenBy(s => s.Player)`. Use `ThenBy`, not a second `OrderBy`: a second OrderBy throws away the first sort.\n- **Totals:** `Sum`, `Average`, `Min`, `Max`, `Count`, each with an optional lambda: `harvests.Sum(h => h.Kg)`.\n- **Questions:** `Any(s => s.Points > 100)` (at least one?) and `All(...)` (every one?).\n- **Picking one:** `First(...)` throws if nothing matches; `FirstOrDefault(...)` gives null (or 0) instead. Use FirstOrDefault when \"none\" is a normal answer.\n\n**GroupBy** is the report-maker. It splits items into buckets by a key, and each bucket has a `Key` and the items in it:\n\n```\nvar perFarmer = harvests\n    .GroupBy(h => h.Farmer)\n    .Select(g => new { Farmer = g.Key, Kg = g.Sum(h => h.Kg) })\n    .OrderByDescending(t => t.Kg)\n    .ToList();\n```\n\nThat's \"total kilograms per farmer, biggest first\" in five lines. The `new { ... }` is an **anonymous type**: a quick record with no class needed.\n\n**Common mistakes:**\n- `Average()` on an empty list throws. Check `Any()` first, or decide what \"no data\" should return.\n- LINQ is **lazy**: a query isn't run until you loop over it or call `ToList()`, `Sum()`, `First()`... If the list changes in between, you get the new answer. Call `ToList()` when you want a fixed snapshot.\n- Don't chain so much that nobody can read it. Break long queries into named steps.\n\nIn games LINQ is great for menus, leaderboards, loot tables and save files. Inside Unity's `Update()`, which runs every frame, prefer plain loops for hot code, because LINQ creates small objects that the garbage collector must clean up.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic record Harvest(string Farmer, string Crop, int Kg);\n\nclass Program\n{\n    static void Main()\n    {\n        var h = new List<Harvest>\n        {\n            new(\"Amina\", \"maize\", 40), new(\"Juma\", \"beans\", 25),\n            new(\"Amina\", \"beans\", 30), new(\"Wanjiru\", \"maize\", 55),\n        };\n\n        Console.WriteLine(h.Sum(x => x.Kg));                                    // 150\n        Console.WriteLine(h.Any(x => x.Kg > 50) + \" \" + h.All(x => x.Kg > 20));  // True True\n\n        var perCrop = h.GroupBy(x => x.Crop)\n                       .Select(g => new { Crop = g.Key, Kg = g.Sum(x => x.Kg) })\n                       .OrderByDescending(t => t.Kg).ThenBy(t => t.Crop);\n        foreach (var t in perCrop) Console.WriteLine($\"{t.Crop}: {t.Kg} kg\");\n\n        var first = h.FirstOrDefault(x => x.Crop == \"rice\");\n        Console.WriteLine(first == null ? \"no rice\" : first.Farmer);\n    }\n}\n",
+  "notes": [
+   "Sum takes a lambda that says which number to add up.",
+   "Any asks 'at least one?'; All asks 'every one?'.",
+   "GroupBy makes buckets; g.Key is the crop, and g holds that crop's harvests.",
+   "ThenBy breaks ties without undoing the first sort.",
+   "FirstOrDefault returns null instead of throwing when nothing matches."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Harvest report",
+   "file": "Report.cs",
+   "prompt": "Harvest is given. In static class Report, using LINQ:\n- int TotalKg(List<Harvest> h, string crop): total kg of that crop (crop names match ignoring case).\n- List<string> Farmers(List<Harvest> h): each farmer once, A to Z.\n- string BestCrop(List<Harvest> h): the crop with the most kg in total (ties: alphabetical first), or \"none\" for an empty list.\n- List<string> Totals(List<Harvest> h): one line per farmer like \"Amina: 70\", highest total first, ties A to Z.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Harvest\n{\n    public string Farmer { get; }\n    public string Crop { get; }\n    public int Kg { get; }\n\n    public Harvest(string farmer, string crop, int kg)\n    {\n        Farmer = farmer;\n        Crop = crop;\n        Kg = kg;\n    }\n}\n\npublic static class Report\n{\n    public static int TotalKg(List<Harvest> h, string crop) => 0;\n\n    public static List<string> Farmers(List<Harvest> h) => new List<string>();\n\n    public static string BestCrop(List<Harvest> h) => \"\";\n\n    public static List<string> Totals(List<Harvest> h) => new List<string>();\n}\n",
+   "tests": [
+    {
+     "call": "Report.TotalKg(new List<Harvest> { new(\"Amina\", \"maize\", 40), new(\"Juma\", \"beans\", 25), new(\"Amina\", \"beans\", 30), new(\"Wanjiru\", \"maize\", 55), new(\"Juma\", \"maize\", 10) }, \"Maize\")",
+     "expect": "105",
+     "name": "total of one crop"
+    },
+    {
+     "call": "Report.Farmers(new List<Harvest> { new(\"Amina\", \"maize\", 40), new(\"Juma\", \"beans\", 25), new(\"Amina\", \"beans\", 30), new(\"Wanjiru\", \"maize\", 55), new(\"Juma\", \"maize\", 10) })",
+     "expect": "[Amina, Juma, Wanjiru]",
+     "name": "farmers once each"
+    },
+    {
+     "call": "Report.BestCrop(new List<Harvest> { new(\"Amina\", \"maize\", 40), new(\"Juma\", \"beans\", 25), new(\"Amina\", \"beans\", 30), new(\"Wanjiru\", \"maize\", 55), new(\"Juma\", \"maize\", 10) })",
+     "expect": "maize",
+     "name": "best crop"
+    },
+    {
+     "call": "Report.Totals(new List<Harvest> { new(\"Amina\", \"maize\", 40), new(\"Juma\", \"beans\", 25), new(\"Amina\", \"beans\", 30), new(\"Wanjiru\", \"maize\", 55), new(\"Juma\", \"maize\", 10) })",
+     "expect": "[Amina: 70, Wanjiru: 55, Juma: 35]",
+     "name": "totals per farmer"
+    },
+    {
+     "call": "Report.BestCrop(new List<Harvest>())",
+     "expect": "none",
+     "hidden": true,
+     "name": "no harvests"
+    },
+    {
+     "call": "Report.Totals(new List<Harvest> { new(\"Bea\", \"x\", 10), new(\"Ann\", \"y\", 10) })",
+     "expect": "[Ann: 10, Bea: 10]",
+     "hidden": true,
+     "name": "ties go A to Z"
+    },
+    {
+     "src_has": "GroupBy",
+     "why": "Use GroupBy for the per-farmer and per-crop totals."
+    }
+   ],
+   "hints": [
+    "TotalKg: h.Where(x => x.Crop.Equals(crop, StringComparison.OrdinalIgnoreCase)).Sum(x => x.Kg)",
+    "BestCrop: h.GroupBy(x => x.Crop).OrderByDescending(g => g.Sum(x => x.Kg)).ThenBy(g => g.Key).First().Key",
+    "Totals: GroupBy farmer, Select(g => new { Name = g.Key, Kg = g.Sum(x => x.Kg) }), sort, then Select($\"{t.Name}: {t.Kg}\")."
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Harvest\n{\n    public string Farmer { get; }\n    public string Crop { get; }\n    public int Kg { get; }\n\n    public Harvest(string farmer, string crop, int kg)\n    {\n        Farmer = farmer;\n        Crop = crop;\n        Kg = kg;\n    }\n}\n\npublic static class Report\n{\n    public static int TotalKg(List<Harvest> h, string crop) =>\n        h.Where(x => x.Crop.Equals(crop, StringComparison.OrdinalIgnoreCase)).Sum(x => x.Kg);\n\n    public static List<string> Farmers(List<Harvest> h) =>\n        h.Select(x => x.Farmer).Distinct().OrderBy(n => n).ToList();\n\n    public static string BestCrop(List<Harvest> h)\n    {\n        if (!h.Any()) return \"none\";\n        return h.GroupBy(x => x.Crop)\n                .OrderByDescending(g => g.Sum(x => x.Kg))\n                .ThenBy(g => g.Key)\n                .First().Key;\n    }\n\n    public static List<string> Totals(List<Harvest> h) =>\n        h.GroupBy(x => x.Farmer)\n         .Select(g => new { Name = g.Key, Kg = g.Sum(x => x.Kg) })\n         .OrderByDescending(t => t.Kg)\n         .ThenBy(t => t.Name)\n         .Select(t => $\"{t.Name}: {t.Kg}\")\n         .ToList();\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Scoreboard questions",
+   "file": "Board.cs",
+   "prompt": "Score is given. In static class Board, using LINQ:\n- List<string> Top(List<Score> s, int n): \"Player:Points\" for the best n, highest points first, ties A to Z.\n- double AverageOn(List<Score> s, int level): average points of scores on that level, rounded to 1 decimal; 0 if there are none.\n- string Status(List<Score> s, int target): \"all\" if every score reached the target (>=), \"some\" if at least one did, \"none\" otherwise (and for an empty list).\n- string FirstOver(List<Score> s, int points): the Player of the first score (in list order) with MORE than that many points, or \"nobody\".",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Score\n{\n    public string Player { get; }\n    public int Points { get; }\n    public int Level { get; }\n\n    public Score(string player, int points, int level)\n    {\n        Player = player;\n        Points = points;\n        Level = level;\n    }\n}\n\npublic static class Board\n{\n    public static List<string> Top(List<Score> s, int n) => new List<string>();\n\n    public static double AverageOn(List<Score> s, int level) => -1;\n\n    public static string Status(List<Score> s, int target) => \"\";\n\n    public static string FirstOver(List<Score> s, int points) => \"\";\n}\n",
+   "tests": [
+    {
+     "call": "Board.Top(new List<Score> { new(\"Amina\", 120, 2), new(\"Juma\", 90, 1), new(\"Otieno\", 120, 3), new(\"Wanjiru\", 40, 1) }, 3)",
+     "expect": "[Amina:120, Otieno:120, Juma:90]",
+     "name": "top three"
+    },
+    {
+     "call": "Board.AverageOn(new List<Score> { new(\"Amina\", 120, 2), new(\"Juma\", 90, 1), new(\"Otieno\", 120, 3), new(\"Wanjiru\", 40, 1) }, 1)",
+     "expect": "65",
+     "name": "average on a level"
+    },
+    {
+     "call": "Board.Status(new List<Score> { new(\"Amina\", 120, 2), new(\"Juma\", 90, 1), new(\"Otieno\", 120, 3), new(\"Wanjiru\", 40, 1) }, 10) + \" \" + Board.Status(new List<Score> { new(\"Amina\", 120, 2), new(\"Juma\", 90, 1), new(\"Otieno\", 120, 3), new(\"Wanjiru\", 40, 1) }, 50) + \" \" + Board.Status(new List<Score> { new(\"Amina\", 120, 2), new(\"Juma\", 90, 1), new(\"Otieno\", 120, 3), new(\"Wanjiru\", 40, 1) }, 500)",
+     "expect": "all some none",
+     "name": "any and all"
+    },
+    {
+     "call": "Board.FirstOver(new List<Score> { new(\"Amina\", 120, 2), new(\"Juma\", 90, 1), new(\"Otieno\", 120, 3), new(\"Wanjiru\", 40, 1) }, 100)",
+     "expect": "Amina",
+     "name": "first over"
+    },
+    {
+     "call": "Board.AverageOn(new List<Score> { new(\"Amina\", 120, 2), new(\"Juma\", 90, 1), new(\"Otieno\", 120, 3), new(\"Wanjiru\", 40, 1) }, 9) + \" \" + Board.FirstOver(new List<Score> { new(\"Amina\", 120, 2), new(\"Juma\", 90, 1), new(\"Otieno\", 120, 3), new(\"Wanjiru\", 40, 1) }, 1000)",
+     "expect": "0 nobody",
+     "hidden": true,
+     "name": "nothing matches"
+    },
+    {
+     "call": "Board.Status(new List<Score>(), 5)",
+     "expect": "none",
+     "hidden": true,
+     "name": "empty list",
+     "hint_if_fail": "All(...) is true for an empty list, so check for empty first."
+    },
+    {
+     "call": "Board.AverageOn(new List<Score> { new(\"A\", 10, 2), new(\"B\", 15, 2), new(\"C\", 10, 2) }, 2)",
+     "expect": "11.7",
+     "hidden": true,
+     "name": "rounding"
+    }
+   ],
+   "hints": [
+    "Top: s.OrderByDescending(x => x.Points).ThenBy(x => x.Player).Take(n).Select(x => $\"{x.Player}:{x.Points}\").ToList()",
+    "AverageOn: var pts = s.Where(x => x.Level == level).ToList(); if (pts.Count == 0) return 0; return Math.Round(pts.Average(x => x.Points), 1);",
+    "FirstOver: s.FirstOrDefault(x => x.Points > points)?.Player ?? \"nobody\""
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Score\n{\n    public string Player { get; }\n    public int Points { get; }\n    public int Level { get; }\n\n    public Score(string player, int points, int level)\n    {\n        Player = player;\n        Points = points;\n        Level = level;\n    }\n}\n\npublic static class Board\n{\n    public static List<string> Top(List<Score> s, int n) =>\n        s.OrderByDescending(x => x.Points)\n         .ThenBy(x => x.Player)\n         .Take(n)\n         .Select(x => $\"{x.Player}:{x.Points}\")\n         .ToList();\n\n    public static double AverageOn(List<Score> s, int level)\n    {\n        var onLevel = s.Where(x => x.Level == level).ToList();\n        if (onLevel.Count == 0) return 0;                // Average() would throw on nothing\n        return Math.Round(onLevel.Average(x => x.Points), 1);\n    }\n\n    public static string Status(List<Score> s, int target)\n    {\n        if (!s.Any(x => x.Points >= target)) return \"none\";   // also covers an empty list\n        return s.All(x => x.Points >= target) ? \"all\" : \"some\";\n    }\n\n    // FirstOrDefault gives null when nothing matches; ?. and ?? turn that into \"nobody\".\n    public static string FirstOver(List<Score> s, int points) =>\n        s.FirstOrDefault(x => x.Points > points)?.Player ?? \"nobody\";\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Clinic visit summary",
+   "file": "ClinicStats.cs",
+   "prompt": "Visit is given. In static class ClinicStats, using LINQ:\n- List<string> PerClinic(List<Visit> v): \"Kisumu: 3\" per clinic, most visits first, ties A to Z.\n- int BusiestDay(List<Visit> v): the day with the most visits (ties: the earliest day), or -1 if there are no visits.\n- List<string> Regulars(List<Visit> v, int minVisits): patients with at least minVisits visits in total (any clinic), each once, A to Z.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Visit\n{\n    public string Clinic { get; }\n    public string Patient { get; }\n    public int Day { get; }\n\n    public Visit(string clinic, string patient, int day)\n    {\n        Clinic = clinic;\n        Patient = patient;\n        Day = day;\n    }\n}\n\npublic static class ClinicStats\n{\n    public static List<string> PerClinic(List<Visit> v) => new List<string>();\n\n    public static int BusiestDay(List<Visit> v) => 0;\n\n    public static List<string> Regulars(List<Visit> v, int minVisits) => new List<string>();\n}\n",
+   "tests": [
+    {
+     "call": "ClinicStats.PerClinic(new List<Visit> { new(\"Kisumu\", \"Amina\", 1), new(\"Kisumu\", \"Juma\", 1), new(\"Nakuru\", \"Amina\", 2), new(\"Kisumu\", \"Otieno\", 2), new(\"Nakuru\", \"Amina\", 2), new(\"Eldoret\", \"Juma\", 3) })",
+     "expect": "[Kisumu: 3, Nakuru: 2, Eldoret: 1]",
+     "name": "visits per clinic"
+    },
+    {
+     "call": "ClinicStats.BusiestDay(new List<Visit> { new(\"Kisumu\", \"Amina\", 1), new(\"Kisumu\", \"Juma\", 1), new(\"Nakuru\", \"Amina\", 2), new(\"Kisumu\", \"Otieno\", 2), new(\"Nakuru\", \"Amina\", 2), new(\"Eldoret\", \"Juma\", 3) })",
+     "expect": "2",
+     "name": "busiest day"
+    },
+    {
+     "call": "ClinicStats.Regulars(new List<Visit> { new(\"Kisumu\", \"Amina\", 1), new(\"Kisumu\", \"Juma\", 1), new(\"Nakuru\", \"Amina\", 2), new(\"Kisumu\", \"Otieno\", 2), new(\"Nakuru\", \"Amina\", 2), new(\"Eldoret\", \"Juma\", 3) }, 2)",
+     "expect": "[Amina, Juma]",
+     "name": "regular patients"
+    },
+    {
+     "call": "ClinicStats.BusiestDay(new List<Visit>())",
+     "expect": "-1",
+     "hidden": true,
+     "name": "no visits"
+    },
+    {
+     "call": "ClinicStats.BusiestDay(new List<Visit> { new(\"A\", \"x\", 5), new(\"A\", \"y\", 2) })",
+     "expect": "2",
+     "hidden": true,
+     "name": "a tie goes to the earlier day"
+    },
+    {
+     "call": "ClinicStats.Regulars(new List<Visit> { new(\"Kisumu\", \"Amina\", 1), new(\"Kisumu\", \"Juma\", 1), new(\"Nakuru\", \"Amina\", 2), new(\"Kisumu\", \"Otieno\", 2), new(\"Nakuru\", \"Amina\", 2), new(\"Eldoret\", \"Juma\", 3) }, 5)",
+     "expect": "[]",
+     "hidden": true,
+     "name": "nobody that regular"
+    },
+    {
+     "src_has": "GroupBy",
+     "why": "Use GroupBy to count per clinic, per day and per patient."
+    }
+   ],
+   "hints": [
+    "PerClinic: v.GroupBy(x => x.Clinic).OrderByDescending(g => g.Count()).ThenBy(g => g.Key).Select(g => $\"{g.Key}: {g.Count()}\")",
+    "BusiestDay: if (!v.Any()) return -1; then GroupBy(x => x.Day), order by Count() descending, ThenBy(g => g.Key), First().Key",
+    "Regulars: GroupBy(x => x.Patient).Where(g => g.Count() >= minVisits).Select(g => g.Key).OrderBy(n => n)"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Visit\n{\n    public string Clinic { get; }\n    public string Patient { get; }\n    public int Day { get; }\n\n    public Visit(string clinic, string patient, int day)\n    {\n        Clinic = clinic;\n        Patient = patient;\n        Day = day;\n    }\n}\n\npublic static class ClinicStats\n{\n    public static List<string> PerClinic(List<Visit> v) =>\n        v.GroupBy(x => x.Clinic)\n         .OrderByDescending(g => g.Count())\n         .ThenBy(g => g.Key)\n         .Select(g => $\"{g.Key}: {g.Count()}\")\n         .ToList();\n\n    public static int BusiestDay(List<Visit> v)\n    {\n        if (!v.Any()) return -1;\n        return v.GroupBy(x => x.Day)\n                .OrderByDescending(g => g.Count())\n                .ThenBy(g => g.Key)\n                .First().Key;\n    }\n\n    public static List<string> Regulars(List<Visit> v, int minVisits) =>\n        v.GroupBy(x => x.Patient)\n         .Where(g => g.Count() >= minVisits)\n         .Select(g => g.Key)\n         .OrderBy(name => name)\n         .ToList();\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "You sort with .OrderBy(s => s.Level).OrderBy(s => s.Name). What happens?",
+   "choices": [
+    "Sorted by level, then name",
+    "Only sorted by name: the second OrderBy replaces the first",
+    "It throws",
+    "It doesn't compile"
+   ],
+   "answer": 1,
+   "why": "Use ThenBy for the tie-breaker."
+  },
+  {
+   "q": "First(x => x.Kg > 999) when nothing matches…",
+   "choices": [
+    "returns null",
+    "throws InvalidOperationException",
+    "returns the first item",
+    "returns 0"
+   ],
+   "answer": 1,
+   "why": "FirstOrDefault returns null/0 instead."
+  },
+  {
+   "q": "new List<int>().Average() …",
+   "choices": [
+    "is 0",
+    "throws",
+    "is NaN",
+    "is null"
+   ],
+   "answer": 1,
+   "why": "No items, no average: check first."
+  },
+  {
+   "q": "After GroupBy(h => h.Farmer), what is g.Key?",
+   "choices": [
+    "The first harvest",
+    "The farmer's name for that bucket",
+    "The count",
+    "The index"
+   ],
+   "answer": 1,
+   "why": "Key is what you grouped by."
+  },
+  {
+   "q": "Why avoid heavy LINQ in Unity's Update()?",
+   "choices": [
+    "It's not allowed",
+    "It runs every frame and creates garbage that can cause stutters",
+    "LINQ is wrong in games",
+    "It can't read lists"
+   ],
+   "answer": 1,
+   "why": "Plain loops for hot paths; LINQ for reports and menus."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Sort by two keys?",
+   "a": ".OrderByDescending(x => x.Points).ThenBy(x => x.Name)"
+  },
+  {
+   "q": "At least one / every one?",
+   "a": "Any(x => ...) / All(x => ...)"
+  },
+  {
+   "q": "Totals per group?",
+   "a": "list.GroupBy(x => x.Key).Select(g => new { g.Key, Total = g.Sum(x => x.N) })"
+  },
+  {
+   "q": "One item or nothing, safely?",
+   "a": "FirstOrDefault(x => ...) then check for null"
+  }
+ ],
+ "explain": "Explain GroupBy in your own words with an example of a report you'd want from some data you care about."
+}

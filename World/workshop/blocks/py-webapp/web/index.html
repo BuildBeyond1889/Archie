@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My web app</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+  button { font-size: 1.1rem; padding: .5rem 1rem; }
+</style>
+</head>
+<body>
+<h1>My web app</h1>
+<p id="msg">Loading…</p>
+<button id="b">Count</button> <span id="n"></span>
+<script>
+  fetch("/api/hello").then(r => r.json()).then(d => { document.getElementById("msg").textContent = d.message; });
+  document.getElementById("b").onclick = () =>
+    fetch("/api/count", { method: "POST" }).then(r => r.json()).then(d => { document.getElementById("n").textContent = d.count; });
+</script>
+</body>
+</html>

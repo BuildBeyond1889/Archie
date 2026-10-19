@@ -1,0 +1,162 @@
+{
+ "id": "java-1-07",
+ "level": 1,
+ "title": "Arrays and ArrayList",
+ "concepts": [
+  "lists"
+ ],
+ "skills": [
+  "arrays",
+  "lists",
+  "loops"
+ ],
+ "bridge": "Java has two kinds of lists. An **array** has a fixed size: `int[] kg = {40, 12, 55};`, `kg.length`. An **ArrayList** grows: `ArrayList<Integer> kg = new ArrayList<>();` then `kg.add(40)`, `kg.get(0)`, `kg.size()`, `kg.remove(0)`. The type in `<>` must be a class (`Integer`, `Double`, `String`), not `int`.",
+ "lesson": "**Arrays** hold a fixed number of values of one type:\n\n```\nint[] kg = {40, 12, 55};\nString[] crops = new String[3];      // 3 empty slots (null)\nkg[0] = 41;                           // change one\nSystem.out.println(kg.length);        // 3 (no brackets: it's a field)\n```\n\nGoing past the end (`kg[3]`) crashes with `ArrayIndexOutOfBoundsException`. `Arrays.toString(kg)` prints an array nicely; `Arrays.sort(kg)` sorts it.\n\n**ArrayList** grows and shrinks as you go, which is what you want most of the time:\n\n```\nimport java.util.ArrayList;\nArrayList<String> crops = new ArrayList<>();\ncrops.add(\"maize\");\ncrops.add(\"beans\");\ncrops.get(0);          // \"maize\"\ncrops.size();          // 2\ncrops.remove(\"beans\");\ncrops.contains(\"maize\");\n```\n\nThe type in angle brackets must be a class: `ArrayList<Integer>`, not `ArrayList<int>`. Java converts between `int` and `Integer` for you (called autoboxing). `List<String>` is the general type; `ArrayList` is one kind of list, so you'll often see `List<String> crops = new ArrayList<>();`.",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.ArrayList;\nimport java.util.Arrays;\n\npublic class Example {\n    public static void main(String[] args) {\n        int[] kg = {40, 12, 55};\n        int total = 0;\n        for (int k : kg) total += k;\n        System.out.println(Arrays.toString(kg) + \" total \" + total);\n        ArrayList<String> crops = new ArrayList<>();\n        crops.add(\"maize\");\n        crops.add(\"beans\");\n        crops.add(0, \"kale\");\n        System.out.println(crops + \" \" + crops.size() + \" \" + crops.get(1));\n    }\n}\n",
+  "notes": [
+   "A fixed array and a total.",
+   "Arrays.toString prints it.",
+   "An ArrayList that grows; add at a position too."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Average of an array",
+   "file": "Avg.java",
+   "prompt": "Write average(int[] nums): the average as a double, rounded to 1 decimal (Math.round(x * 10) / 10.0). An empty array gives 0.0.",
+   "starter": "public class Avg {\n    public static double average(int[] nums) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Avg.average(new int[] {40, 12, 55})",
+     "expect": "35.7"
+    },
+    {
+     "call": "Avg.average(new int[] {10})",
+     "expect": "10.0"
+    },
+    {
+     "call": "Avg.average(new int[] {})",
+     "expect": "0.0",
+     "hidden": true,
+     "hint_if_fail": "nums.length is 0: return 0.0 before dividing."
+    }
+   ],
+   "hints": [
+    "Sum with a for-each, then divide by nums.length (as a double).",
+    "return Math.round(sum * 10.0 / nums.length) / 10.0;"
+   ],
+   "solution": "public class Avg {\n    public static double average(int[] nums) {\n        if (nums.length == 0) return 0.0;\n        int sum = 0;\n        for (int n : nums) sum += n;\n        return Math.round(sum * 10.0 / nums.length) / 10.0;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Above average",
+   "file": "Above.java",
+   "prompt": "Write aboveAverage(int[] nums) returning an ArrayList<Integer> of the numbers bigger than the average, in order.",
+   "starter": "import java.util.ArrayList;\n\npublic class Above {\n    public static ArrayList<Integer> aboveAverage(int[] nums) {\n        ArrayList<Integer> out = new ArrayList<>();\n        return out;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Above.aboveAverage(new int[] {40, 12, 55, 30})",
+     "expect": "[40, 55]"
+    },
+    {
+     "call": "Above.aboveAverage(new int[] {5, 5, 5})",
+     "expect": "[]"
+    },
+    {
+     "call": "Above.aboveAverage(new int[] {})",
+     "expect": "[]",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Work out the average first (careful with an empty array).",
+    "for (int n : nums) if (n > avg) out.add(n);"
+   ],
+   "solution": "import java.util.ArrayList;\n\npublic class Above {\n    public static ArrayList<Integer> aboveAverage(int[] nums) {\n        ArrayList<Integer> out = new ArrayList<>();\n        if (nums.length == 0) return out;\n        double sum = 0;\n        for (int n : nums) sum += n;\n        double avg = sum / nums.length;\n        for (int n : nums) if (n > avg) out.add(n);\n        return out;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Biggest without Math.max",
+   "file": "Biggest.java",
+   "prompt": "Write biggest(int[] nums) without Math.max or sorting: keep the biggest seen so far. Assume the array has at least one number.",
+   "starter": "public class Biggest {\n    public static int biggest(int[] nums) {\n        return 0;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Biggest.biggest(new int[] {3, 9, 2})",
+     "expect": "9"
+    },
+    {
+     "call": "Biggest.biggest(new int[] {-5, -2, -9})",
+     "expect": "-2",
+     "hint_if_fail": "Starting at 0 breaks for all-negative arrays: start with nums[0]."
+    },
+    {
+     "src_not": "Math.max",
+     "why": "Do it without Math.max."
+    },
+    {
+     "src_not": "sort",
+     "why": "Do it without sorting."
+    }
+   ],
+   "hints": [
+    "int best = nums[0];",
+    "for (int n : nums) if (n > best) best = n;"
+   ],
+   "solution": "public class Biggest {\n    public static int biggest(int[] nums) {\n        int best = nums[0];\n        for (int n : nums) if (n > best) best = n;\n        return best;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "int[] a = new int[3]; what is a[3]?",
+   "choices": [
+    "0",
+    "null",
+    "a crash: ArrayIndexOutOfBoundsException",
+    "3"
+   ],
+   "answer": 2,
+   "why": "Positions are 0, 1, 2."
+  },
+  {
+   "q": "Which is valid?",
+   "choices": [
+    "ArrayList<int> x",
+    "ArrayList<Integer> x",
+    "ArrayList(int) x",
+    "int ArrayList x"
+   ],
+   "answer": 1,
+   "why": "Generics need a class: Integer."
+  },
+  {
+   "q": "Array length vs ArrayList size?",
+   "choices": [
+    "a.length / list.size()",
+    "a.size() / list.length",
+    "both .length",
+    "both .size()"
+   ],
+   "answer": 0,
+   "why": "Arrays have a length field; lists have a size() method."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Print an array nicely?",
+   "a": "Arrays.toString(a)"
+  },
+  {
+   "q": "Growable list of whole numbers?",
+   "a": "ArrayList<Integer> list = new ArrayList<>();"
+  },
+  {
+   "q": "Get item 0 of a list?",
+   "a": "list.get(0)"
+  }
+ ],
+ "explain": "Explain arrays and arraylist to someone who has never programmed, in your own words, with an example you make up."
+}

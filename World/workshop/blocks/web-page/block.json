@@ -1,0 +1,7 @@
+{"name": "Web page", "kind": "shell", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "A clean page that works on phones and computers, with a stylesheet and room for scripts. Opens straight from the file, no server or internet needed.",
+ "tags": ["web", "page", "html", "website", "phone", "responsive"],
+ "files": {"index.html": "index.html", "css/style.css": "css/style.css"},
+ "use": "Write your content in <main>. Blocks you add get their scripts linked automatically.",
+ "test": {"run": ["node", "-e", "const s=require('fs').readFileSync('index.html','utf8');if(!s.includes('archie:scripts'))process.exit(1);console.log('page ok')"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

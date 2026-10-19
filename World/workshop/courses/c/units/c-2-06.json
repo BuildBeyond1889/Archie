@@ -1,0 +1,247 @@
+{
+ "id": "c-2-06",
+ "level": 2,
+ "title": "Structs on the heap",
+ "concepts": [
+  "malloc",
+  "data-modeling",
+  "constructors",
+  "destructors"
+ ],
+ "skills": [
+  "create/destroy",
+  "ownership",
+  "arrays of structs"
+ ],
+ "lesson": "In Level 1 your structs lived in local variables. That's fine until you need one to outlive the function that made it, or you don't know how many you'll need (patients arriving, enemies spawning), or the struct owns other heap memory like a name. Then the struct itself goes on the heap.\n\n**Pair every create with a destroy.** C programmers wrap the allocation in two functions:\n\n```\nSensor *sensor_new(const char *name, double alarm_at)\n{\n    Sensor *s = malloc(sizeof *s);\n    if (s == NULL) return NULL;\n    s->name = str_copy(name);            /* the sensor owns its name */\n    if (s->name == NULL) { free(s); return NULL; }\n    s->alarm_at = alarm_at;\n    s->count = 0;\n    s->last = 0.0;\n    return s;\n}\n\nvoid sensor_free(Sensor *s)\n{\n    if (s == NULL) return;               /* like free(NULL) */\n    free(s->name);                       /* inside first... */\n    free(s);                             /* ...then the struct */\n}\n```\n\nYou already use this pattern: `FILE *f = fopen(...)` and `fclose(f)` are exactly a create/destroy pair around a struct you never see. C++ turned it into constructors and destructors, which you'll meet in the C++ course.\n\nWhy this way?\n- **Every field gets a value** in one place, so you never get a half-made sensor with junk in it.\n- **Failure is clean.** If the second allocation fails, undo the first and return NULL. The caller checks one pointer.\n- **Freeing order is handled once.** Free the inside things first; once the struct is gone, you can't reach `s->name` any more.\n- **`sensor_free(NULL)` is safe**, which makes cleanup code simple.\n\n**Ownership.** \"The sensor owns its name\" means the sensor made the copy and the sensor frees it. Write down who owns what. Bugs come from two owners (double free) or none (leak).\n\n**Two ways to have many structs:**\n- **One block of structs**: `Medicine *m = malloc(n * sizeof *m);` Everything is side by side, one free, fast to loop over. Good when they all live and die together (a clinic's stock list).\n- **An array of pointers**: `Enemy *slots[8];` each pointing at its own heap struct, or NULL for an empty slot. Good when things come and go one at a time (enemies spawn and die). When one dies, free it and set its slot to NULL.\n\n**Common mistakes:** `malloc(sizeof(Sensor *))` (the size of a pointer, not the struct: use `sizeof *s`), freeing the struct before its name, and forgetting to set a freed slot to NULL so it gets freed again later.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct {\n    char *name;\n    int stock;\n} Item;\n\nItem *item_new(const char *name, int stock)\n{\n    Item *it = malloc(sizeof *it);\n    if (it == NULL) return NULL;\n    it->name = malloc(strlen(name) + 1);\n    if (it->name == NULL) { free(it); return NULL; }\n    strcpy(it->name, name);\n    it->stock = stock;\n    return it;\n}\n\nvoid item_free(Item *it)\n{\n    if (it == NULL) return;\n    free(it->name);\n    free(it);\n}\n\nint main(void)\n{\n    Item *ors = item_new(\"ORS sachets\", 40);\n    Item *zinc = item_new(\"zinc tablets\", 12);\n    if (ors && zinc) {\n        ors->stock -= 5;\n        printf(\"%s: %d left\\n\", ors->name, ors->stock);\n        printf(\"%s: %d left\\n\", zinc->name, zinc->stock);\n    }\n    item_free(ors);\n    item_free(zinc);\n    return 0;\n}\n",
+  "notes": [
+   "item_new allocates sizeof *it: the size of the struct, not of a pointer.",
+   "If the name can't be allocated, it frees the struct and returns NULL: no half-made items.",
+   "The item owns its name, so item_free frees the name first, then the struct.",
+   "item_free(NULL) does nothing, so cleanup works even if item_new failed.",
+   "main pairs each item_new with one item_free, the same way you pair fopen with fclose."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "sensor_new and sensor_free",
+   "file": "sensor.c",
+   "prompt": "With the Sensor struct and str_copy given (both use my_alloc), write Sensor *sensor_new(const char *name, double alarm_at): allocate the struct with my_alloc, give it its own copy of name, set alarm_at, count 0 and last 0.0. Return NULL if name is NULL or memory runs out (free anything you already made). Then write void sensor_free(Sensor *s) that frees the name and the struct; it does nothing when s is NULL.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\n/* A new heap copy of s (the caller frees it). */\nchar *str_copy(const char *s)\n{\n    if (s == NULL) return NULL;\n    size_t n = strlen(s);\n    char *copy = my_alloc(n + 1);\n    if (copy == NULL) return NULL;\n    memcpy(copy, s, n + 1);\n    return copy;\n}\n\ntypedef struct {\n    char *name;        /* owned: the sensor's own heap copy */\n    double alarm_at;   /* readings at or above this raise an alarm */\n    int count;         /* readings so far */\n    double last;       /* the latest reading */\n} Sensor;\n\nSensor *sensor_new(const char *name, double alarm_at)\n{\n    return NULL;\n}\n\nvoid sensor_free(Sensor *s)\n{\n}\n",
+   "tests": [
+    {
+     "call": "({ Sensor *s = sensor_new(\"tank 1\", 80.0); static char b[64]; strcpy(b, s->name); sensor_free(s); b; })",
+     "fmt": "%s",
+     "expect": "tank 1",
+     "name": "stores the name"
+    },
+    {
+     "call": "({ Sensor *s = sensor_new(\"soil\", 35.5); double r = s->alarm_at + s->count + s->last; sensor_free(s); r; })",
+     "fmt": "%.1f",
+     "expect": "35.5",
+     "name": "every field set"
+    },
+    {
+     "call": "({ char nm[] = \"pump\"; Sensor *s = sensor_new(nm, 1.0); nm[0] = 'd'; static char b[64]; strcpy(b, s->name); sensor_free(s); b; })",
+     "fmt": "%s",
+     "expect": "pump",
+     "name": "its own copy of the name",
+     "hint_if_fail": "Use str_copy(name), don't just store the pointer."
+    },
+    {
+     "call": "({ int before = live_allocs; Sensor *s = sensor_new(\"a\", 1.0); int during = live_allocs - before; sensor_free(s); during * 10 + (live_allocs - before); })",
+     "expect": "20",
+     "hidden": true,
+     "name": "two blocks made, both freed",
+     "hint_if_fail": "sensor_free must free s->name and then s."
+    },
+    {
+     "call": "({ int before = live_allocs; Sensor *s = sensor_new(NULL, 1.0); sensor_free(NULL); (s == NULL) * 10 + (live_allocs - before); })",
+     "expect": "10",
+     "hidden": true,
+     "name": "NULL name and sensor_free(NULL)"
+    }
+   ],
+   "hints": [
+    "Sensor *s = my_alloc(sizeof *s); then s->name = str_copy(name);",
+    "If s->name is NULL: my_free(s); return NULL;",
+    "sensor_free: if (s == NULL) return; my_free(s->name); my_free(s);"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\n/* A new heap copy of s (the caller frees it). */\nchar *str_copy(const char *s)\n{\n    if (s == NULL) return NULL;\n    size_t n = strlen(s);\n    char *copy = my_alloc(n + 1);\n    if (copy == NULL) return NULL;\n    memcpy(copy, s, n + 1);\n    return copy;\n}\n\ntypedef struct {\n    char *name;        /* owned: the sensor's own heap copy */\n    double alarm_at;   /* readings at or above this raise an alarm */\n    int count;         /* readings so far */\n    double last;       /* the latest reading */\n} Sensor;\n\nSensor *sensor_new(const char *name, double alarm_at)\n{\n    if (name == NULL) return NULL;\n    Sensor *s = my_alloc(sizeof *s);\n    if (s == NULL) return NULL;\n    s->name = str_copy(name);          /* the sensor owns its name */\n    if (s->name == NULL) {\n        my_free(s);                    /* undo, no half-made sensors */\n        return NULL;\n    }\n    s->alarm_at = alarm_at;\n    s->count = 0;\n    s->last = 0.0;\n    return s;\n}\n\nvoid sensor_free(Sensor *s)\n{\n    if (s == NULL) return;\n    my_free(s->name);                  /* inside first */\n    my_free(s);                        /* then the struct */\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Clinic stock list",
+   "file": "stock.c",
+   "prompt": "With the Medicine struct given, write Medicine *stock_new(int n): ONE my_alloc block holding n medicines, every one set to an empty name, stock 0 and min_stock 0 (NULL if n is 0 or negative). Then write int count_low(const Medicine *m, int n): how many medicines have stock below min_stock (equal is not low).",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    char name[24];\n    int stock;\n    int min_stock;\n} Medicine;\n\nMedicine *stock_new(int n)\n{\n    return NULL;\n}\n\nint count_low(const Medicine *m, int n)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "({ Medicine *m = stock_new(3); m[0].stock = 2; m[0].min_stock = 10; m[1].stock = 50; m[1].min_stock = 20; m[2].stock = 5; m[2].min_stock = 5; int r = count_low(m, 3); my_free(m); r; })",
+     "expect": "1",
+     "name": "one is low"
+    },
+    {
+     "call": "({ Medicine *m = stock_new(4); int r = (m[3].name[0] == 0) + m[3].stock + m[3].min_stock; strcpy(m[3].name, \"zinc\"); my_free(m); r; })",
+     "expect": "1",
+     "name": "starts empty",
+     "hint_if_fail": "my_alloc doesn't clear memory: set every field (memset or a loop)."
+    },
+    {
+     "call": "({ int before = live_allocs; Medicine *m = stock_new(5); int r = (live_allocs - before) * 100 + (int)(last_alloc_size / sizeof(Medicine)); my_free(m); r; })",
+     "expect": "105",
+     "name": "one block of n medicines"
+    },
+    {
+     "call": "({ int before = live_allocs; Medicine *m = stock_new(0); (m == NULL) * 10 + (live_allocs - before); })",
+     "expect": "10",
+     "hidden": true,
+     "name": "n of 0: NULL"
+    },
+    {
+     "call": "({ Medicine *m = stock_new(2); m[0].min_stock = 1; m[1].min_stock = 1; int r = count_low(m, 2) * 10 + count_low(m, 0); my_free(m); r; })",
+     "expect": "20",
+     "hidden": true,
+     "name": "all low, and an empty list"
+    }
+   ],
+   "hints": [
+    "Medicine *m = my_alloc(n * sizeof *m);",
+    "memset(m, 0, n * sizeof *m); makes every name empty and every number 0.",
+    "count_low: if (m[i].stock < m[i].min_stock) low++;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct {\n    char name[24];\n    int stock;\n    int min_stock;\n} Medicine;\n\nMedicine *stock_new(int n)\n{\n    if (n <= 0) return NULL;\n    Medicine *m = my_alloc(n * sizeof *m);    /* one block, side by side */\n    if (m == NULL) return NULL;\n    memset(m, 0, n * sizeof *m);              /* empty names, zero numbers */\n    return m;\n}\n\nint count_low(const Medicine *m, int n)\n{\n    int low = 0;\n    for (int i = 0; i < n; i++)\n        if (m[i].stock < m[i].min_stock) low++;\n    return low;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Spawn and despawn",
+   "file": "spawn.c",
+   "prompt": "A game world has MAX_ENEMIES slots, each pointing at a heap Enemy or NULL; world_free is given. Write int spawn(World *w, const char *kind, int hp): find the first NULL slot, my_alloc an Enemy there, copy kind into it (at most 15 letters, always ending with '\\0'), set hp, and return the slot number. Return -1 if every slot is taken or memory runs out. Then write int clear_dead(World *w): free every enemy whose hp is 0 or less, set its slot to NULL, and return how many were freed.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\n#define MAX_ENEMIES 8\n\ntypedef struct {\n    char kind[16];\n    int hp;\n} Enemy;\n\ntypedef struct {\n    Enemy *slots[MAX_ENEMIES];   /* NULL means the slot is free */\n} World;\n\nvoid world_free(World *w)\n{\n    for (int i = 0; i < MAX_ENEMIES; i++) {\n        my_free(w->slots[i]);\n        w->slots[i] = NULL;\n    }\n}\n\nint spawn(World *w, const char *kind, int hp)\n{\n    return -1;\n}\n\nint clear_dead(World *w)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "({ World w = {0}; int a = spawn(&w, \"slime\", 5); int b = spawn(&w, \"bat\", 3); world_free(&w); a * 10 + b; })",
+     "expect": "1",
+     "name": "slots 0 then 1"
+    },
+    {
+     "call": "({ World w = {0}; spawn(&w, \"wolf\", 12); static char b[16]; strcpy(b, w.slots[0]->kind); world_free(&w); b; })",
+     "fmt": "%s",
+     "expect": "wolf",
+     "name": "copies the kind"
+    },
+    {
+     "call": "({ int before = live_allocs; World w = {0}; spawn(&w, \"a\", 5); spawn(&w, \"b\", 5); spawn(&w, \"c\", 5); w.slots[0]->hp = 0; w.slots[2]->hp = -3; int n = clear_dead(&w); int r = n * 100 + (w.slots[0] == NULL) * 10 + (live_allocs - before); world_free(&w); r; })",
+     "expect": "211",
+     "name": "clears the dead",
+     "hint_if_fail": "Free each dead enemy and set its slot to NULL."
+    },
+    {
+     "call": "({ World w = {0}; for (int i = 0; i < 8; i++) spawn(&w, \"bat\", 1); int r = spawn(&w, \"bat\", 1); world_free(&w); r; })",
+     "expect": "-1",
+     "hidden": true,
+     "name": "full world"
+    },
+    {
+     "call": "({ World w = {0}; spawn(&w, \"a\", 5); spawn(&w, \"b\", 5); w.slots[0]->hp = 0; clear_dead(&w); int r = spawn(&w, \"c\", 5); world_free(&w); r; })",
+     "expect": "0",
+     "hidden": true,
+     "name": "reuses a freed slot"
+    },
+    {
+     "call": "({ World w = {0}; spawn(&w, \"ancient_fire_dragon_lord\", 100); int r = (int)strlen(w.slots[0]->kind); world_free(&w); r; })",
+     "expect": "15",
+     "hidden": true,
+     "name": "long names are cut to 15 letters",
+     "hint_if_fail": "strncpy(e->kind, kind, 15); then e->kind[15] = '\\0';"
+    }
+   ],
+   "hints": [
+    "Loop over the slots; the first w->slots[i] == NULL is where the enemy goes.",
+    "Enemy *e = my_alloc(sizeof *e); strncpy(e->kind, kind, sizeof e->kind - 1); e->kind[sizeof e->kind - 1] = '\\0';",
+    "clear_dead: if (w->slots[i] != NULL && w->slots[i]->hp <= 0) { my_free(w->slots[i]); w->slots[i] = NULL; n++; }"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\n#define MAX_ENEMIES 8\n\ntypedef struct {\n    char kind[16];\n    int hp;\n} Enemy;\n\ntypedef struct {\n    Enemy *slots[MAX_ENEMIES];   /* NULL means the slot is free */\n} World;\n\nvoid world_free(World *w)\n{\n    for (int i = 0; i < MAX_ENEMIES; i++) {\n        my_free(w->slots[i]);\n        w->slots[i] = NULL;\n    }\n}\n\nint spawn(World *w, const char *kind, int hp)\n{\n    for (int i = 0; i < MAX_ENEMIES; i++) {\n        if (w->slots[i] != NULL) continue;\n        Enemy *e = my_alloc(sizeof *e);\n        if (e == NULL) return -1;\n        strncpy(e->kind, kind, sizeof e->kind - 1);\n        e->kind[sizeof e->kind - 1] = '\\0';     /* strncpy may not add it */\n        e->hp = hp;\n        w->slots[i] = e;\n        return i;\n    }\n    return -1;                                    /* every slot is taken */\n}\n\nint clear_dead(World *w)\n{\n    int n = 0;\n    for (int i = 0; i < MAX_ENEMIES; i++) {\n        if (w->slots[i] != NULL && w->slots[i]->hp <= 0) {\n            my_free(w->slots[i]);\n            w->slots[i] = NULL;                   /* so it's never freed twice */\n            n++;\n        }\n    }\n    return n;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why does sensor_free free s->name before s?",
+   "choices": [
+    "Alphabetical order",
+    "Once s is freed you can't safely read s->name to free it",
+    "free only works on strings first",
+    "It doesn't matter"
+   ],
+   "answer": 1,
+   "why": "Inside things first, then the container."
+  },
+  {
+   "q": "What's wrong with Sensor *s = malloc(sizeof(Sensor *));?",
+   "choices": [
+    "Nothing",
+    "It allocates the size of a pointer, not of the struct",
+    "malloc can't make structs",
+    "It should use calloc"
+   ],
+   "answer": 1,
+   "why": "Use sizeof *s so the size always matches."
+  },
+  {
+   "q": "sensor_new's struct allocation works but copying the name fails. What should it do?",
+   "choices": [
+    "Return the half-made sensor",
+    "Free the struct and return NULL",
+    "Exit the program",
+    "Retry forever"
+   ],
+   "answer": 1,
+   "why": "The caller should get a whole sensor or NULL."
+  },
+  {
+   "q": "Enemies spawn and die one at a time during a level. Which fits best?",
+   "choices": [
+    "One block that you realloc for every death",
+    "An array of pointers, each NULL or pointing at its own enemy",
+    "A fixed local array inside spawn",
+    "A string"
+   ],
+   "answer": 1,
+   "why": "Free one enemy and mark its slot NULL."
+  },
+  {
+   "q": "Which pair from the standard library follows the same create/destroy pattern?",
+   "choices": [
+    "printf / scanf",
+    "fopen / fclose",
+    "strlen / strcpy",
+    "rand / srand"
+   ],
+   "answer": 1,
+   "why": "fopen makes a FILE, fclose destroys it."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Create/destroy pair for a type T?",
+   "a": "T *t_new(...) returns a ready struct or NULL; void t_free(T *t) frees everything it owns, safe on NULL."
+  },
+  {
+   "q": "Freeing order for a struct that owns memory?",
+   "a": "Fields it owns first, then the struct."
+  },
+  {
+   "q": "One block of n structs?",
+   "a": "T *a = malloc(n * sizeof *a); one free(a)."
+  },
+  {
+   "q": "After freeing a slot in an array of pointers?",
+   "a": "Set it to NULL."
+  }
+ ],
+ "explain": "Explain what it means for a struct to own memory, using a struct you invent (a patient, a robot part, a game item)."
+}

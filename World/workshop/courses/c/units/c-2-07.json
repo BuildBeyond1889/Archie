@@ -1,0 +1,261 @@
+{
+ "id": "c-2-07",
+ "level": 2,
+ "title": "Linked lists",
+ "concepts": [
+  "linked-lists",
+  "pointers",
+  "malloc"
+ ],
+ "skills": [
+  "nodes",
+  "walking a list",
+  "removing"
+ ],
+ "lesson": "A dynamic array keeps everything in one block. That's great for reading, but inserting or removing in the middle means shifting everything after it, and growing means copying. A **linked list** takes the opposite approach: every item lives in its own small heap block, called a **node**, and each node points to the next one.\n\n```\ntypedef struct Node {\n    int value;\n    struct Node *next;   /* NULL at the end */\n} Node;\n```\n\nThe list itself is just a pointer to the first node, the **head**. An empty list is `head == NULL`.\n\n```\nhead -> [4 | *] -> [7 | *] -> [9 | NULL]\n```\n\n**Walking the list** is the one loop you'll write over and over:\n\n```\nfor (Node *n = head; n != NULL; n = n->next)\n    printf(\"%d\\n\", n->value);\n```\n\n**Push to the front** is instant, no matter how long the list is: make a node, point it at the old head, and it becomes the new head.\n\n```\nNode *push_front(Node *head, int value)\n{\n    Node *n = malloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = head;\n    return n;          /* the new head */\n}\n\nhead = push_front(head, 5);\n```\n\nNotice the function *returns* the new head and the caller stores it. Forget `head =` and the new node is lost.\n\n**Push to the back**: walk to the last node (the one whose `next` is NULL) and link the new node there. If the list was empty, the new node *is* the head.\n\n**Removing** a node means making the node before it skip over it: `prev->next = n->next;` then free `n`. Removing the head is the special case: the new head is `head->next`.\n\n**Freeing the whole list** has a trap. This is wrong:\n\n```\nfor (Node *n = head; n != NULL; n = n->next)\n    free(n);           /* n->next is read AFTER n is freed */\n```\n\nSave the next pointer first:\n\n```\nwhile (head != NULL) {\n    Node *next = head->next;\n    free(head);\n    head = next;\n}\n```\n\n**When to use which?** Arrays win for looping fast and jumping to item 500. Lists win when items come and go in the middle all the time, or when you can't afford a big copy while growing. Real uses: the queue of patients at a clinic desk, a game's list of active bullets, the free-memory list inside `malloc` itself, the task list in a small robot's scheduler.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct Node { int value; struct Node *next; } Node;\n\nNode *push_front(Node *head, int value)\n{\n    Node *n = malloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = head;\n    return n;\n}\n\nint main(void)\n{\n    Node *orders = NULL;                  /* empty list */\n    orders = push_front(orders, 103);\n    orders = push_front(orders, 102);\n    orders = push_front(orders, 101);\n\n    for (Node *n = orders; n != NULL; n = n->next)\n        printf(\"order %d\\n\", n->value);\n\n    while (orders != NULL) {              /* free every node */\n        Node *next = orders->next;\n        free(orders);\n        orders = next;\n    }\n    return 0;\n}\n",
+  "notes": [
+   "An empty list is a NULL head.",
+   "push_front returns the new head, and main stores it: orders = push_front(orders, ...).",
+   "Pushing 103, 102, 101 to the front prints them as 101, 102, 103.",
+   "The for loop is the standard walk: start at head, stop at NULL, step with n->next.",
+   "The free loop saves next before freeing each node, so it never reads freed memory."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Front, length, free",
+   "file": "listbasics.c",
+   "prompt": "With the Node type and list_to_text given, write three functions. Node *push_front(Node *head, int value): a new node (my_alloc) holding value at the front; return the new head (or the old head if memory runs out). int list_length(const Node *head): how many nodes. void list_free(Node *head): free every node with my_free.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct Node {\n    int value;\n    struct Node *next;   /* the next node, or NULL at the end */\n} Node;\n\n/* Writes the list into buf as \"1 2 3\", or \"(empty)\". For printing and tests. */\nvoid list_to_text(const Node *head, char *buf)\n{\n    if (head == NULL) {\n        strcpy(buf, \"(empty)\");\n        return;\n    }\n    buf[0] = '\\0';\n    for (const Node *n = head; n != NULL; n = n->next) {\n        char part[16];\n        sprintf(part, n == head ? \"%d\" : \" %d\", n->value);\n        strcat(buf, part);\n    }\n}\n\nNode *push_front(Node *head, int value)\n{\n    return head;\n}\n\nint list_length(const Node *head)\n{\n    return 0;\n}\n\nvoid list_free(Node *head)\n{\n}\n",
+   "tests": [
+    {
+     "call": "({ static char b[100]; Node *h = NULL; h = push_front(h, 3); h = push_front(h, 2); h = push_front(h, 1); list_to_text(h, b); list_free(h); b; })",
+     "fmt": "%s",
+     "expect": "1 2 3",
+     "name": "pushes to the front"
+    },
+    {
+     "call": "({ Node *h = NULL; for (int i = 0; i < 5; i++) h = push_front(h, i); int n = list_length(h); list_free(h); n; })",
+     "expect": "5",
+     "name": "length"
+    },
+    {
+     "call": "list_length(NULL)",
+     "expect": "0",
+     "hidden": true,
+     "name": "empty list has length 0"
+    },
+    {
+     "call": "({ int before = live_allocs; Node *h = NULL; for (int i = 0; i < 50; i++) h = push_front(h, i); list_free(h); live_allocs - before; })",
+     "expect": "0",
+     "hidden": true,
+     "name": "frees every node",
+     "hint_if_fail": "Save head->next before freeing head."
+    },
+    {
+     "call": "({ list_free(NULL); 1; })",
+     "expect": "1",
+     "hidden": true,
+     "name": "freeing an empty list"
+    }
+   ],
+   "hints": [
+    "push_front: Node *n = my_alloc(sizeof *n); n->value = value; n->next = head; return n;",
+    "list_length: for (const Node *n = head; n != NULL; n = n->next) count++;",
+    "list_free: while (head) { Node *next = head->next; my_free(head); head = next; }"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct Node {\n    int value;\n    struct Node *next;   /* the next node, or NULL at the end */\n} Node;\n\n/* Writes the list into buf as \"1 2 3\", or \"(empty)\". For printing and tests. */\nvoid list_to_text(const Node *head, char *buf)\n{\n    if (head == NULL) {\n        strcpy(buf, \"(empty)\");\n        return;\n    }\n    buf[0] = '\\0';\n    for (const Node *n = head; n != NULL; n = n->next) {\n        char part[16];\n        sprintf(part, n == head ? \"%d\" : \" %d\", n->value);\n        strcat(buf, part);\n    }\n}\n\nNode *push_front(Node *head, int value)\n{\n    Node *n = my_alloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = head;\n    return n;\n}\n\nint list_length(const Node *head)\n{\n    int count = 0;\n    for (const Node *n = head; n != NULL; n = n->next) count++;\n    return count;\n}\n\nvoid list_free(Node *head)\n{\n    while (head != NULL) {\n        Node *next = head->next;   /* save it before freeing */\n        my_free(head);\n        head = next;\n    }\n}\n\n"
+  },
+  {
+   "id": "e2",
+   "title": "Back and find",
+   "file": "listfind.c",
+   "prompt": "push_front, list_length and list_free are done for you. Write Node *push_back(Node *head, int value): add a new node at the END and return the head (when the list was empty, the new node is the head). Then write Node *find(Node *head, int value): the first node holding value, or NULL.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct Node {\n    int value;\n    struct Node *next;   /* the next node, or NULL at the end */\n} Node;\n\n/* Writes the list into buf as \"1 2 3\", or \"(empty)\". For printing and tests. */\nvoid list_to_text(const Node *head, char *buf)\n{\n    if (head == NULL) {\n        strcpy(buf, \"(empty)\");\n        return;\n    }\n    buf[0] = '\\0';\n    for (const Node *n = head; n != NULL; n = n->next) {\n        char part[16];\n        sprintf(part, n == head ? \"%d\" : \" %d\", n->value);\n        strcat(buf, part);\n    }\n}\n\nNode *push_front(Node *head, int value)\n{\n    Node *n = my_alloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = head;\n    return n;\n}\n\nint list_length(const Node *head)\n{\n    int count = 0;\n    for (const Node *n = head; n != NULL; n = n->next) count++;\n    return count;\n}\n\nvoid list_free(Node *head)\n{\n    while (head != NULL) {\n        Node *next = head->next;   /* save it before freeing */\n        my_free(head);\n        head = next;\n    }\n}\n\nNode *push_back(Node *head, int value)\n{\n    return head;\n}\n\nNode *find(Node *head, int value)\n{\n    return NULL;\n}\n",
+   "tests": [
+    {
+     "call": "({ static char b[100]; Node *h = NULL; h = push_back(h, 4); h = push_back(h, 7); h = push_back(h, 9); list_to_text(h, b); list_free(h); b; })",
+     "fmt": "%s",
+     "expect": "4 7 9",
+     "name": "keeps arrival order"
+    },
+    {
+     "call": "({ Node *h = push_back(NULL, 5); int r = h->value * 10 + (h->next == NULL); list_free(h); r; })",
+     "expect": "51",
+     "name": "push onto an empty list",
+     "hint_if_fail": "If head is NULL, the new node is the whole list: return it."
+    },
+    {
+     "call": "({ Node *h = NULL; h = push_back(h, 4); h = push_back(h, 7); Node *f = find(h, 7); int r = f != NULL && f->value == 7 && f->next == NULL; list_free(h); r; })",
+     "expect": "1",
+     "name": "finds a value"
+    },
+    {
+     "call": "({ Node *h = NULL; h = push_back(h, 4); Node *f = find(h, 99); list_free(h); f == NULL; })",
+     "expect": "1",
+     "hidden": true,
+     "name": "missing value gives NULL"
+    },
+    {
+     "call": "({ Node *h = NULL; h = push_back(h, 3); h = push_back(h, 8); h = push_back(h, 3); int r = find(h, 3) == h; list_free(h); r; })",
+     "expect": "1",
+     "hidden": true,
+     "name": "first match wins"
+    },
+    {
+     "call": "find(NULL, 1) == NULL",
+     "expect": "1",
+     "hidden": true,
+     "name": "find in an empty list"
+    }
+   ],
+   "hints": [
+    "push_back: make the node with next = NULL first.",
+    "Walk with Node *last = head; while (last->next != NULL) last = last->next; then last->next = n;",
+    "find: for (Node *n = head; n != NULL; n = n->next) if (n->value == value) return n; return NULL;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct Node {\n    int value;\n    struct Node *next;   /* the next node, or NULL at the end */\n} Node;\n\n/* Writes the list into buf as \"1 2 3\", or \"(empty)\". For printing and tests. */\nvoid list_to_text(const Node *head, char *buf)\n{\n    if (head == NULL) {\n        strcpy(buf, \"(empty)\");\n        return;\n    }\n    buf[0] = '\\0';\n    for (const Node *n = head; n != NULL; n = n->next) {\n        char part[16];\n        sprintf(part, n == head ? \"%d\" : \" %d\", n->value);\n        strcat(buf, part);\n    }\n}\n\nNode *push_front(Node *head, int value)\n{\n    Node *n = my_alloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = head;\n    return n;\n}\n\nint list_length(const Node *head)\n{\n    int count = 0;\n    for (const Node *n = head; n != NULL; n = n->next) count++;\n    return count;\n}\n\nvoid list_free(Node *head)\n{\n    while (head != NULL) {\n        Node *next = head->next;   /* save it before freeing */\n        my_free(head);\n        head = next;\n    }\n}\n\nNode *push_back(Node *head, int value)\n{\n    Node *n = my_alloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = NULL;\n    if (head == NULL) return n;\n    Node *last = head;\n    while (last->next != NULL) last = last->next;\n    last->next = n;\n    return head;\n}\n\nNode *find(Node *head, int value)\n{\n    for (Node *n = head; n != NULL; n = n->next)\n        if (n->value == value) return n;\n    return NULL;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "A patient leaves the queue",
+   "file": "listremove.c",
+   "prompt": "The clinic keeps waiting patients' numbers in a list (push_back, list_length and list_free are given). Write Node *list_remove(Node *head, int value): remove the FIRST node holding value, free it with my_free, and return the head (which changes if the first node was removed). If value isn't there, return the list unchanged.",
+   "starter": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct Node {\n    int value;\n    struct Node *next;   /* the next node, or NULL at the end */\n} Node;\n\n/* Writes the list into buf as \"1 2 3\", or \"(empty)\". For printing and tests. */\nvoid list_to_text(const Node *head, char *buf)\n{\n    if (head == NULL) {\n        strcpy(buf, \"(empty)\");\n        return;\n    }\n    buf[0] = '\\0';\n    for (const Node *n = head; n != NULL; n = n->next) {\n        char part[16];\n        sprintf(part, n == head ? \"%d\" : \" %d\", n->value);\n        strcat(buf, part);\n    }\n}\n\nNode *push_front(Node *head, int value)\n{\n    Node *n = my_alloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = head;\n    return n;\n}\n\nint list_length(const Node *head)\n{\n    int count = 0;\n    for (const Node *n = head; n != NULL; n = n->next) count++;\n    return count;\n}\n\nvoid list_free(Node *head)\n{\n    while (head != NULL) {\n        Node *next = head->next;   /* save it before freeing */\n        my_free(head);\n        head = next;\n    }\n}\n\nNode *push_back(Node *head, int value)\n{\n    Node *n = my_alloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = NULL;\n    if (head == NULL) return n;\n    Node *last = head;\n    while (last->next != NULL) last = last->next;\n    last->next = n;\n    return head;\n}\n\nNode *list_remove(Node *head, int value)\n{\n    return head;\n}\n",
+   "tests": [
+    {
+     "call": "({ static char b[100]; Node *h = NULL; for (int i = 1; i <= 3; i++) h = push_back(h, i); h = list_remove(h, 2); list_to_text(h, b); list_free(h); b; })",
+     "fmt": "%s",
+     "expect": "1 3",
+     "name": "remove from the middle"
+    },
+    {
+     "call": "({ static char b[100]; Node *h = NULL; for (int i = 1; i <= 3; i++) h = push_back(h, i); h = list_remove(h, 1); list_to_text(h, b); list_free(h); b; })",
+     "fmt": "%s",
+     "expect": "2 3",
+     "name": "remove the head",
+     "hint_if_fail": "When the head goes, return head->next as the new head."
+    },
+    {
+     "call": "({ int before = live_allocs; Node *h = NULL; for (int i = 1; i <= 3; i++) h = push_back(h, i); h = list_remove(h, 2); int r = live_allocs - before; list_free(h); r; })",
+     "expect": "2",
+     "name": "frees the removed node"
+    },
+    {
+     "call": "({ static char b[100]; Node *h = NULL; for (int i = 1; i <= 3; i++) h = push_back(h, i); h = list_remove(h, 3); list_to_text(h, b); list_free(h); b; })",
+     "fmt": "%s",
+     "expect": "1 2",
+     "hidden": true,
+     "name": "remove the last"
+    },
+    {
+     "call": "({ static char b[100]; Node *h = NULL; for (int i = 1; i <= 3; i++) h = push_back(h, i); h = list_remove(h, 9); list_to_text(h, b); list_free(h); b; })",
+     "fmt": "%s",
+     "expect": "1 2 3",
+     "hidden": true,
+     "name": "value not there"
+    },
+    {
+     "call": "({ static char b[100]; Node *h = push_back(NULL, 5); h = push_back(h, 5); h = list_remove(h, 5); list_to_text(h, b); list_free(h); b; })",
+     "fmt": "%s",
+     "expect": "5",
+     "hidden": true,
+     "name": "only the first match"
+    },
+    {
+     "call": "({ static char b[100]; Node *h = push_back(NULL, 4); h = list_remove(h, 4); h = list_remove(h, 4); list_to_text(h, b); b; })",
+     "fmt": "%s",
+     "expect": "(empty)",
+     "hidden": true,
+     "name": "down to empty, then remove again"
+    }
+   ],
+   "hints": [
+    "If head is NULL, return NULL. If head->value matches: save head->next, free head, return the saved next.",
+    "Otherwise walk with prev = head while prev->next != NULL, looking at prev->next.",
+    "When prev->next->value matches: Node *gone = prev->next; prev->next = gone->next; my_free(gone); return head;"
+   ],
+   "solution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Archie's counting helpers: use these instead of malloc/realloc/free so the tests can see leaks. */\nint live_allocs = 0;          /* blocks handed out and not yet freed */\nsize_t last_alloc_size = 0;   /* size of the most recent allocation */\n\nvoid *my_alloc(size_t size)\n{\n    void *p = malloc(size);\n    if (p != NULL) {\n        live_allocs++;\n        last_alloc_size = size;\n    }\n    return p;\n}\n\nvoid *my_realloc(void *p, size_t size)\n{\n    void *q = realloc(p, size);\n    if (q != NULL) {\n        if (p == NULL) live_allocs++;   /* realloc(NULL, n) is a new block */\n        last_alloc_size = size;\n    }\n    return q;\n}\n\nvoid my_free(void *p)\n{\n    if (p != NULL) {\n        live_allocs--;\n        free(p);\n    }\n}\n\ntypedef struct Node {\n    int value;\n    struct Node *next;   /* the next node, or NULL at the end */\n} Node;\n\n/* Writes the list into buf as \"1 2 3\", or \"(empty)\". For printing and tests. */\nvoid list_to_text(const Node *head, char *buf)\n{\n    if (head == NULL) {\n        strcpy(buf, \"(empty)\");\n        return;\n    }\n    buf[0] = '\\0';\n    for (const Node *n = head; n != NULL; n = n->next) {\n        char part[16];\n        sprintf(part, n == head ? \"%d\" : \" %d\", n->value);\n        strcat(buf, part);\n    }\n}\n\nNode *push_front(Node *head, int value)\n{\n    Node *n = my_alloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = head;\n    return n;\n}\n\nint list_length(const Node *head)\n{\n    int count = 0;\n    for (const Node *n = head; n != NULL; n = n->next) count++;\n    return count;\n}\n\nvoid list_free(Node *head)\n{\n    while (head != NULL) {\n        Node *next = head->next;   /* save it before freeing */\n        my_free(head);\n        head = next;\n    }\n}\n\nNode *push_back(Node *head, int value)\n{\n    Node *n = my_alloc(sizeof *n);\n    if (n == NULL) return head;\n    n->value = value;\n    n->next = NULL;\n    if (head == NULL) return n;\n    Node *last = head;\n    while (last->next != NULL) last = last->next;\n    last->next = n;\n    return head;\n}\n\nNode *list_remove(Node *head, int value)\n{\n    if (head == NULL) return NULL;\n    if (head->value == value) {            /* the head itself goes */\n        Node *next = head->next;\n        my_free(head);\n        return next;\n    }\n    for (Node *prev = head; prev->next != NULL; prev = prev->next) {\n        if (prev->next->value == value) {\n            Node *gone = prev->next;\n            prev->next = gone->next;        /* skip over it */\n            my_free(gone);\n            break;\n        }\n    }\n    return head;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "How do you know you've reached the end of a linked list?",
+   "choices": [
+    "The value is 0",
+    "The node's next is NULL",
+    "The length says so",
+    "The head is NULL"
+   ],
+   "answer": 1,
+   "why": "The last node points at nothing."
+  },
+  {
+   "q": "What's wrong with: for (n = head; n != NULL; n = n->next) free(n);",
+   "choices": [
+    "Nothing",
+    "It reads n->next after n has been freed",
+    "It frees the head twice",
+    "It skips the last node"
+   ],
+   "answer": 1,
+   "why": "Save next before freeing."
+  },
+  {
+   "q": "Someone writes push_front(head, 5); without head = in front. What happens?",
+   "choices": [
+    "It works",
+    "The new node is made but lost, so it leaks and the list doesn't change",
+    "The program won't compile",
+    "The list is freed"
+   ],
+   "answer": 1,
+   "why": "The function returns the new head; you must store it."
+  },
+  {
+   "q": "Which is faster to add at the front of: a long array or a linked list?",
+   "choices": [
+    "The array",
+    "The linked list: no shifting, just one new node",
+    "Same",
+    "Neither can"
+   ],
+   "answer": 1,
+   "why": "Pushing to a list's front never moves other items."
+  },
+  {
+   "q": "Which is better for jumping straight to item 500?",
+   "choices": [
+    "Linked list",
+    "Array: data[500] is one step; a list must walk 500 nodes",
+    "Same",
+    "Neither"
+   ],
+   "answer": 1,
+   "why": "Arrays have direct indexing."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Empty linked list?",
+   "a": "head == NULL"
+  },
+  {
+   "q": "Walk a list?",
+   "a": "for (Node *n = head; n != NULL; n = n->next)"
+  },
+  {
+   "q": "Push to the front?",
+   "a": "n->next = head; head = n;"
+  },
+  {
+   "q": "Remove the node after prev?",
+   "a": "gone = prev->next; prev->next = gone->next; free(gone);"
+  }
+ ],
+ "explain": "Explain how removing a node from the middle of a linked list works, drawing the boxes and arrows in words, with numbers you choose."
+}

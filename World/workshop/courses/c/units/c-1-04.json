@@ -1,0 +1,140 @@
+{
+ "id": "c-1-04",
+ "level": 1,
+ "title": "Decisions",
+ "concepts": [
+  "conditions"
+ ],
+ "skills": [
+  "if/else",
+  "switch"
+ ],
+ "bridge": "C uses `if (...) { } else if (...) { } else { }`, `&&`, `||`, `!` and `switch`, exactly like C++ and Java. In C, any non-zero number counts as true and 0 is false, so `if (count)` means \"if count isn't 0\". `bool` (from `<stdbool.h>`) prints as 1 or 0.",
+ "lesson": "```\nchar grade(int score)\n{\n    if (score >= 80) return 'A';\n    else if (score >= 65) return 'B';\n    else if (score >= 50) return 'C';\n    return 'F';\n}\n```\n\nIn C, **0 is false and everything else is true**. `bool` from `<stdbool.h>` is just a neat name for that; `true` is 1 and `false` is 0, so `printf(\"%d\", true)` prints `1`.\n\n```\nint alarms = 3;\nif (alarms) printf(\"check the tank\\n\");   /* runs, because 3 isn't 0 */\n```\n\n`switch` chooses between fixed whole-number or char values:\n\n```\nswitch (cmd) {\n    case 'p': pump_on(); break;\n    case 's': pump_off(); break;\n    default:  printf(\"unknown\\n\");\n}\n```\n\nTwo classic bugs: `if (x = 0)` (assigns, never true) and forgetting `break` (falls into the next case). `gcc -Wall` warns about the first one; Archie's checker turns warnings on.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <stdbool.h>\n\nint main(void)\n{\n    int level = 8;\n    bool alarm = level < 10 || level > 95;\n    printf(\"alarm: %d\\n\", alarm);\n    if (level) printf(\"tank is not empty\\n\");\n    char cmd = 'p';\n    switch (cmd) { case 'p': printf(\"pump on\\n\"); break; default: printf(\"?\\n\"); }\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Grades",
+   "file": "grade.c",
+   "prompt": "Write char grade(int score): 'A' for 80+, 'B' for 65+, 'C' for 50+, otherwise 'F'.",
+   "starter": "char grade(int score)\n{\n    return 'F';\n}\n",
+   "tests": [
+    {
+     "call": "grade(91)",
+     "fmt": "%c",
+     "expect": "A"
+    },
+    {
+     "call": "grade(80)",
+     "fmt": "%c",
+     "expect": "A",
+     "hint_if_fail": "80 is an A: use >=."
+    },
+    {
+     "call": "grade(70)",
+     "fmt": "%c",
+     "expect": "B"
+    },
+    {
+     "call": "grade(50)",
+     "fmt": "%c",
+     "expect": "C"
+    },
+    {
+     "call": "grade(3)",
+     "fmt": "%c",
+     "expect": "F"
+    }
+   ],
+   "hints": [
+    "Highest band first.",
+    "if (score >= 80) return 'A'; else if ..."
+   ],
+   "solution": "char grade(int score)\n{\n    if (score >= 80) return 'A';\n    else if (score >= 65) return 'B';\n    else if (score >= 50) return 'C';\n    return 'F';\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Pump controller",
+   "file": "pump.c",
+   "prompt": "Write bool pump_should_run(int moisture, bool pump_on). Turn on below 30. Turn off above 60. Between 30 and 60, keep doing what it's doing (so it doesn't flick on and off).",
+   "starter": "#include <stdbool.h>\n\nbool pump_should_run(int moisture, bool pump_on)\n{\n    return moisture < 30;\n}\n",
+   "tests": [
+    {
+     "call": "pump_should_run(20, false)",
+     "expect": "1"
+    },
+    {
+     "call": "pump_should_run(70, true)",
+     "expect": "0"
+    },
+    {
+     "call": "pump_should_run(45, true)",
+     "expect": "1",
+     "hint_if_fail": "Between 30 and 60, keep the pump as it is: return pump_on."
+    },
+    {
+     "call": "pump_should_run(45, false)",
+     "expect": "0"
+    }
+   ],
+   "hints": [
+    "Three cases: dry, wet, in between.",
+    "if (moisture < 30) return true; if (moisture > 60) return false; return pump_on;"
+   ],
+   "solution": "#include <stdbool.h>\n\nbool pump_should_run(int moisture, bool pump_on)\n{\n    if (moisture < 30) return true;\n    if (moisture > 60) return false;\n    return pump_on;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "In C, is 5 true or false?",
+   "choices": [
+    "true",
+    "false",
+    "an error"
+   ],
+   "answer": 0,
+   "why": "Any non-zero value is true."
+  },
+  {
+   "q": "printf(\"%d\", true) prints?",
+   "choices": [
+    "true",
+    "1",
+    "T",
+    "yes"
+   ],
+   "answer": 1,
+   "why": "true is 1."
+  },
+  {
+   "q": "Why keep the pump's state between 30 and 60?",
+   "choices": [
+    "Saves memory",
+    "So it doesn't rapidly switch on and off around one number",
+    "C requires it",
+    "To be slower"
+   ],
+   "answer": 1,
+   "why": "That gap is called hysteresis; real controllers use it."
+  }
+ ],
+ "cards": [
+  {
+   "q": "False in C?",
+   "a": "0 (everything else is true)"
+  },
+  {
+   "q": "bool needs?",
+   "a": "#include <stdbool.h>"
+  },
+  {
+   "q": "On/off gap to stop flicker?",
+   "a": "Hysteresis"
+  }
+ ],
+ "explain": "Explain decisions to someone who has never programmed, in your own words, with an example you make up."
+}

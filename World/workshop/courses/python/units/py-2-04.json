@@ -1,0 +1,224 @@
+{
+ "id": "py-2-04",
+ "level": 2,
+ "title": "Inheritance and composition",
+ "concepts": [
+  "inheritance",
+  "polymorphism",
+  "classes",
+  "design"
+ ],
+ "skills": [
+  "inheritance",
+  "super()",
+  "composition"
+ ],
+ "lesson": "A game has rats, slimes and skeletons. They all have a name and health, they can all be hit, and they all die at 0 hp. Copying that code into three classes means fixing every bug three times. **Inheritance** lets one class build on another:\n\n```\nclass Enemy:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n\n    def take_hit(self, damage):\n        self.hp = max(0, self.hp - damage)\n\nclass Slime(Enemy):                 # a Slime IS an Enemy\n    def take_hit(self, damage):\n        super().take_hit(damage // 2)   # squishy: half damage\n```\n\n`Slime(Enemy)` means Slime gets everything Enemy has. Enemy is the **base class** (parent), Slime the **subclass** (child). Writing a method with the same name in the child **overrides** it. `super()` reaches the parent's version, so the child adds its twist without copying the parent's code. A child with its own `__init__` should call `super().__init__(name, hp)` first, so the parent's setup still happens.\n\nThe payoff is **polymorphism**: code that works with any Enemy doesn't care which kind it gets.\n\n```\nfor e in [Enemy(\"Rat\", 5), Slime(\"Blob\", 10)]:\n    e.take_hit(4)        # each one reacts in its own way\n```\n\n**Composition: has-a instead of is-a.** Inheritance is for \"is a kind of\": a Slime is an Enemy. Many relationships are \"has a\": a fighter has a weapon, a robot has two motors, a clinic has a stock list. For those, store one object inside another:\n\n```\nclass Fighter:\n    def __init__(self, name, weapon=None):\n        self.name = name\n        self.weapon = weapon     # Fighter HAS a Weapon\n```\n\nMaking `Fighter(Weapon)` would be wrong: a fighter isn't a kind of weapon, and you couldn't swap the spear for a bow during the game. With composition you just do `fighter.weapon = bow`. The professional habit is **prefer composition**, and use inheritance when the \"is a\" sentence is honestly true and the child really can be used everywhere the parent is.\n\n**Common mistakes**\n- Overriding `__init__` and forgetting `super().__init__(...)`: the child object is missing the parent's attributes, and you get AttributeError later.\n- Deep chains (A, B(A), C(B), D(C)...). Each layer makes behaviour harder to follow. Two levels is usually plenty.\n- Using inheritance only to reuse a helper function. Put the helper in a module or a separate object instead.\n\n**In real programs** game engines use both: a base `Entity` class for things in the world, and components (a health component, a sprite, an AI brain) attached by composition. Robots compose sensors and motors; GUIs subclass a base `Widget`.",
+ "example": {
+  "file": "example.py",
+  "code": "class Enemy:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n\n    def take_hit(self, damage):\n        self.hp = max(0, self.hp - damage)\n\n    def describe(self):\n        return f\"{self.name} ({self.hp} hp)\"\n\n\nclass Skeleton(Enemy):\n    def __init__(self, name, hp, armor):\n        super().__init__(name, hp)      # let Enemy set name and hp\n        self.armor = armor\n\n    def take_hit(self, damage):\n        super().take_hit(max(0, damage - self.armor))\n\n\nclass Weapon:\n    def __init__(self, name, damage):\n        self.name = name\n        self.damage = damage\n\n\nclass Hero:\n    def __init__(self, name, weapon):\n        self.name = name\n        self.weapon = weapon            # has-a: composition\n\n    def attack(self, enemy):\n        enemy.take_hit(self.weapon.damage)\n\n\nhero = Hero(\"Otieno\", Weapon(\"spear\", 6))\nfor e in [Enemy(\"Rat\", 5), Skeleton(\"Bones\", 10, armor=2)]:\n    hero.attack(e)\n    print(e.describe())\nhero.weapon = Weapon(\"club\", 9)         # swap parts at run time\n",
+  "notes": [
+   "Enemy holds what every enemy shares.",
+   "Skeleton(Enemy): super().__init__ runs the parent's setup, then adds armor.",
+   "Skeleton overrides take_hit but reuses the parent's version through super().",
+   "Hero has a Weapon; it is not a Weapon.",
+   "One loop, two kinds of enemy: polymorphism.",
+   "Composition lets you swap the weapon while the game runs."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Slimes and skeletons",
+   "file": "ex1_enemies.py",
+   "prompt": "Enemy(name, hp) is given: take_hit(damage) lowers hp (never below 0, negative damage counts as 0) and returns the damage really taken; describe() returns like Rat (5 hp).\nWrite two subclasses:\n- Slime(Enemy): takes half damage, rounded down (damage // 2). Use super().take_hit.\n- Skeleton(Enemy) with __init__(self, name, hp, armor=2): call super().__init__, store armor. take_hit takes damage minus armor (never less than 0). describe() returns like Bones (10 hp, armor 2): build it from super().describe().",
+   "starter": "class Enemy:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n\n    def take_hit(self, damage):\n        damage = max(0, damage)\n        taken = min(damage, self.hp)\n        self.hp -= taken\n        return taken\n\n    def describe(self):\n        return f\"{self.name} ({self.hp} hp)\"\n\n\nclass Slime(Enemy):\n    pass\n\n\nclass Skeleton(Enemy):\n    pass\n",
+   "solution": "class Enemy:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n\n    def take_hit(self, damage):\n        damage = max(0, damage)\n        taken = min(damage, self.hp)\n        self.hp -= taken\n        return taken\n\n    def describe(self):\n        return f\"{self.name} ({self.hp} hp)\"\n\n\nclass Slime(Enemy):\n    def take_hit(self, damage):\n        return super().take_hit(damage // 2)\n\n\nclass Skeleton(Enemy):\n    def __init__(self, name, hp, armor=2):\n        super().__init__(name, hp)\n        self.armor = armor\n\n    def take_hit(self, damage):\n        return super().take_hit(max(0, damage - self.armor))\n\n    def describe(self):\n        # \"Bones (10 hp)\" -> \"Bones (10 hp, armor 2)\"\n        return super().describe()[:-1] + f\", armor {self.armor})\"\n",
+   "tests": [
+    {
+     "check": "s = Slime('Blob', 10)\nassert isinstance(s, Enemy), 'Slime should inherit from Enemy'\nassert s.take_hit(4) == 2 and s.hp == 8, 'a slime hit for 4 takes 2, hp should be 8, got %r' % s.hp",
+     "name": "slime takes half"
+    },
+    {
+     "check": "k = Skeleton('Bones', 10)\nassert isinstance(k, Enemy) and k.name == 'Bones' and k.hp == 10 and k.armor == 2, 'Skeleton needs name, hp (from super().__init__) and armor 2'\nk.take_hit(5)\nassert k.hp == 7, 'armor 2 blocks 2 of 5 damage, hp should be 7, got %r' % k.hp",
+     "name": "skeleton armor"
+    },
+    {
+     "check": "assert Enemy('Rat', 5).describe() == 'Rat (5 hp)'\ngot = Skeleton('Bones', 10).describe()\nassert got == 'Bones (10 hp, armor 2)', got\nassert Slime('Blob', 3).describe() == 'Blob (3 hp)', 'Slime should keep the parent describe'",
+     "name": "describe"
+    },
+    {
+     "check": "foes = [Enemy('Rat', 5), Slime('Blob', 10), Skeleton('Bones', 10, armor=3)]\nfor f in foes:\n    f.take_hit(6)\nassert [f.hp for f in foes] == [0, 7, 7], [f.hp for f in foes]",
+     "name": "one loop, three kinds"
+    },
+    {
+     "check": "k = Skeleton('Bones', 10, armor=5)\nassert k.take_hit(3) == 0 and k.hp == 10, 'armor bigger than the hit must not heal the skeleton, hp %r' % k.hp\ns = Slime('Blob', 4)\ns.take_hit(1)\nassert s.hp == 4, '1 // 2 is 0 damage'",
+     "name": "armor never heals",
+     "hidden": true,
+     "hint_if_fail": "Use max(0, damage - self.armor)."
+    },
+    {
+     "check": "assert 'super()' in CODE, 'use super() to reuse the parent methods'",
+     "name": "uses super()",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "class Slime(Enemy): def take_hit(self, damage): return super().take_hit(damage // 2)",
+    "Skeleton.__init__ starts with super().__init__(name, hp), then self.armor = armor.",
+    "For describe, take super().describe(), drop the last ')' with [:-1], and add f\", armor {self.armor})\"."
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "A fighter has a weapon",
+   "file": "ex2_weapons.py",
+   "prompt": "Use composition (a Fighter HAS a Weapon; it must not inherit from Weapon).\n- Weapon(name, damage, uses): attack() returns damage and uses up one use; with 0 uses left it returns 0. is_broken() is True when uses is 0.\n- Fighter(name, weapon=None): stores self.weapon. equip(weapon) sets it.\n- strike(target): if the fighter has a weapon that isn't broken, damage = weapon.attack(); otherwise 1 (bare hands). Calls target.take_hit(damage) and returns damage. target is any object with a take_hit method.",
+   "starter": "class Weapon:\n    def __init__(self, name, damage, uses):\n        self.name = name\n        self.damage = damage\n        self.uses = uses\n\n    def attack(self):\n        pass\n\n    def is_broken(self):\n        pass\n\n\nclass Fighter:\n    def __init__(self, name, weapon=None):\n        self.name = name\n\n    def equip(self, weapon):\n        pass\n\n    def strike(self, target):\n        pass\n",
+   "solution": "class Weapon:\n    def __init__(self, name, damage, uses):\n        self.name = name\n        self.damage = damage\n        self.uses = uses\n\n    def attack(self):\n        if self.uses <= 0:\n            return 0\n        self.uses -= 1\n        return self.damage\n\n    def is_broken(self):\n        return self.uses <= 0\n\n\nclass Fighter:\n    def __init__(self, name, weapon=None):\n        self.name = name\n        self.weapon = weapon          # has-a\n\n    def equip(self, weapon):\n        self.weapon = weapon\n\n    def strike(self, target):\n        if self.weapon is not None and not self.weapon.is_broken():\n            damage = self.weapon.attack()\n        else:\n            damage = 1                # bare hands\n        target.take_hit(damage)\n        return damage\n",
+   "tests": [
+    {
+     "check": "w = Weapon('Spear', 6, 2)\nassert w.attack() == 6 and w.attack() == 6, 'two uses, 6 damage each'\nassert w.attack() == 0 and w.uses == 0 and w.is_broken() is True, 'a used-up weapon does 0 and is broken'",
+     "name": "weapon uses"
+    },
+    {
+     "check": "class Dummy:\n    def __init__(self):\n        self.hits = []\n    def take_hit(self, d):\n        self.hits.append(d)\nd = Dummy()\nf = Fighter('Otieno')\nassert f.weapon is None\nassert f.strike(d) == 1 and d.hits == [1], 'no weapon: bare hands do 1'",
+     "name": "bare hands"
+    },
+    {
+     "check": "class Dummy:\n    def __init__(self):\n        self.hits = []\n    def take_hit(self, d):\n        self.hits.append(d)\nd = Dummy()\nf = Fighter('Otieno')\nf.equip(Weapon('Spear', 6, 2))\nfor _ in range(3):\n    f.strike(d)\nassert d.hits == [6, 6, 1], 'spear twice, then it breaks and it is bare hands: got %r' % d.hits",
+     "name": "weapon breaks"
+    },
+    {
+     "check": "assert not issubclass(Fighter, Weapon), 'a Fighter is not a kind of Weapon: store a weapon instead (composition)'\nf = Fighter('Amina', Weapon('Bow', 4, 1))\nassert isinstance(f.weapon, Weapon) and f.weapon.name == 'Bow'",
+     "name": "composition",
+     "hidden": true
+    },
+    {
+     "check": "class Dummy:\n    def __init__(self):\n        self.hits = []\n    def take_hit(self, d):\n        self.hits.append(d)\nd = Dummy()\nf = Fighter('Amina', Weapon('Bow', 4, 1))\nf.strike(d)\nf.equip(Weapon('Club', 9, 5))\nf.strike(d)\nassert d.hits == [4, 9], d.hits",
+     "name": "swap weapons",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Fighter.__init__ needs self.weapon = weapon; equip just sets self.weapon.",
+    "Weapon.attack: if self.uses <= 0 return 0, else take one use and return self.damage.",
+    "strike: if self.weapon is not None and not self.weapon.is_broken(): damage = self.weapon.attack(), else damage = 1. Then target.take_hit(damage)."
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "Clinic staff pay",
+   "file": "ex3_staff.py",
+   "prompt": "- Staff(name, hourly): class attribute role = \"staff\". pay(hours) returns hours * hourly. describe() returns like Juma (staff), using self.role.\n- Doctor(Staff): role = \"doctor\". __init__(self, name, hourly, on_call_fee) calls super().__init__. pay(hours) is the normal pay plus on_call_fee.\n- Volunteer(Staff): role = \"volunteer\". __init__(self, name) calls super().__init__ with hourly 0.\n- payroll(staff, hours): staff is a list, hours a dict name -> hours worked (missing name means 0). Returns the total pay.",
+   "starter": "class Staff:\n    role = \"staff\"\n\n    def __init__(self, name, hourly):\n        self.name = name\n        self.hourly = hourly\n\n    def pay(self, hours):\n        return hours * self.hourly\n\n    def describe(self):\n        pass\n\n\nclass Doctor(Staff):\n    pass\n\n\nclass Volunteer(Staff):\n    pass\n\n\ndef payroll(staff, hours):\n    pass\n",
+   "solution": "class Staff:\n    role = \"staff\"\n\n    def __init__(self, name, hourly):\n        self.name = name\n        self.hourly = hourly\n\n    def pay(self, hours):\n        return hours * self.hourly\n\n    def describe(self):\n        return f\"{self.name} ({self.role})\"   # self.role finds the child's role first\n\n\nclass Doctor(Staff):\n    role = \"doctor\"\n\n    def __init__(self, name, hourly, on_call_fee):\n        super().__init__(name, hourly)\n        self.on_call_fee = on_call_fee\n\n    def pay(self, hours):\n        return super().pay(hours) + self.on_call_fee\n\n\nclass Volunteer(Staff):\n    role = \"volunteer\"\n\n    def __init__(self, name):\n        super().__init__(name, 0)\n\n\ndef payroll(staff, hours):\n    return sum(person.pay(hours.get(person.name, 0)) for person in staff)\n",
+   "tests": [
+    {
+     "check": "d = Doctor('Wanjiru', 1000, 2000)\nassert isinstance(d, Staff), 'Doctor should inherit from Staff'\nassert d.pay(8) == 10000, 'pay(8) = 8*1000 + 2000 = 10000, got %r' % d.pay(8)\nassert d.describe() == 'Wanjiru (doctor)', d.describe()",
+     "name": "doctor"
+    },
+    {
+     "check": "v = Volunteer('Juma')\nassert isinstance(v, Staff) and v.name == 'Juma' and v.hourly == 0\nassert v.pay(10) == 0\nassert v.describe() == 'Juma (volunteer)', v.describe()\nassert Staff('Amina', 300).describe() == 'Amina (staff)'",
+     "name": "volunteer and staff"
+    },
+    {
+     "check": "team = [Staff('Amina', 300), Doctor('Wanjiru', 1000, 2000), Volunteer('Juma')]\ngot = payroll(team, {'Amina': 10, 'Wanjiru': 8, 'Juma': 12})\nassert got == 13000, 'expected 3000 + 10000 + 0 = 13000, got %r' % got",
+     "name": "payroll"
+    },
+    {
+     "check": "team = [Staff('Amina', 300), Doctor('Wanjiru', 1000, 2000)]\ngot = payroll(team, {})\nassert got == 2000, 'nobody worked: only the on-call fee, got %r' % got\nassert payroll([], {'Amina': 5}) == 0",
+     "name": "missing hours",
+     "hidden": true,
+     "hint_if_fail": "hours.get(person.name, 0) gives 0 for someone not in the dict."
+    },
+    {
+     "check": "assert CODE.count('super().__init__') >= 2, 'Doctor and Volunteer should both call super().__init__'\nassert 'role' not in vars(Doctor('a', 1, 1)), 'role should be a class attribute, not set on self'",
+     "name": "super() and class attributes",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "A class attribute sits directly under the class line: role = \"doctor\". self.role finds the child's value first.",
+    "Doctor.__init__: super().__init__(name, hourly), then self.on_call_fee = on_call_fee. Doctor.pay: return super().pay(hours) + self.on_call_fee.",
+    "payroll: sum(p.pay(hours.get(p.name, 0)) for p in staff)"
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Which is a good use of inheritance?",
+   "choices": [
+    "Car(Engine)",
+    "Skeleton(Enemy)",
+    "Clinic(MedicineList)",
+    "Fighter(Weapon)"
+   ],
+   "answer": 1,
+   "why": "A skeleton IS an enemy; the others are has-a relationships."
+  },
+  {
+   "q": "A child class defines __init__ but never calls super().__init__(). What usually happens?",
+   "choices": [
+    "Nothing changes",
+    "Attributes the parent sets are missing, so AttributeError later",
+    "Python calls it for you",
+    "SyntaxError"
+   ],
+   "answer": 1,
+   "why": "The parent's setup only runs if you call it."
+  },
+  {
+   "q": "What does super().take_hit(d) do inside Slime.take_hit?",
+   "choices": [
+    "Calls Slime.take_hit again",
+    "Calls the parent class's take_hit",
+    "Makes a new Enemy",
+    "Deletes the method"
+   ],
+   "answer": 1,
+   "why": "super() reaches the parent's version."
+  },
+  {
+   "q": "A loop calls e.take_hit(5) on a mixed list of Enemy, Slime and Skeleton objects. Each reacts its own way. This is called...",
+   "choices": [
+    "Encapsulation",
+    "Composition",
+    "Polymorphism",
+    "Recursion"
+   ],
+   "answer": 2,
+   "why": "Same call, different behaviour per type."
+  },
+  {
+   "q": "Why prefer composition for a fighter and its weapon?",
+   "choices": [
+    "It runs faster",
+    "A fighter isn't a kind of weapon, and you can swap weapons at run time",
+    "Inheritance is not allowed in games",
+    "It uses less memory"
+   ],
+   "answer": 1,
+   "why": "Has-a relationships fit composition and stay flexible."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Is-a vs has-a?",
+   "a": "Is-a: inheritance (Slime is an Enemy). Has-a: composition (Fighter has a Weapon)."
+  },
+  {
+   "q": "What does overriding mean?",
+   "a": "A child class defines a method with the same name, replacing the parent's version."
+  },
+  {
+   "q": "First line of a child __init__?",
+   "a": "super().__init__(...) with the parent's arguments."
+  },
+  {
+   "q": "Professional default when unsure?",
+   "a": "Prefer composition over inheritance."
+  }
+ ],
+ "explain": "Explain is-a versus has-a in your own words, with one example of each from a robot or a clinic."
+}

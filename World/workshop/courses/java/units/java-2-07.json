@@ -1,0 +1,236 @@
+{
+ "id": "java-2-07",
+ "level": 2,
+ "title": "Sorting and comparators",
+ "concepts": [
+  "sorting",
+  "comparators",
+  "lambdas",
+  "collections"
+ ],
+ "skills": [
+  "Comparable",
+  "Comparator",
+  "sorting"
+ ],
+ "lesson": "Sorting numbers and Strings is easy: they already know their order. But how should Java sort a list of harvests? By kg? By farmer's name? By date? You have to tell it, and there are two ways.\n\n**Comparable: the natural order.** The class itself says how its objects normally compare, by implementing `Comparable<T>` and its one method `compareTo`:\n\n```\nclass Harvest implements Comparable<Harvest> {\n    ...\n    @Override\n    public int compareTo(Harvest other) {\n        return Integer.compare(kg, other.kg);   // negative, zero or positive\n    }\n}\nCollections.sort(list);   // or list.sort(null)\n```\n\nThe rule: return a **negative** number if `this` comes first, **zero** if they're equal in order, **positive** if `this` comes after. Use `Integer.compare` / `Double.compare` / `a.compareTo(b)`, not subtraction (`kg - other.kg` overflows for huge numbers and fails for doubles).\n\n**Comparator: any order you like, from outside.** A `Comparator<T>` is a separate object that compares two T's. You build them from small parts:\n\n```\nComparator<Score> ranking =\n    Comparator.comparingInt(Score::getPoints).reversed()   // most points first\n              .thenComparingInt(Score::getSeconds)         // then fastest\n              .thenComparing(Score::getPlayer);            // then A to Z\nscores.sort(ranking);\n```\n\n- `Comparator.comparing(key)` sorts by a key (`comparingInt` / `comparingDouble` for numbers).\n- `.reversed()` flips the whole comparator built so far. Put it right after the key you want reversed, before adding tie-breakers.\n- `.thenComparing(...)` decides ties.\n- `String.CASE_INSENSITIVE_ORDER` and `Comparator.reverseOrder()` are ready-made.\n- A lambda works too: `(a, b) -> Integer.compare(b.kg, a.kg)`.\n\n**Which one?** Comparable for the one obvious order (by date, by id). Comparators for everything else, especially screens that sort many ways (a leaderboard by points, an inventory by weight or value).\n\nHabits that save you:\n- **Always add a tie-breaker** for things shown to people. Without one, two players with equal points can swap places between runs and confuse everyone.\n- `list.sort(...)` changes the list itself. If the caller's list must stay as it was, sort a copy: `new ArrayList<>(list)`. And `List.of(...)` can't be sorted in place at all: it throws.\n- Sorting is O(n log n); fine for thousands of records. Sorting inside a loop that runs every frame of a game is not.\n\nReal uses: leaderboards, \"top 3 crops this season\", sorting clinic patients by urgency then arrival time, a robot picking the closest target.",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.*;\n\nclass Patient {\n    final String name; final int urgency; final int arrived;\n    Patient(String name, int urgency, int arrived) { this.name = name; this.urgency = urgency; this.arrived = arrived; }\n    String getName() { return name; }\n    int getUrgency() { return urgency; }\n    int getArrived() { return arrived; }\n    @Override public String toString() { return name; }\n}\n\npublic class Example {\n    public static void main(String[] args) {\n        List<Patient> queue = new ArrayList<>(List.of(\n            new Patient(\"Juma\", 2, 900), new Patient(\"Amina\", 5, 930), new Patient(\"Otieno\", 5, 915)));\n\n        queue.sort(Comparator.comparingInt(Patient::getUrgency).reversed()\n                             .thenComparingInt(Patient::getArrived));\n        System.out.println(queue);                  // [Otieno, Amina, Juma]\n\n        queue.sort(Comparator.comparing(Patient::getName));\n        System.out.println(queue);                  // [Amina, Juma, Otieno]\n\n        List<String> crops = new ArrayList<>(List.of(\"rice\", \"Beans\", \"maize\"));\n        crops.sort(String.CASE_INSENSITIVE_ORDER);\n        System.out.println(crops);                  // [Beans, maize, rice]\n    }\n}\n",
+  "notes": [
+   "new ArrayList<>(List.of(...)) gives a list we're allowed to sort.",
+   "Most urgent first: comparingInt(...).reversed().",
+   "Equal urgency: whoever arrived earlier goes first (thenComparingInt).",
+   "The same list sorted a second way with a different comparator.",
+   "String.CASE_INSENSITIVE_ORDER ignores capital letters."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Natural order for harvests",
+   "file": "Harvests.java",
+   "prompt": "Make Harvest's compareTo order harvests by kg, smallest first (use Integer.compare). In Harvests write static List<Harvest> sorted(List<Harvest> hs) returning a NEW sorted list (the input must not change, and it may be a List.of), and static Harvest biggest(List<Harvest> hs) returning the heaviest, or null if empty. toString is done (\"Amina:40\").",
+   "starter": "import java.util.*;\n\nclass Harvest implements Comparable<Harvest> {\n    final String farmer;\n    final String crop;\n    final int kg;\n\n    Harvest(String farmer, String crop, int kg) {\n        this.farmer = farmer;\n        this.crop = crop;\n        this.kg = kg;\n    }\n\n    @Override\n    public int compareTo(Harvest other) {\n        return 0;\n    }\n\n    @Override\n    public String toString() { return farmer + \":\" + kg; }\n}\n\npublic class Harvests {\n    public static List<Harvest> sorted(List<Harvest> hs) {\n        return new ArrayList<>(hs);\n    }\n\n    public static Harvest biggest(List<Harvest> hs) {\n        return null;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Harvests.sorted(java.util.List.of(new Harvest(\"Amina\", \"maize\", 40), new Harvest(\"Juma\", \"beans\", 12), new Harvest(\"Otieno\", \"maize\", 55)))",
+     "expect": "[Juma:12, Amina:40, Otieno:55]"
+    },
+    {
+     "call": "Integer.signum(new Harvest(\"a\", \"maize\", 10).compareTo(new Harvest(\"b\", \"rice\", 20)))",
+     "expect": "-1",
+     "name": "compareTo sign"
+    },
+    {
+     "call": "Harvests.biggest(java.util.List.of(new Harvest(\"Amina\", \"maize\", 40), new Harvest(\"Otieno\", \"maize\", 55), new Harvest(\"Juma\", \"beans\", 12)))",
+     "expect": "Otieno:55"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { java.util.List<Harvest> orig = new java.util.ArrayList<>(java.util.List.of(new Harvest(\"A\", \"x\", 9), new Harvest(\"B\", \"x\", 1))); Harvests.sorted(orig); return orig.toString(); }).get()",
+     "expect": "[A:9, B:1]",
+     "hidden": true,
+     "name": "input unchanged",
+     "hint_if_fail": "Sort a copy: new ArrayList<>(hs)."
+    },
+    {
+     "call": "Harvests.biggest(java.util.List.of())",
+     "expect": "null",
+     "hidden": true,
+     "name": "empty"
+    }
+   ],
+   "hints": [
+    "compareTo: return Integer.compare(kg, other.kg);",
+    "sorted: List<Harvest> copy = new ArrayList<>(hs); Collections.sort(copy); return copy;",
+    "biggest: if empty return null, else Collections.max(hs)."
+   ],
+   "solution": "import java.util.*;\n\nclass Harvest implements Comparable<Harvest> {\n    final String farmer;\n    final String crop;\n    final int kg;\n\n    Harvest(String farmer, String crop, int kg) {\n        this.farmer = farmer;\n        this.crop = crop;\n        this.kg = kg;\n    }\n\n    @Override\n    public int compareTo(Harvest other) {\n        return Integer.compare(kg, other.kg);   // not kg - other.kg\n    }\n\n    @Override\n    public String toString() { return farmer + \":\" + kg; }\n}\n\npublic class Harvests {\n    public static List<Harvest> sorted(List<Harvest> hs) {\n        List<Harvest> copy = new ArrayList<>(hs);   // never change the caller's list\n        Collections.sort(copy);\n        return copy;\n    }\n\n    public static Harvest biggest(List<Harvest> hs) {\n        return hs.isEmpty() ? null : Collections.max(hs);\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Leaderboard",
+   "file": "Leaderboard.java",
+   "prompt": "Score has getPlayer(), getPoints(), getSeconds(). Write static List<String> rank(List<Score> scores) returning player names in leaderboard order: most points first, then fewest seconds, then name A to Z. Build it with Comparator.comparingInt(...).reversed().thenComparing... Don't change the input list. Write static List<String> top(List<Score> scores, int n): the first n names of the ranking (all of them if n is bigger; empty if n <= 0).",
+   "starter": "import java.util.*;\n\nclass Score {\n    private final String player;\n    private final int points;\n    private final int seconds;\n\n    Score(String player, int points, int seconds) {\n        this.player = player;\n        this.points = points;\n        this.seconds = seconds;\n    }\n\n    String getPlayer() { return player; }\n    int getPoints() { return points; }\n    int getSeconds() { return seconds; }\n}\n\npublic class Leaderboard {\n    public static List<String> rank(List<Score> scores) {\n        return new ArrayList<>();\n    }\n\n    public static List<String> top(List<Score> scores, int n) {\n        return new ArrayList<>();\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Leaderboard.rank(java.util.List.of(new Score(\"Amina\", 50, 120), new Score(\"Juma\", 70, 200), new Score(\"Otieno\", 50, 90)))",
+     "expect": "[Juma, Otieno, Amina]"
+    },
+    {
+     "call": "Leaderboard.top(java.util.List.of(new Score(\"Amina\", 50, 120), new Score(\"Juma\", 70, 200), new Score(\"Otieno\", 50, 90)), 2)",
+     "expect": "[Juma, Otieno]"
+    },
+    {
+     "call": "Leaderboard.rank(java.util.List.of(new Score(\"Wanjiru\", 10, 60), new Score(\"Akinyi\", 10, 60)))",
+     "expect": "[Akinyi, Wanjiru]",
+     "hidden": true,
+     "name": "full tie: by name"
+    },
+    {
+     "call": "Leaderboard.top(java.util.List.of(new Score(\"A\", 1, 1), new Score(\"B\", 2, 1)), 10)",
+     "expect": "[B, A]",
+     "hidden": true,
+     "name": "n bigger than the list"
+    },
+    {
+     "call": "Leaderboard.top(java.util.List.of(new Score(\"A\", 1, 1)), 0)",
+     "expect": "[]",
+     "hidden": true,
+     "name": "n is 0"
+    },
+    {
+     "src_has": "Comparator",
+     "why": "Build the order with a Comparator."
+    }
+   ],
+   "hints": [
+    "Comparator<Score> order = Comparator.comparingInt(Score::getPoints).reversed().thenComparingInt(Score::getSeconds).thenComparing(Score::getPlayer);",
+    "Copy, sort, then collect the names: for (Score s : copy) names.add(s.getPlayer());",
+    "top: List<String> r = rank(scores); return new ArrayList<>(r.subList(0, Math.max(0, Math.min(n, r.size()))));"
+   ],
+   "solution": "import java.util.*;\n\nclass Score {\n    private final String player;\n    private final int points;\n    private final int seconds;\n\n    Score(String player, int points, int seconds) {\n        this.player = player;\n        this.points = points;\n        this.seconds = seconds;\n    }\n\n    String getPlayer() { return player; }\n    int getPoints() { return points; }\n    int getSeconds() { return seconds; }\n}\n\npublic class Leaderboard {\n    static final Comparator<Score> RANKING =\n        Comparator.comparingInt(Score::getPoints).reversed()   // most points first\n                  .thenComparingInt(Score::getSeconds)         // then fastest\n                  .thenComparing(Score::getPlayer);            // then A to Z\n\n    public static List<String> rank(List<Score> scores) {\n        List<Score> copy = new ArrayList<>(scores);\n        copy.sort(RANKING);\n        List<String> names = new ArrayList<>();\n        for (Score s : copy) names.add(s.getPlayer());\n        return names;\n    }\n\n    public static List<String> top(List<Score> scores, int n) {\n        List<String> all = rank(scores);\n        int k = Math.max(0, Math.min(n, all.size()));\n        return new ArrayList<>(all.subList(0, k));\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Season report",
+   "file": "Report.java",
+   "prompt": "Two sorts for a farm report. static List<String> byLength(List<String> names): shortest name first, ties in A to Z order ignoring capitals (String.CASE_INSENSITIVE_ORDER). static List<String> topCrops(Map<String, Integer> totals, int n): the n crops with the most kg as \"maize 40\", biggest first, ties by crop name A to Z; all of them if n is bigger than the map. Don't change the inputs.",
+   "starter": "import java.util.*;\n\npublic class Report {\n    public static List<String> byLength(List<String> names) {\n        return new ArrayList<>();\n    }\n\n    public static List<String> topCrops(Map<String, Integer> totals, int n) {\n        return new ArrayList<>();\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Report.byLength(java.util.List.of(\"Juma\", \"Amina\", \"Ali\", \"Otieno\", \"akinyi\"))",
+     "expect": "[Ali, Juma, Amina, akinyi, Otieno]"
+    },
+    {
+     "call": "Report.topCrops(java.util.Map.of(\"maize\", 40, \"beans\", 12, \"rice\", 40, \"sorghum\", 5), 3)",
+     "expect": "[maize 40, rice 40, beans 12]"
+    },
+    {
+     "call": "Report.topCrops(java.util.Map.of(\"maize\", 40, \"beans\", 12), 1)",
+     "expect": "[maize 40]"
+    },
+    {
+     "call": "Report.topCrops(java.util.Map.of(\"maize\", 40, \"beans\", 12), 9)",
+     "expect": "[maize 40, beans 12]",
+     "hidden": true,
+     "name": "n bigger than the map"
+    },
+    {
+     "call": "Report.topCrops(java.util.Map.of(), 3)",
+     "expect": "[]",
+     "hidden": true,
+     "name": "no crops"
+    },
+    {
+     "call": "Report.byLength(java.util.List.of())",
+     "expect": "[]",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "byLength: copy, then copy.sort(Comparator.comparingInt(String::length).thenComparing(String.CASE_INSENSITIVE_ORDER));",
+    "topCrops: List<Map.Entry<String, Integer>> es = new ArrayList<>(totals.entrySet()); then sort with a lambda.",
+    "es.sort((a, b) -> a.getValue().equals(b.getValue()) ? a.getKey().compareTo(b.getKey()) : Integer.compare(b.getValue(), a.getValue()));"
+   ],
+   "solution": "import java.util.*;\n\npublic class Report {\n    public static List<String> byLength(List<String> names) {\n        List<String> copy = new ArrayList<>(names);\n        copy.sort(Comparator.comparingInt(String::length)\n                            .thenComparing(String.CASE_INSENSITIVE_ORDER));\n        return copy;\n    }\n\n    public static List<String> topCrops(Map<String, Integer> totals, int n) {\n        List<Map.Entry<String, Integer>> es = new ArrayList<>(totals.entrySet());\n        es.sort((a, b) -> {\n            int byKg = Integer.compare(b.getValue(), a.getValue());   // biggest first\n            return byKg != 0 ? byKg : a.getKey().compareTo(b.getKey());\n        });\n        List<String> out = new ArrayList<>();\n        for (int i = 0; i < Math.min(n, es.size()); i++) {\n            out.add(es.get(i).getKey() + \" \" + es.get(i).getValue());\n        }\n        return out;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "compareTo returns a negative number. That means…",
+   "choices": [
+    "this comes before the other",
+    "this comes after",
+    "they are equal",
+    "an error"
+   ],
+   "answer": 0,
+   "why": "Negative: this first; zero: same place; positive: after."
+  },
+  {
+   "q": "Why prefer Integer.compare(a, b) to a - b?",
+   "choices": [
+    "It's shorter",
+    "Subtraction can overflow and give the wrong sign",
+    "a - b doesn't compile",
+    "It sorts descending"
+   ],
+   "answer": 1,
+   "why": "Huge values overflow int."
+  },
+  {
+   "q": "`comparingInt(Score::getPoints).reversed().thenComparing(Score::getPlayer)` sorts…",
+   "choices": [
+    "points high to low, then names A to Z",
+    "points high to low, names Z to A",
+    "names first",
+    "points low to high"
+   ],
+   "answer": 0,
+   "why": "reversed() applies to what was built before it."
+  },
+  {
+   "q": "You call List.of(3, 1, 2).sort(null). What happens?",
+   "choices": [
+    "It sorts",
+    "UnsupportedOperationException: List.of is unchangeable",
+    "Nothing",
+    "Compile error"
+   ],
+   "answer": 1,
+   "why": "Copy it into an ArrayList first."
+  },
+  {
+   "q": "Comparable or Comparator for a leaderboard that can sort by points OR by time?",
+   "choices": [
+    "Comparable only",
+    "Comparators: one per order",
+    "Neither",
+    "toString"
+   ],
+   "answer": 1,
+   "why": "A class has one natural order; extra orders are comparators."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Comparable vs Comparator?",
+   "a": "Comparable: the class's own natural order (compareTo). Comparator: a separate order object."
+  },
+  {
+   "q": "Sort by a key, biggest first?",
+   "a": "Comparator.comparingInt(X::getKey).reversed()"
+  },
+  {
+   "q": "Break ties?",
+   "a": ".thenComparing(...)"
+  },
+  {
+   "q": "Sort without changing the caller's list?",
+   "a": "Sort a copy: new ArrayList<>(list)"
+  }
+ ],
+ "explain": "Explain the difference between Comparable and Comparator, using a leaderboard or harvest list you make up. Why does a tie-breaker matter?"
+}

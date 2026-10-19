@@ -1,0 +1,163 @@
+{
+ "id": "java-1-04",
+ "level": 1,
+ "title": "Strings",
+ "concepts": [
+  "strings"
+ ],
+ "skills": [
+  "strings",
+  "methods"
+ ],
+ "bridge": "Strings in Java are objects with methods: `s.length()`, `s.charAt(0)`, `s.substring(1, 4)`, `s.toUpperCase()`, `s.trim()`, `s.split(\",\")`. The big trap: **compare text with `.equals()`**, never `==` (which checks if they're the same object, not the same letters).",
+ "lesson": "A `String` is text, and it comes with methods:\n\n- `s.length()`: how many characters\n- `s.charAt(0)`: the first character (a `char`); positions start at 0\n- `s.substring(0, 4)`: from 0 up to (not including) 4; `s.substring(4)` from 4 to the end\n- `s.toUpperCase()`, `s.toLowerCase()`, `s.trim()` (remove spaces at the ends)\n- `s.contains(\"ma\")`, `s.startsWith(\"07\")`, `s.indexOf(\"a\")` (-1 if missing)\n- `s.replace(\"a\", \"b\")`, `s.split(\",\")` (gives a `String[]` array)\n- `String.join(\", \", parts)` glues an array back together\n\nStrings never change: methods give a **new** string. `name.trim();` alone does nothing you keep; write `name = name.trim();`.\n\n**The trap:** to compare text, use `a.equals(b)` (or `a.equalsIgnoreCase(b)`). `a == b` asks \"are these the very same object in memory?\", which is sometimes true and sometimes not for the same letters. It's one of the most famous Java bugs.\n\nBuilding text in a loop? `StringBuilder sb = new StringBuilder(); sb.append(\"x\"); sb.toString();` is much faster than `+=` many times.",
+ "example": {
+  "file": "Example.java",
+  "code": "public class Example {\n    public static void main(String[] args) {\n        String word = \"Nairobi\";\n        System.out.println(word.length() + \" \" + word.charAt(0) + \" \" + word.substring(0, 4));\n        String name = \"  amina  \".trim();\n        System.out.println(name.substring(0, 1).toUpperCase() + name.substring(1));\n        String a = \"maize\", b = new String(\"maize\");\n        System.out.println((a == b) + \" vs \" + a.equals(b));\n        String[] parts = \"maize,beans,kale\".split(\",\");\n        System.out.println(parts.length + \" \" + String.join(\" | \", parts));\n    }\n}\n",
+  "notes": [
+   "length, charAt, substring.",
+   "trim, then capitalise the first letter.",
+   "== false, equals true: always use equals.",
+   "split into an array, join back."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Capitalise",
+   "file": "Cap.java",
+   "prompt": "Write capitalise(String s): trim it, then first letter upper case and the rest lower case. capitalise(\"  wANJIRU \") is \"Wanjiru\". An empty or all-spaces string gives \"\".",
+   "starter": "public class Cap {\n    public static String capitalise(String s) {\n        return s;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Cap.capitalise(\"  wANJIRU \")",
+     "expect": "Wanjiru"
+    },
+    {
+     "call": "Cap.capitalise(\"otieno\")",
+     "expect": "Otieno"
+    },
+    {
+     "call": "Cap.capitalise(\"   \")",
+     "expect": "",
+     "hidden": true,
+     "hint_if_fail": "substring(0, 1) of an empty string crashes: check isEmpty() after trimming."
+    }
+   ],
+   "hints": [
+    "s = s.trim(); then check s.isEmpty().",
+    "return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();"
+   ],
+   "solution": "public class Cap {\n    public static String capitalise(String s) {\n        s = s.trim();\n        if (s.isEmpty()) return \"\";\n        return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Same word?",
+   "file": "Same.java",
+   "prompt": "Write sameWord(String a, String b): true if they're the same word ignoring capitals and spaces at the ends. Use equals, not ==.",
+   "starter": "public class Same {\n    public static boolean sameWord(String a, String b) {\n        return a == b;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Same.sameWord(\"Maize\", \" maize \")",
+     "expect": "true"
+    },
+    {
+     "call": "Same.sameWord(\"maize\", \"beans\")",
+     "expect": "false"
+    },
+    {
+     "call": "Same.sameWord(new String(\"x\"), \"x\")",
+     "expect": "true",
+     "hidden": true
+    },
+    {
+     "src_not": "==",
+     "why": "Compare Strings with .equals or .equalsIgnoreCase, never =="
+    }
+   ],
+   "hints": [
+    "Trim both first.",
+    "return a.trim().equalsIgnoreCase(b.trim());"
+   ],
+   "solution": "public class Same {\n    public static boolean sameWord(String a, String b) {\n        return a.trim().equalsIgnoreCase(b.trim());\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Initials",
+   "file": "Initials.java",
+   "prompt": "Write initials(String fullName): \"Amina Wanjiru Odhiambo\" gives \"A.W.O.\" Extra spaces between words must not break it.",
+   "starter": "public class Initials {\n    public static String initials(String fullName) {\n        return \"\";\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Initials.initials(\"Amina Wanjiru Odhiambo\")",
+     "expect": "A.W.O."
+    },
+    {
+     "call": "Initials.initials(\"juma\")",
+     "expect": "J."
+    },
+    {
+     "call": "Initials.initials(\"  baraka   otieno \")",
+     "expect": "B.O.",
+     "hidden": true,
+     "hint_if_fail": "Split on one or more spaces: trim().split(\"\\\\s+\")"
+    }
+   ],
+   "hints": [
+    "fullName.trim().split(\"\\\\s+\") splits on any run of spaces.",
+    "Loop over the parts, append Character.toUpperCase(p.charAt(0)) + \".\" to a StringBuilder."
+   ],
+   "solution": "public class Initials {\n    public static String initials(String fullName) {\n        StringBuilder sb = new StringBuilder();\n        for (String p : fullName.trim().split(\"\\\\s+\")) {\n            if (!p.isEmpty()) sb.append(Character.toUpperCase(p.charAt(0))).append(\".\");\n        }\n        return sb.toString();\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "\"Mombasa\".substring(1, 4) is…",
+   "choices": [
+    "\"Mom\"",
+    "\"omb\"",
+    "\"omba\"",
+    "\"mba\""
+   ],
+   "answer": 1,
+   "why": "From 1 up to (not including) 4."
+  },
+  {
+   "q": "How should you compare two Strings?",
+   "choices": [
+    "a == b",
+    "a.equals(b)",
+    "a = b",
+    "a.compare(b) == true"
+   ],
+   "answer": 1,
+   "why": "== compares objects, not letters."
+  },
+  {
+   "q": "s = \"hi\"; s.toUpperCase(); System.out.println(s); prints…",
+   "choices": [
+    "HI",
+    "hi",
+    "Hi",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Strings never change; the result wasn't saved."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Compare Strings in Java?",
+   "a": "a.equals(b) or a.equalsIgnoreCase(b), never =="
+  },
+  {
+   "q": "First character of s?",
+   "a": "s.charAt(0) (a char)"
+  },
+  {
+   "q": "Build text in a loop efficiently?",
+   "a": "StringBuilder: append, then toString()"
+  }
+ ],
+ "explain": "Explain strings to someone who has never programmed, in your own words, with an example you make up."
+}

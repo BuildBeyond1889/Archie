@@ -1,0 +1,125 @@
+{
+ "id": "c-1-10",
+ "level": 1,
+ "title": "Structs",
+ "concepts": [
+  "classes"
+ ],
+ "skills": [
+  "structs"
+ ],
+ "bridge": "C has no classes, but a `struct` bundles related fields: `struct Reading { int hour; double temp; };`. Access fields with `.` (`r.temp`), or `->` through a pointer (`p->temp`). Functions that work on a struct take it (or a pointer to it) as a parameter. It's a class without methods or private parts.",
+ "lesson": "```\nstruct Reading {\n    int hour;\n    double temp;\n};\n\nstruct Reading r = {14, 31.5};\nr.temp;                       /* 31.5 */\nr.temp = 30.0;\n\nstruct Reading log[3] = {{6, 18.0}, {12, 27.5}, {18, 24.0}};\nlog[1].hour;                  /* 12 */\n```\n\n`typedef` gives the type a shorter name, so you can drop the word `struct`:\n\n```\ntypedef struct { int hour; double temp; } Reading;\nReading r = {14, 31.5};\n```\n\nThrough a pointer, use `->` (short for `(*p).temp`):\n\n```\nvoid cool(Reading *p) { p->temp -= 1.0; }\ncool(&r);\n```\n\nStructs can be returned from functions and copied with `=`. This is how C programs (and Arduino libraries) organise data: a struct for the thing, plus functions that take it. C++ classes grew out of exactly this.",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n\ntypedef struct { int hour; double temp; } Reading;\n\nvoid cool(Reading *p) { p->temp -= 1.0; }\n\nint main(void)\n{\n    Reading log[3] = {{6, 18.0}, {12, 27.5}, {18, 24.0}};\n    cool(&log[1]);\n    for (int i = 0; i < 3; i++) printf(\"%02d:00  %.1f C\\n\", log[i].hour, log[i].temp);\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Hottest hour",
+   "file": "hottest.c",
+   "prompt": "With the Reading struct given, write int hottest_hour(const Reading log[], int n) (n is at least 1): the hour of the highest temperature (the earliest one on a tie).",
+   "starter": "typedef struct { int hour; double temp; } Reading;\n\nint hottest_hour(const Reading log[], int n)\n{\n    return log[0].hour;\n}\n",
+   "tests": [
+    {
+     "call": "hottest_hour((Reading[]){{6, 18.0}, {12, 27.5}, {18, 24.0}}, 3)",
+     "expect": "12"
+    },
+    {
+     "call": "hottest_hour((Reading[]){{1, 9.0}, {2, 9.5}}, 2)",
+     "expect": "2"
+    },
+    {
+     "call": "hottest_hour((Reading[]){{8, 30.0}, {9, 30.0}}, 2)",
+     "expect": "8",
+     "hint_if_fail": "On a tie keep the earliest: only switch on strictly hotter."
+    }
+   ],
+   "hints": [
+    "Keep the index of the best so far.",
+    "if (log[i].temp > log[best].temp) best = i;"
+   ],
+   "solution": "typedef struct { int hour; double temp; } Reading;\n\nint hottest_hour(const Reading log[], int n)\n{\n    int best = 0;\n    for (int i = 1; i < n; i++)\n        if (log[i].temp > log[best].temp) best = i;\n    return log[best].hour;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Tank state",
+   "file": "tank.c",
+   "prompt": "Write void tank_add(Tank *t, double litres) for the Tank struct given: add litres to t->level, but never above t->capacity or below 0 (negative litres means water used).",
+   "starter": "typedef struct { double level; double capacity; } Tank;\n\nvoid tank_add(Tank *t, double litres)\n{\n    t->level = litres;\n}\n",
+   "tests": [
+    {
+     "call": "({ Tank t = {100, 500}; tank_add(&t, 50); t.level; })",
+     "fmt": "%.1f",
+     "expect": "150.0"
+    },
+    {
+     "call": "({ Tank t = {480, 500}; tank_add(&t, 50); t.level; })",
+     "fmt": "%.1f",
+     "expect": "500.0",
+     "hint_if_fail": "Never above capacity."
+    },
+    {
+     "call": "({ Tank t = {20, 500}; tank_add(&t, -50); t.level; })",
+     "fmt": "%.1f",
+     "expect": "0.0",
+     "hint_if_fail": "Never below 0."
+    }
+   ],
+   "hints": [
+    "t->level += litres; then two checks.",
+    "if (t->level > t->capacity) t->level = t->capacity; if (t->level < 0) t->level = 0;"
+   ],
+   "solution": "typedef struct { double level; double capacity; } Tank;\n\nvoid tank_add(Tank *t, double litres)\n{\n    t->level += litres;\n    if (t->level > t->capacity) t->level = t->capacity;\n    if (t->level < 0) t->level = 0;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Access a field through a pointer p?",
+   "choices": [
+    "p.temp",
+    "p->temp",
+    "*p.temp",
+    "p[temp]"
+   ],
+   "answer": 1,
+   "why": "-> is (*p).temp."
+  },
+  {
+   "q": "What does typedef do here?",
+   "choices": [
+    "Makes a copy",
+    "Gives the struct type a short name",
+    "Makes it private",
+    "Allocates memory"
+   ],
+   "answer": 1,
+   "why": "So you can write Reading instead of struct Reading."
+  },
+  {
+   "q": "Can a struct have methods in C?",
+   "choices": [
+    "Yes",
+    "No: you write functions that take the struct"
+   ],
+   "answer": 1,
+   "why": "That's what C++ classes added."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Field through a pointer?",
+   "a": "p->field"
+  },
+  {
+   "q": "Short name for a struct?",
+   "a": "typedef struct { ... } Name;"
+  },
+  {
+   "q": "Struct literal?",
+   "a": "Reading r = {14, 31.5};"
+  }
+ ],
+ "explain": "Explain structs to someone who has never programmed, in your own words, with an example you make up."
+}

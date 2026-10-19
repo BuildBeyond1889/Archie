@@ -1,0 +1,116 @@
+{
+ "id": "cpp-1-01",
+ "level": 1,
+ "title": "Hello, C++",
+ "concepts": [
+  "output"
+ ],
+ "skills": [
+  "running code",
+  "output"
+ ],
+ "bridge": "C++ programs start in `int main()`, and `std::cout << ... ;` prints. `<<` chains pieces together and `\"\\n\"` ends a line. Statements end with `;`, blocks use `{ }`. Unlike Python, the whole file is compiled first, so one typo stops everything.",
+ "lesson": "C++ is the language under most big games (Unreal Engine is written in it and scripted in it), plus robotics, Arduino and anything where speed matters. It's stricter and more manual than Python, which is exactly why it teaches you how computers really work.\n\n```\n#include <iostream>\n\nint main()\n{\n    std::cout << \"Hello, world!\\n\";\n    std::cout << \"2 + 3 = \" << 2 + 3 << \"\\n\";\n    return 0;\n}\n```\n\n- `#include <iostream>` brings in the input/output library.\n- The program starts in `main`. `return 0;` tells the system \"finished fine\".\n- `std::cout` is the screen. `<<` sends things to it, one after another.\n- `\"\\n\"` starts a new line. (`std::endl` does too, but it's slower.)\n- `std::` means \"from the standard library\". Some tutorials write `using namespace std;` to skip it; real projects (and Unreal) avoid that, so this course writes `std::`.\n\nC++ is **compiled**: a compiler (g++) turns your file into a program, then you run that program. If it doesn't compile, read the **first** error first; later errors are often caused by it.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n\nint main()\n{\n    std::cout << \"Hello, world!\\n\";\n    std::cout << \"2 + 3 = \" << 2 + 3 << \"\\n\";\n    std::cout << \"4\" << \"2\" << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Hello from C++",
+   "file": "hello.cpp",
+   "prompt": "Print exactly: Hello, Archie!",
+   "starter": "#include <iostream>\n\nint main()\n{\n    // your line here\n    return 0;\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "Hello, Archie!"
+     ],
+     "case": true,
+     "name": "prints the greeting"
+    }
+   ],
+   "hints": [
+    "std::cout << \"...\\n\";",
+    "Don't forget the semicolon."
+   ],
+   "solution": "#include <iostream>\n\nint main()\n{\n    std::cout << \"Hello, Archie!\\n\";\n    return 0;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Fix it (compiler drill)",
+   "file": "fix.cpp",
+   "prompt": "Three mistakes stop this compiling. Fix them until it prints:\nC++ is strict\nand that helps\n10",
+   "starter": "#include <iostream>\n\nint main()\n{\n    std::cout << \"C++ is strict\\n\"\n    cout << \"and that helps\\n\";\n    std::cout << 5 + 5 << \"\\n;\n    return 0;\n}\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "C++ is strict",
+      "and that helps",
+      "10"
+     ],
+     "case": true,
+     "name": "all three lines"
+    }
+   ],
+   "hints": [
+    "Read the first error: which line, and what did it expect?",
+    "A missing ;, a missing std::, and a missing closing quote."
+   ],
+   "solution": "#include <iostream>\n\nint main()\n{\n    std::cout << \"C++ is strict\\n\";\n    std::cout << \"and that helps\\n\";\n    std::cout << 5 + 5 << \"\\n\";\n    return 0;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Where does a C++ program start?",
+   "choices": [
+    "The first line",
+    "int main()",
+    "#include",
+    "Whatever function is first"
+   ],
+   "answer": 1,
+   "why": "main is the entry point."
+  },
+  {
+   "q": "What does std::cout << \"4\" << \"2\"; print?",
+   "choices": [
+    "6",
+    "42",
+    "4 2",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Each piece is printed straight after the last."
+  },
+  {
+   "q": "There are 12 errors. Which do you fix first?",
+   "choices": [
+    "The last",
+    "The first",
+    "The longest",
+    "Any"
+   ],
+   "answer": 1,
+   "why": "Later errors are often caused by the first one."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Print a line in C++?",
+   "a": "std::cout << \"text\\n\";"
+  },
+  {
+   "q": "What does #include <iostream> do?",
+   "a": "Brings in the input/output library (std::cout, std::cin)."
+  },
+  {
+   "q": "What does return 0; in main mean?",
+   "a": "The program finished without problems."
+  }
+ ],
+ "explain": "Explain hello, c++ to someone who has never programmed, in your own words, with an example you make up."
+}

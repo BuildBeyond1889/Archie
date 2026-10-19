@@ -1,0 +1,166 @@
+{
+ "id": "py-1-11",
+ "level": 1,
+ "title": "Errors and debugging",
+ "skills": [
+  "debugging",
+  "exceptions",
+  "errors"
+ ],
+ "lesson": "Every programmer spends a lot of time **debugging**. The skill is method, not luck:\n\n1. **Read the error from the bottom.** The last line says what went wrong (`ValueError: invalid literal for int() with base 10: 'abc'`); the lines above say where (`File \"main.py\", line 7`).\n2. **Reproduce it**: find the input that makes it happen.\n3. **Shrink it**: print the values just before the line that fails. `print(repr(x))` shows hidden spaces and quotes.\n4. **Change one thing**, run again.\n\nCommon errors: `NameError` (a name that doesn't exist: misspelled?), `TypeError` (wrong type: adding str and int), `ValueError` (right type, bad value: `int(\"abc\")`), `IndexError` (position past the end), `KeyError` (missing dict key), `ZeroDivisionError`, `IndentationError`.\n\nSome errors you can **expect** and handle, especially bad input from people:\n\n```\ntry:\n    age = int(text)\nexcept ValueError:\n    print(\"Please type a number\")\n```\n\nCatch the specific error you expect, never a bare `except:` that hides every bug. And bugs that don't crash (wrong answers) are the hardest: that's why tests exist.",
+ "example": {
+  "code": "def safe_int(text, default=0):\n    try:\n        return int(text)\n    except ValueError:\n        return default\n\nprint(safe_int(\"42\"), safe_int(\"abc\"), safe_int(\"\", -1))\nnums = [1, 2, 3]\ntry:\n    print(nums[5])\nexcept IndexError as e:\n    print(\"Problem:\", e)\n",
+  "notes": [
+   "try the risky part.",
+   "except the specific error.",
+   "Different inputs, no crash.",
+   "as e gives the message."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Safe number",
+   "file": "ex1_safe.py",
+   "prompt": "Write to_number(text): an int if the text is a whole number, a float if it has a decimal (\"2.5\" or \"2,5\"), and None if it's neither. Use try/except, not guessing.",
+   "starter": "def to_number(text):\n    return None\n",
+   "tests": [
+    {
+     "call": "to_number(\"42\")",
+     "expect": 42
+    },
+    {
+     "call": "to_number(\"2.5\")",
+     "expect": 2.5
+    },
+    {
+     "call": "to_number(\"2,5\")",
+     "expect": 2.5
+    },
+    {
+     "call": "to_number(\"abc\")",
+     "expect": null
+    },
+    {
+     "call": "to_number(\" 7 \")",
+     "expect": 7,
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "try int(text) first; if ValueError, try float(text.replace(\",\", \".\")); if that fails too, return None.",
+    "Nested try blocks are fine."
+   ],
+   "solution": "def to_number(text):\n    try:\n        return int(text)\n    except ValueError:\n        pass\n    try:\n        return float(text.replace(\",\", \".\"))\n    except ValueError:\n        return None\n"
+  },
+  {
+   "id": "e2",
+   "title": "Find the bug (no error, wrong answer)",
+   "file": "ex2_bug.py",
+   "prompt": "average_positive(nums) should give the average of only the positive numbers (0 if there are none). It runs without errors but gives wrong answers. Find and fix the bugs (there are two).",
+   "starter": "def average_positive(nums):\n    total = 0\n    count = 0\n    for n in nums:\n        if n >= 0:\n            total += n\n        count += 1\n    if count == 0:\n        return 0\n    return total / count\n",
+   "tests": [
+    {
+     "call": "average_positive([4, -2, 6])",
+     "expect": 5
+    },
+    {
+     "call": "average_positive([0, 3])",
+     "expect": 3,
+     "hint_if_fail": "Is 0 positive?"
+    },
+    {
+     "call": "average_positive([-1, -5])",
+     "expect": 0
+    }
+   ],
+   "hints": [
+    "Print total and count at the end for [4, -2, 6]. Which one is wrong?",
+    "count += 1 is outside the if (it counts every number), and >= 0 lets 0 in."
+   ],
+   "solution": "def average_positive(nums):\n    total = 0\n    count = 0\n    for n in nums:\n        if n > 0:\n            total += n\n            count += 1\n    if count == 0:\n        return 0\n    return total / count\n"
+  },
+  {
+   "id": "e3",
+   "title": "A safe menu",
+   "file": "ex3_menu.py",
+   "prompt": "Ask for a choice 1-3 in a loop. If they type something that isn't 1, 2 or 3 (letters, 9, blank), print \"Choose 1, 2 or 3\" and ask again, never crashing. When they choose, print: You chose N",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "x\n\n9\n2\n",
+     "out": [
+      "Choose 1, 2 or 3",
+      "You chose 2"
+     ]
+    },
+    {
+     "stdin": "3\n",
+     "out": [
+      "You chose 3"
+     ],
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "while True loop; try int(...) inside.",
+    "except ValueError: print the message and continue; also check 1 <= n <= 3."
+   ],
+   "solution": "while True:\n    try:\n        n = int(input(\"Choice? \"))\n    except ValueError:\n        print(\"Choose 1, 2 or 3\")\n        continue\n    if 1 <= n <= 3:\n        break\n    print(\"Choose 1, 2 or 3\")\nprint(f\"You chose {n}\")\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Where is the most useful information in a Python error?",
+   "choices": [
+    "The first line",
+    "The last line (what) and the line number above it (where)",
+    "There isn't any",
+    "In the file name"
+   ],
+   "answer": 1,
+   "why": "Read from the bottom."
+  },
+  {
+   "q": "int(\"3.5\") raises…",
+   "choices": [
+    "TypeError",
+    "ValueError",
+    "NameError",
+    "nothing: gives 3"
+   ],
+   "answer": 1,
+   "why": "Right type (str), bad value for int."
+  },
+  {
+   "q": "Why avoid a bare except:?",
+   "choices": [
+    "It's slower",
+    "It hides every bug, not just the one you expected",
+    "It doesn't work",
+    "Python 3 forbids it"
+   ],
+   "answer": 1,
+   "why": "Catch only what you expect."
+  }
+ ],
+ "cards": [
+  {
+   "q": "First step with an error?",
+   "a": "Read the last line, then find the line number."
+  },
+  {
+   "q": "Show hidden spaces in a value?",
+   "a": "print(repr(x))"
+  },
+  {
+   "q": "Handle bad number input?",
+   "a": "try: int(text) except ValueError: ..."
+  }
+ ],
+ "concepts": [
+  "errors"
+ ],
+ "bridge": "`try:` / `except ValueError:` (Python calls them exceptions too). Raise your own with `raise ValueError(\"why\")`.",
+ "explain": "Explain errors and debugging to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

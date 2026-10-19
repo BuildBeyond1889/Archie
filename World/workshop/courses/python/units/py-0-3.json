@@ -1,0 +1,128 @@
+{
+ "id": "py-0-3",
+ "level": 0,
+ "title": "Files, folders and the terminal",
+ "skills": [
+  "files",
+  "terminal",
+  "how computers work"
+ ],
+ "lesson": "Programs keep their data in **memory** (RAM) while they run, and RAM is wiped when the program ends or the power goes. To keep anything, a program writes it to a **file** on a drive. Files live in **folders**, and every file has a **path** that says where it is: `D:\\Archie\\Workshop\\notes.txt` on Windows, `/home/pi/notes.txt` on a Raspberry Pi.\n\nA **relative path** like `notes.txt` means \"in the folder the program is running in\". That's the simplest, and what these exercises use.\n\nWriting and reading a text file in Python:\n\n```\nwith open(\"notes.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"first line\\n\")\nwith open(\"notes.txt\", encoding=\"utf-8\") as f:\n    print(f.read())\n```\n\n`\"w\"` means write (it replaces anything already there); `\"a\"` means append (add to the end); no letter means read. `\\n` is the **newline** character, the invisible thing that ends a line. `with` closes the file for you when the indented part finishes, even if there's an error. `encoding=\"utf-8\"` makes sure Swahili, accents and everything else are stored right.\n\nThe **terminal** (also called the command line) is a window where you type commands instead of clicking. `cd folder` moves into a folder, `dir` (Windows) or `ls` (Linux, Mac, Pi) lists what's there, and `python file.py` runs a program. VSCodium has one built in: Terminal → New Terminal. Everything a mouse can do, the terminal can do, and it's how you'll work with Raspberry Pis and servers.",
+ "example": {
+  "code": "with open(\"diary.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"Planted maize\\n\")\nwith open(\"diary.txt\", \"a\", encoding=\"utf-8\") as f:\n    f.write(\"It rained\\n\")\nwith open(\"diary.txt\", encoding=\"utf-8\") as f:\n    print(f.read())\n",
+  "notes": [
+   "w makes the file fresh.",
+   "a adds to the end.",
+   "Reading it back shows both lines."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Write and read",
+   "file": "ex1_file.py",
+   "prompt": "Write a program that creates shopping.txt with three lines (unga, sukari, chumvi), then reads the file back and prints what's in it.",
+   "starter": "# 1. open shopping.txt for writing and write three lines\n# 2. open it again for reading and print it\n",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "unga",
+      "sukari",
+      "chumvi"
+     ],
+     "name": "prints the three lines"
+    },
+    {
+     "check": "import pathlib\np = pathlib.Path(m.__file__).parent / 'shopping.txt'\nassert p.exists(), 'shopping.txt was not created'\nassert len(p.read_text(encoding='utf-8').strip().splitlines()) == 3, 'shopping.txt should have exactly three lines'",
+     "name": "the file has three lines"
+    }
+   ],
+   "hints": [
+    "Write each item followed by \\n so they end up on separate lines.",
+    "Use with open(\"shopping.txt\", \"w\", encoding=\"utf-8\") as f: then f.write(\"unga\\n\") and so on."
+   ],
+   "solution": "with open(\"shopping.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"unga\\n\")\n    f.write(\"sukari\\n\")\n    f.write(\"chumvi\\n\")\nwith open(\"shopping.txt\", encoding=\"utf-8\") as f:\n    print(f.read())\n"
+  },
+  {
+   "id": "e2",
+   "title": "Add, don't replace",
+   "file": "ex2_append.py",
+   "prompt": "Write 'day 1' to log.txt with \"w\". Then, using append mode, add 'day 2' and 'day 3'. Print the file at the end: all three days must be there.",
+   "starter": "",
+   "tests": [
+    {
+     "stdin": "",
+     "out": [
+      "day 1",
+      "day 2",
+      "day 3"
+     ],
+     "name": "all three days"
+    },
+    {
+     "check": "s = CODE\nassert '\"a\"' in s or \"'a'\" in s, 'Use append mode (\"a\") for days 2 and 3'",
+     "name": "uses append mode"
+    }
+   ],
+   "hints": [
+    "\"w\" once at the start, then \"a\" to add.",
+    "Two with open(...) blocks: one with \"w\", one with \"a\", then one to read."
+   ],
+   "solution": "with open(\"log.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"day 1\\n\")\nwith open(\"log.txt\", \"a\", encoding=\"utf-8\") as f:\n    f.write(\"day 2\\n\")\n    f.write(\"day 3\\n\")\nwith open(\"log.txt\", encoding=\"utf-8\") as f:\n    print(f.read())\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What happens to a program's variables when the power goes out?",
+   "choices": [
+    "They're saved automatically",
+    "They're lost unless written to a file",
+    "They move to the cloud",
+    "They're printed"
+   ],
+   "answer": 1,
+   "why": "RAM is wiped; only files on a drive survive."
+  },
+  {
+   "q": "Which mode adds to the end of a file instead of replacing it?",
+   "choices": [
+    "\"w\"",
+    "\"r\"",
+    "\"a\"",
+    "\"x\""
+   ],
+   "answer": 2,
+   "why": "\"a\" is append."
+  },
+  {
+   "q": "What does the terminal command ls (or dir on Windows) do?",
+   "choices": [
+    "Deletes files",
+    "Lists what's in the folder",
+    "Runs Python",
+    "Restarts the computer"
+   ],
+   "answer": 1,
+   "why": "It lists the files and folders where you are."
+  }
+ ],
+ "cards": [
+  {
+   "q": "What does \\n mean in a string?",
+   "a": "A newline: the end of a line."
+  },
+  {
+   "q": "Why use with open(...)?",
+   "a": "It closes the file for you, even if there's an error."
+  },
+  {
+   "q": "What's a relative path?",
+   "a": "A path from the folder the program runs in, like notes.txt."
+  }
+ ],
+ "concepts": [
+  "files"
+ ],
+ "explain": "Explain files, folders and the terminal to someone who has never programmed, in your own words, with an example you make up (not one from the lesson)."
+}

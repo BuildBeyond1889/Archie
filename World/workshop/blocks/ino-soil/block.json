@@ -1,0 +1,62 @@
+{
+ "name": "Soil moisture sensor",
+ "kind": "hardware",
+ "lang": "Arduino",
+ "version": "1.0.0",
+ "summary": "Soil wetness as 0-100 %, averaged to be steady, with your own dry/wet calibration. For irrigation, greenhouses and seedling trays.",
+ "tags": [
+  "soil",
+  "moisture",
+  "sensor",
+  "irrigation",
+  "farm",
+  "garden",
+  "analog"
+ ],
+ "parts": [
+  "capacitive soil moisture sensor v1.2 (better) or resistive probe",
+  "3 jumper wires"
+ ],
+ "files": {
+  "sketch/soil.h": "soil.h"
+ },
+ "imports": {
+  "ino": [
+   "#include \"soil.h\""
+  ]
+ },
+ "use": "SoilSensor soil(A0, 520, 260); if (soil.isDry(30)) pump.runFor(10000);",
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-Wall",
+   "-x",
+   "c++",
+   "test_soil.cpp",
+   "-o",
+   "t.exe"
+  ],
+  "files": [
+   "test_soil.cpp"
+  ],
+  "stub": true,
+  "then": "t.exe"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "int percent()",
+   "note": "Turns the raw reading into 0-100% using your two calibration readings, and clamps it so it never shows -5% or 110%."
+  },
+  {
+   "find": "for (int i = 0; i < n_; i++) sum += analogRead(pin_);",
+   "note": "Several readings averaged: analog sensors flicker, and the average is steadier."
+  }
+ ]
+}

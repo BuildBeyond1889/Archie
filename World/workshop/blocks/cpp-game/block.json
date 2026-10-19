@@ -1,0 +1,37 @@
+{
+ "name": "C++ text adventure",
+ "kind": "game",
+ "lang": "C++",
+ "version": "1.0.0",
+ "summary": "A game loop in modern C++: rooms in a map, commands, an inventory. Teaches the C++ standard library (map, vector, string) through a game.",
+ "tags": [
+  "c++",
+  "game",
+  "text-adventure",
+  "console",
+  "stl"
+ ],
+ "files": {
+  "main.cpp": "main.cpp"
+ },
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-Wall",
+   "-Wextra",
+   "-Werror",
+   "main.cpp",
+   "-o",
+   "t.exe"
+  ],
+  "then": "t.exe",
+  "input": "go north\ntake bucket\ngo east\ntake lamp\nbag\nquit\n"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ]
+}

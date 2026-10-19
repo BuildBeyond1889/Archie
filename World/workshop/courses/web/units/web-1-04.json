@@ -1,0 +1,174 @@
+{
+ "id": "web-1-04",
+ "level": 1,
+ "title": "Style with CSS",
+ "concepts": [
+  "css"
+ ],
+ "skills": [
+  "css",
+  "selectors",
+  "colour",
+  "type"
+ ],
+ "lesson": "**CSS** says how things look. A **rule** is a **selector** (which elements) and **declarations** (property: value):\n\n```\nbody { font-family: system-ui, sans-serif; color: #222; background: #fafafa; }\nh1 { color: #2a6f97; }\n.card { border: 1px solid #ccc; padding: 12px; }\n#total { font-weight: bold; }\n```\n\n- `h1` picks every h1; `.card` every element with `class=\"card\"`; `#total` the one with `id=\"total\"`. `.card h2` picks h2s inside cards.\n- Put CSS in a `<style>` element in the head, or in a separate file linked with `<link rel=\"stylesheet\" href=\"style.css\">` (better once a site has several pages).\n- Colours: names (`red`), hex (`#2a6f97`), or `rgb(42, 111, 151)`. Keep strong contrast between text and background: people read phones in bright sun.\n- Text: `font-family` (a list, with a generic fallback last), `font-size` (`rem` units scale with the reader's settings: `1.25rem`), `font-weight`, `line-height` (1.5 is comfortable).\n\nWhen two rules disagree, the more specific selector wins (`#id` beats `.class` beats `tag`), and among equals, the later one wins: that's the \"cascade\" in Cascading Style Sheets.",
+ "example": {
+  "file": "example.html",
+  "code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<style>\nbody { font-family: system-ui, sans-serif; color: #222; background: #fafafa; line-height: 1.5; }\nh1 { color: #2a6f97; }\n.card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 10px 0; }\n.card h2 { margin: 0 0 4px; font-size: 1.1rem; }\n</style>\n</head>\n<body>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</body>\n</html>\n",
+  "notes": [
+   "Rules for the whole page.",
+   "A class rule for every card.",
+   "A descendant rule: h2s inside cards."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Style the market page",
+   "file": "ex1_style.html",
+   "prompt": "Add a <style> in the head: body with a font-family and a line-height, h1 with a color, and a .card rule with a border and padding.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n</head>\n<body>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "css": "body",
+       "prop": "font-family"
+      },
+      {
+       "css": "body",
+       "prop": "line-height"
+      }
+     ],
+     "name": "body font and line height"
+    },
+    {
+     "html": [
+      {
+       "css": "h1",
+       "prop": "color"
+      }
+     ],
+     "name": "h1 colour"
+    },
+    {
+     "html": [
+      {
+       "css": ".card",
+       "prop": "border"
+      },
+      {
+       "css": ".card",
+       "prop": "padding"
+      }
+     ],
+     "name": "card border and padding"
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "<style> goes inside <head>, before </head>.",
+    ".card { border: 1px solid #ccc; padding: 12px; }"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<style>\nbody { font-family: system-ui, sans-serif; line-height: 1.5; }\nh1 { color: #2a6f97; }\n.card { border: 1px solid #ccc; padding: 12px; }\n</style>\n</head>\n<body>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</body>\n</html>\n"
+  },
+  {
+   "id": "e2",
+   "title": "A separate stylesheet",
+   "file": "ex2_linked.html",
+   "prompt": "Move the look into its own file: link style.css (already in this folder, empty) from the head, and in style.css give .card a background and a border-radius.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n</head>\n<body>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "link[rel=stylesheet]"
+      }
+     ],
+     "name": "links the stylesheet"
+    },
+    {
+     "html": [
+      {
+       "css": ".card",
+       "prop": "background"
+      },
+      {
+       "css": ".card",
+       "prop": "border-radius"
+      }
+     ],
+     "name": "style.css styles the cards"
+    },
+    {
+     "clean": true,
+     "name": "no errors (and the file is found)"
+    }
+   ],
+   "hints": [
+    "<link rel=\"stylesheet\" href=\"style.css\"> inside the head.",
+    "Open style.css and write .card { background: white; border-radius: 8px; }"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Market</title>\n<link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n<h1>Market</h1>\n<div class=\"card\"><h2>Maize</h2><p>55 KSh a kilo</p></div>\n<div class=\"card\"><h2>Beans</h2><p>120 KSh a kilo</p></div>\n<div class=\"card\"><h2>Kale</h2><p>30 KSh a bunch</p></div>\n</body>\n</html>\n",
+   "extra_files": {
+    "style.css": "/* write the card style here */\n"
+   },
+   "solution_files": {
+    "style.css": ".card { background: white; border-radius: 8px; }\n"
+   }
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Which selector picks elements with class=\"card\"?",
+   "choices": [
+    "card",
+    "#card",
+    ".card",
+    "*card"
+   ],
+   "answer": 2,
+   "why": ". for classes, # for ids."
+  },
+  {
+   "q": "#price { color: red } and .price { color: blue } both match. Which wins?",
+   "choices": [
+    "blue",
+    "red: an id is more specific",
+    "whichever is first",
+    "neither"
+   ],
+   "answer": 1,
+   "why": "id beats class."
+  },
+  {
+   "q": "Why rem for font sizes?",
+   "choices": [
+    "It's shorter",
+    "It scales with the reader's own text-size setting",
+    "It's required",
+    "It's bigger"
+   ],
+   "answer": 1,
+   "why": "Respects the reader's settings."
+  }
+ ],
+ "cards": [
+  {
+   "q": "A CSS rule?",
+   "a": "selector { property: value; }"
+  },
+  {
+   "q": "Class vs id selector?",
+   "a": ".name for classes (many), #name for an id (one)."
+  },
+  {
+   "q": "Link a stylesheet?",
+   "a": "<link rel=\"stylesheet\" href=\"style.css\"> in the head"
+  }
+ ],
+ "explain": "Explain style with css to someone who has never programmed, in your own words, with an example you make up."
+}

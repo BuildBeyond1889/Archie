@@ -1,0 +1,182 @@
+{
+ "name": "Water tank level alarm",
+ "lang": "Arduino",
+ "summary": "An ultrasonic sensor above the tank measures the water level. A buzzer sounds when the tank is nearly full (and can switch off the filling pump through a relay) or nearly empty, and every reading goes to the computer as CSV.",
+ "for": "schools, clinics, farms, homes with rooftop or borehole tanks",
+ "cheap": "Arduino Nano clone + HC-SR04 + buzzer + relay module: roughly KSh 1,500-2,500 in parts.",
+ "parts": [
+  "Arduino Uno or Nano",
+  "HC-SR04 (JSN-SR04T for closed tanks)",
+  "buzzer",
+  "5 V relay module (optional, for the pump)",
+  "jumper wires",
+  "USB cable or 5 V supply"
+ ],
+ "tags": [
+  "water",
+  "tank",
+  "alarm",
+  "level",
+  "pump",
+  "borehole",
+  "arduino",
+  "school",
+  "clinic"
+ ],
+ "shell": "ino-shell",
+ "blocks": [
+  "ino-timer",
+  "ino-ultrasonic",
+  "ino-buzzer",
+  "ino-relay",
+  "ino-csvlog"
+ ],
+ "files": {
+  "sketch/sketch.ino": "sketch/sketch.ino"
+ },
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-fsyntax-only",
+   "-x",
+   "c++",
+   "-include",
+   "Arduino.h",
+   "sketch/sketch.ino"
+  ],
+  "stub": true
+ },
+ "version": "1.1.0",
+ "guide": {
+  "main": "sketch/sketch.ino",
+  "order": [
+   "sketch/sketch.ino",
+   "sketch/ultrasonic.h",
+   "sketch/alarm.h",
+   "sketch/relay.h",
+   "sketch/every.h",
+   "sketch/csvlog.h"
+  ],
+  "overview": "An ultrasonic sensor above the tank sends a click of sound down and times the echo off the water: the further the water, the longer it takes. From that and your tank's size it works out how full the tank is. Near full it beeps fast and switches off the filling pump; near empty it beeps slowly; if the sensor stops answering it beeps SOS instead of guessing. Every 5 seconds a CSV line goes to the computer.\n\nsketch.ino holds your tank's measurements and the decisions. The blocks: ultrasonic.h (distance and tank %), alarm.h (beep patterns that don't stop the program), relay.h (the pump, with a 30-minute limit so a leak can't empty a borehole), every.h (timing) and csvlog.h (the log).",
+  "wiring": [
+   [
+    "HC-SR04 VCC / GND",
+    "5V / GND",
+    ""
+   ],
+   [
+    "HC-SR04 TRIG",
+    "pin 9",
+    ""
+   ],
+   [
+    "HC-SR04 ECHO",
+    "pin 10",
+    ""
+   ],
+   [
+    "Buzzer +",
+    "pin 8",
+    "other leg to GND"
+   ],
+   [
+    "Relay IN",
+    "pin 7",
+    "optional: switches the filling pump"
+   ]
+  ],
+  "files": [
+   {
+    "file": "sketch/sketch.ino",
+    "why": "Your tank's measurements at the top, then the decisions: full, empty, sensor trouble.",
+    "points": [
+     {
+      "find": "SENSOR_TO_BOTTOM_CM",
+      "note": "Measure with a tape from the sensor down to the empty floor, and down to where the water is when full. Everything else is worked out from these."
+     },
+     {
+      "find": "if (level < 0)",
+      "note": "-1 means no echo came back. Three in a row and it sounds SOS: a loose or wet sensor should never look like an empty or full tank."
+     },
+     {
+      "find": "pump.off();",
+      "note": "Full: stop filling first, then alarm. Safety actions before notifications."
+     },
+     {
+      "find": "pump.tripped()",
+      "note": "If the pump ran 30 minutes and the tank still isn't full, something's wrong (a leak, a broken pipe): SOS."
+     }
+    ]
+   }
+  ],
+  "starter": "// Water tank alarm: you build it step by step.\n#include \"every.h\"\n#include \"ultrasonic.h\"\n#include \"alarm.h\"\n#include \"relay.h\"\n#include \"csvlog.h\"\n// archie:includes\n\nvoid setup() {\n}\n\nvoid loop() {\n}\n",
+  "lessons": [
+   {
+    "title": "Measure a distance",
+    "concept": "sensors and timing",
+    "explain": "The HC-SR04 sends a burst of ultrasound and measures how long the echo takes. Sound travels 0.0343 cm per microsecond, there and back, so distance = time × 0.0343 / 2. The Ultrasonic block does that and takes the middle of 5 readings to ignore odd echoes.",
+    "task": "Make Ultrasonic sonar(9, 10), a CsvLog with header \"seconds,cm\" and Every measure(1000). setup(): sonar.begin() and logger.begin(9600). loop(): when ready, log millis()/1000 and sonar.cm().",
+    "check": "It compiles; the Serial Monitor shows the distance to your hand changing as you move it.",
+    "must": [
+     "Ultrasonic sonar(",
+     "sonar.begin()",
+     "sonar.cm()"
+    ],
+    "code": "Ultrasonic sonar(9, 10);\nCsvLog logger(\"seconds,cm\");\nEvery measure(1000);\n\nvoid setup() {\n  sonar.begin();\n  logger.begin(9600);\n}\n\nvoid loop() {\n  if (!measure.ready()) return;\n  logger.row(millis() / 1000, sonar.cm());\n}"
+   },
+   {
+    "title": "From distance to tank level",
+    "concept": "converting measurements",
+    "explain": "With two measurements of your tank (sensor to empty floor, sensor to full water line) any distance becomes a percentage. TankLevel does the arithmetic and returns -1 when the sensor gives nothing.",
+    "task": "Add const float SENSOR_TO_BOTTOM_CM = 150 and SENSOR_TO_FULL_CM = 20, make TankLevel tank(sonar, SENSOR_TO_BOTTOM_CM, SENSOR_TO_FULL_CM), and log tank.percent() instead of the raw distance (header \"seconds,level_percent\").",
+    "check": "It compiles; the level reads 0-100%.",
+    "must": [
+     "SENSOR_TO_BOTTOM_CM",
+     "TankLevel tank(",
+     "tank.percent()"
+    ],
+    "code": "const float SENSOR_TO_BOTTOM_CM = 150, SENSOR_TO_FULL_CM = 20;\nTankLevel tank(sonar, SENSOR_TO_BOTTOM_CM, SENSOR_TO_FULL_CM);\n...\nlogger.row(millis() / 1000, tank.percent());"
+   },
+   {
+    "title": "Alarms",
+    "concept": "non-blocking output",
+    "explain": "An alarm that used delay() to beep would freeze everything else. The Alarm block keeps its own clock: you start a pattern and call update() every loop.",
+    "task": "Make Alarm alarm(8); alarm.begin() in setup(); alarm.update() at the very top of loop(). When the level is ≥ 95 start Alarm::FAST (if not already running), ≤ 10 start Alarm::SLOW, otherwise alarm.stop().",
+    "check": "It compiles; the buzzer beeps when the level is very high or very low.",
+    "must": [
+     "Alarm alarm(",
+     "alarm.update()",
+     "Alarm::FAST",
+     "alarm.stop()"
+    ],
+    "code": "if (level >= 95) {\n  if (!alarm.running()) alarm.start(Alarm::FAST);\n} else if (level <= 10) {\n  if (!alarm.running()) alarm.start(Alarm::SLOW);\n} else {\n  alarm.stop();\n}"
+   },
+   {
+    "title": "Trust, but check the sensor",
+    "concept": "failing safe",
+    "explain": "A sensor that's unplugged or wet gives no echo. A good device says 'I can't see' instead of pretending the tank is empty. Count failures in a row and sound SOS after three.",
+    "task": "Add int sensorFails = 0. If tank.percent() is -1, add one and after 3 start Alarm::SOS, log -1, and return. Otherwise reset sensorFails to 0.",
+    "check": "It compiles; unplugging TRIG makes it sound SOS after about 15 seconds.",
+    "must": [
+     "sensorFails",
+     "Alarm::SOS"
+    ],
+    "code": "int level = tank.percent();\nif (level < 0) {\n  if (++sensorFails >= 3) alarm.start(Alarm::SOS);\n  logger.row(millis() / 1000, -1);\n  return;\n}\nsensorFails = 0;"
+   },
+   {
+    "title": "Stop the pump when full",
+    "concept": "relays and safety limits",
+    "explain": "If a pump fills the tank, switch it off when full. Its own safety limit (30 minutes) catches leaks and broken pipes.",
+    "task": "Make Relay pump(7, true, 30UL * 60UL * 1000UL); pump.begin() in setup(); pump.update() at the top of loop(). When the level is ≥ 95 call pump.off() before the alarm. If pump.tripped() start Alarm::SOS.",
+    "check": "It compiles; at full, the relay switches off.",
+    "must": [
+     "Relay pump(",
+     "pump.off()",
+     "pump.tripped()"
+    ],
+    "code": "Relay pump(7, true, 30UL * 60UL * 1000UL);\n...\nif (level >= 95) {\n  pump.off();\n  if (!alarm.running()) alarm.start(Alarm::FAST);\n}\n...\nif (pump.tripped()) alarm.start(Alarm::SOS);"
+   }
+  ]
+ }
+}

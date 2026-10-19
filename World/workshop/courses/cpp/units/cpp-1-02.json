@@ -1,0 +1,124 @@
+{
+ "id": "cpp-1-02",
+ "level": 1,
+ "title": "Variables and types",
+ "concepts": [
+  "variables",
+  "types"
+ ],
+ "skills": [
+  "variables",
+  "types"
+ ],
+ "bridge": "C++ declares a type for every variable, like Java and C#: `int kg = 40; double price = 55.5; bool sold = false; char grade = 'A'; std::string crop = \"maize\";`. `auto` lets the compiler work it out. Watch out: `7 / 2` is `3` (whole numbers), `7.0 / 2` is `3.5`.",
+ "lesson": "Every variable in C++ has a **type** that never changes:\n\n```\nint harvestKg = 40;          // whole numbers\ndouble pricePerKg = 55.5;    // decimals\nbool sold = false;           // true / false\nchar grade = 'A';            // one character, single quotes\nstd::string crop = \"maize\";  // text (needs #include <string>)\nconst double Rate = 130.0;   // can't be changed later\nauto count = 3;              // compiler works out: int\n```\n\n**The integer division trap.** When both sides are `int`, C++ does whole-number division and throws away the rest:\n\n```\nint total = 7, count = 2;\ndouble a = total / count;            // 3   (the .5 was lost BEFORE storing)\ndouble b = (double)total / count;    // 3.5 (convert first)\ndouble c = static_cast<double>(total) / count;  // 3.5, the modern way to write it\n```\n\n`%` gives the remainder: `7 % 2` is `1`.\n\nVariables that are never given a value hold **garbage** in C++ (whatever was in that memory). Always initialise them. This is one of the classic C++ bugs.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <string>\n\nint main()\n{\n    int total = 7, count = 2;\n    std::cout << total / count << \"\\n\";\n    std::cout << static_cast<double>(total) / count << \"\\n\";\n    std::cout << total % count << \"\\n\";\n    auto crop = std::string(\"maize\");\n    std::cout << crop << \" \" << crop.size() << \"\\n\";\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Total weight",
+   "file": "total.cpp",
+   "prompt": "Write int totalKg(int bags, int kgPerBag) that returns the total weight.",
+   "starter": "\nint totalKg(int bags, int kgPerBag)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "totalKg(3, 50)",
+     "expect": "150"
+    },
+    {
+     "call": "totalKg(0, 50)",
+     "expect": "0"
+    },
+    {
+     "call": "totalKg(7, 25)",
+     "expect": "175"
+    }
+   ],
+   "hints": [
+    "Multiply the two numbers.",
+    "return bags * kgPerBag;"
+   ],
+   "solution": "\nint totalKg(int bags, int kgPerBag)\n{\n    return bags * kgPerBag;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Average without losing the half",
+   "file": "average.cpp",
+   "prompt": "Write double average(int total, int count) that returns the exact average, e.g. average(7, 2) is 3.5.",
+   "starter": "\ndouble average(int total, int count)\n{\n    return total / count;\n}\n",
+   "tests": [
+    {
+     "call": "average(7, 2)",
+     "expect": "3.5",
+     "hint_if_fail": "7 / 2 with two ints is 3. Convert one side to double first."
+    },
+    {
+     "call": "average(9, 3)",
+     "expect": "3"
+    },
+    {
+     "call": "average(1, 4)",
+     "expect": "0.25"
+    }
+   ],
+   "hints": [
+    "Both are int, so / throws away the .5.",
+    "return static_cast<double>(total) / count;"
+   ],
+   "solution": "\ndouble average(int total, int count)\n{\n    return static_cast<double>(total) / count;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is 7 / 2 in C++ when both are int?",
+   "choices": [
+    "3.5",
+    "3",
+    "4",
+    "an error"
+   ],
+   "answer": 1,
+   "why": "Whole-number division drops the remainder."
+  },
+  {
+   "q": "What's in int x; before you set it?",
+   "choices": [
+    "0",
+    "Garbage: whatever was in memory",
+    "null",
+    "It won't compile"
+   ],
+   "answer": 1,
+   "why": "Uninitialised locals hold leftover memory. Always initialise."
+  },
+  {
+   "q": "Which holds text?",
+   "choices": [
+    "char",
+    "std::string",
+    "int",
+    "bool"
+   ],
+   "answer": 1,
+   "why": "char holds one character; std::string holds text."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Exact division of two ints?",
+   "a": "static_cast<double>(a) / b"
+  },
+  {
+   "q": "Remainder operator?",
+   "a": "%"
+  },
+  {
+   "q": "Let the compiler pick the type?",
+   "a": "auto x = ...;"
+  }
+ ],
+ "explain": "Explain variables and types to someone who has never programmed, in your own words, with an example you make up."
+}

@@ -1,0 +1,126 @@
+{
+ "id": "c-1-08",
+ "level": 1,
+ "title": "Strings",
+ "concepts": [
+  "strings"
+ ],
+ "skills": [
+  "char arrays",
+  "string.h"
+ ],
+ "bridge": "A C string is an array of `char` ending with a hidden `'\\0'` (zero) that marks the end. `strlen(s)` counts up to it; `strcpy`, `strcat`, `strcmp` come from `<string.h>`. You can't use `==` to compare strings (that compares addresses): use `strcmp(a, b) == 0`.",
+ "lesson": "```\nchar crop[10] = \"maize\";   /* m a i z e \\0, with room to spare */\nstrlen(crop);              /* 5: counts up to the \\0 */\ncrop[0] = 'M';             /* \"Maize\" */\n```\n\nThe `'\\0'` at the end is how every string function knows where to stop. If it's missing, they keep reading into random memory.\n\nFrom `<string.h>`:\n\n```\nstrcmp(a, b) == 0      /* same text? (NOT a == b) */\nstrcpy(dest, src);     /* copy: dest must be big enough! */\nstrcat(dest, src);     /* add on the end: same warning */\n```\n\nFrom `<ctype.h>`: `toupper(c)`, `tolower(c)`, `isdigit(c)`, `isalpha(c)`, `isspace(c)`.\n\nWalking a string is a loop until the `\\0`:\n\n```\nfor (int i = 0; s[i] != '\\0'; i++) {\n    s[i] = toupper(s[i]);\n}\n```\n\n`const char *s` means \"a string I'll only read\". A string literal like `\"maize\"` must not be changed, so functions that change text need a real array (`char s[] = \"maize\";`).",
+ "example": {
+  "file": "example.c",
+  "code": "#include <stdio.h>\n#include <string.h>\n#include <ctype.h>\n\nint main(void)\n{\n    char crop[20] = \"maize\";\n    printf(\"%s has %zu letters\\n\", crop, strlen(crop));\n    for (int i = 0; crop[i] != '\\0'; i++) crop[i] = toupper(crop[i]);\n    strcat(crop, \" FLOUR\");\n    printf(\"%s\\n\", crop);\n    printf(\"same? %d\\n\", strcmp(crop, \"MAIZE FLOUR\") == 0);\n    return 0;\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Count vowels",
+   "file": "vowels.c",
+   "prompt": "Write int count_vowels(const char *s): how many a, e, i, o, u (either case).",
+   "starter": "int count_vowels(const char *s)\n{\n    return 0;\n}\n",
+   "tests": [
+    {
+     "call": "count_vowels(\"sensor\")",
+     "expect": "2"
+    },
+    {
+     "call": "count_vowels(\"AEIOU\")",
+     "expect": "5",
+     "hint_if_fail": "Use tolower(c) so capitals count."
+    },
+    {
+     "call": "count_vowels(\"\")",
+     "expect": "0"
+    }
+   ],
+   "hints": [
+    "for (int i = 0; s[i] != '\\0'; i++)",
+    "char c = tolower(s[i]); if (c == 'a' || ...) n++;"
+   ],
+   "solution": "#include <ctype.h>\n\nint count_vowels(const char *s)\n{\n    int n = 0;\n    for (int i = 0; s[i] != '\\0'; i++) {\n        char c = tolower(s[i]);\n        if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') n++;\n    }\n    return n;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Shout in place",
+   "file": "shout.c",
+   "prompt": "Write char *shout(char *s) that changes s to capitals in place and returns s.",
+   "starter": "char *shout(char *s)\n{\n    return s;\n}\n",
+   "tests": [
+    {
+     "call": "shout((char[]){\"pump on\"})",
+     "fmt": "%s",
+     "expect": "PUMP ON"
+    },
+    {
+     "call": "shout((char[]){\"Tank 3\"})",
+     "fmt": "%s",
+     "expect": "TANK 3"
+    },
+    {
+     "call": "shout((char[]){\"\"})",
+     "fmt": "[%s]",
+     "expect": "[]"
+    }
+   ],
+   "hints": [
+    "Loop to the '\\0', changing each char.",
+    "s[i] = toupper(s[i]);"
+   ],
+   "solution": "#include <ctype.h>\n\nchar *shout(char *s)\n{\n    for (int i = 0; s[i] != '\\0'; i++) s[i] = toupper(s[i]);\n    return s;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "How does C know where a string ends?",
+   "choices": [
+    "It stores the length",
+    "A '\\0' character after the last letter",
+    "A new line",
+    "It doesn't"
+   ],
+   "answer": 1,
+   "why": "The null terminator."
+  },
+  {
+   "q": "Compare two C strings for equal text?",
+   "choices": [
+    "a == b",
+    "strcmp(a, b) == 0",
+    "a.equals(b)",
+    "strlen(a) == strlen(b)"
+   ],
+   "answer": 1,
+   "why": "== compares addresses."
+  },
+  {
+   "q": "char s[5] = \"maize\"; is...",
+   "choices": [
+    "fine",
+    "too small: maize needs 6 chars with the \\0",
+    "a warning only on Arduino",
+    "a pointer"
+   ],
+   "answer": 1,
+   "why": "5 letters + \\0."
+  }
+ ],
+ "cards": [
+  {
+   "q": "End of a C string?",
+   "a": "'\\0'"
+  },
+  {
+   "q": "Length?",
+   "a": "strlen(s)  (from string.h)"
+  },
+  {
+   "q": "Same text?",
+   "a": "strcmp(a, b) == 0"
+  }
+ ],
+ "explain": "Explain strings to someone who has never programmed, in your own words, with an example you make up."
+}

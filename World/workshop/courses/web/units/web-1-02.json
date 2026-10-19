@@ -1,0 +1,176 @@
+{
+ "id": "web-1-02",
+ "level": 1,
+ "title": "Links, images and lists",
+ "concepts": [
+  "html"
+ ],
+ "skills": [
+  "html",
+  "links",
+  "images",
+  "lists",
+  "accessibility"
+ ],
+ "lesson": "**Lists:** `<ul>` is a bulleted list, `<ol>` a numbered one; each item is an `<li>`.\n\n**Links:** `<a href=\"https://www.kiwix.org\">Kiwix</a>`. The `href` **attribute** says where it goes; the text between the tags is what people click. Links to other pages in your own folder are just the file name: `<a href=\"crops.html\">Crops</a>`. Write link text that makes sense on its own (\"the planting calendar\", not \"click here\"): people using screen readers often jump from link to link.\n\n**Images:** `<img src=\"maize.svg\" alt=\"A young maize plant\">`. `img` has no closing tag. `src` is the file; `alt` describes the picture for people who can't see it, for screen readers, and for when the image fails to load on a slow connection. Every image needs `alt`; a purely decorative one gets `alt=\"\"`.\n\n**Attributes** go inside the opening tag as `name=\"value\"`. You've now seen `lang`, `charset`, `href`, `src` and `alt`; `id` and `class` (names for styling and scripts) come next.",
+ "example": {
+  "file": "example.html",
+  "code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Our crops</title>\n</head>\n<body>\n<h1>Our crops</h1>\n<img src=\"maize.svg\" alt=\"A young maize plant\" width=\"120\">\n<ul>\n  <li>Maize</li>\n  <li>Beans</li>\n  <li>Sukuma wiki</li>\n</ul>\n<ol>\n  <li>Prepare the soil</li>\n  <li>Plant after the first rains</li>\n</ol>\n<p>Read more on <a href=\"https://www.appropedia.org\">Appropedia</a>.</p>\n</body>\n</html>\n",
+  "notes": [
+   "An image with alt text.",
+   "A bulleted list.",
+   "A numbered list for steps.",
+   "A link with meaningful text."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A crop list",
+   "file": "ex1_list.html",
+   "prompt": "Make an h1 \"Crops\", a bulleted list of at least 4 crops, and a numbered list of at least 3 planting steps.",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Crops</title>\n</head>\n<body>\n\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "text": "h1",
+       "contains": "Crops"
+      }
+     ],
+     "name": "the heading"
+    },
+    {
+     "html": [
+      {
+       "has": "ul li",
+       "min": 4
+      }
+     ],
+     "name": "4+ crops in a bulleted list"
+    },
+    {
+     "html": [
+      {
+       "has": "ol li",
+       "min": 3
+      }
+     ],
+     "name": "3+ steps in a numbered list"
+    },
+    {
+     "clean": true,
+     "name": "no errors"
+    }
+   ],
+   "hints": [
+    "<ul> with <li> items for the crops; <ol> with <li> items for the steps."
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Crops</title>\n</head>\n<body>\n<h1>Crops</h1>\n<ul><li>Maize</li><li>Beans</li><li>Kale</li><li>Tomatoes</li></ul>\n<ol><li>Clear the bed</li><li>Add compost</li><li>Plant</li></ol>\n</body>\n</html>\n"
+  },
+  {
+   "id": "e2",
+   "title": "Image and links",
+   "file": "ex2_links.html",
+   "prompt": "Show the picture maize.svg (it's in this folder) with a good alt description, and add two links: one to https://www.kiwix.org with the text \"Kiwix\" and one to ex1_list.html with the text \"my crop list\".",
+   "starter": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Resources</title>\n</head>\n<body>\n<h1>Resources</h1>\n</body>\n</html>\n",
+   "tests": [
+    {
+     "html": [
+      {
+       "has": "img"
+      },
+      {
+       "attr": "img",
+       "needs": "alt"
+      }
+     ],
+     "name": "image with alt text"
+    },
+    {
+     "html": [
+      {
+       "has": "a[href=https://www.kiwix.org]"
+      },
+      {
+       "text": "a",
+       "contains": "Kiwix"
+      }
+     ],
+     "name": "the Kiwix link"
+    },
+    {
+     "html": [
+      {
+       "has": "a[href=ex1_list.html]"
+      }
+     ],
+     "name": "the link to your list"
+    },
+    {
+     "clean": true,
+     "name": "no errors (and the image file is found)"
+    }
+   ],
+   "hints": [
+    "<img src=\"maize.svg\" alt=\"...\">",
+    "<a href=\"https://www.kiwix.org\">Kiwix</a> and <a href=\"ex1_list.html\">my crop list</a>"
+   ],
+   "solution": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Resources</title>\n</head>\n<body>\n<h1>Resources</h1>\n<img src=\"maize.svg\" alt=\"A young maize plant\">\n<p><a href=\"https://www.kiwix.org\">Kiwix</a> and <a href=\"ex1_list.html\">my crop list</a></p>\n</body>\n</html>\n",
+   "extra_files": {
+    "maize.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><rect width=\"100\" height=\"100\" fill=\"#cde8b5\"/><path d=\"M50 90 V30 M50 60 L30 40 M50 50 L70 30\" stroke=\"#3b7d23\" stroke-width=\"6\" fill=\"none\"/></svg>\n",
+    "ex1_list.html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Crops</title>\n</head>\n<body>\n<h1>Crops</h1>\n</body>\n</html>\n"
+   }
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why does every image need alt text?",
+   "choices": [
+    "Search engines require it",
+    "For people who can't see it, screen readers, and slow connections where it doesn't load",
+    "It makes it load faster",
+    "It's optional"
+   ],
+   "answer": 1,
+   "why": "Accessibility first."
+  },
+  {
+   "q": "Best link text?",
+   "choices": [
+    "click here",
+    "here",
+    "the planting calendar",
+    "link"
+   ],
+   "answer": 2,
+   "why": "Makes sense on its own."
+  },
+  {
+   "q": "Which tag needs no closing tag?",
+   "choices": [
+    "<p>",
+    "<li>",
+    "<img>",
+    "<a>"
+   ],
+   "answer": 2,
+   "why": "img is a 'void' element."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Link syntax?",
+   "a": "<a href=\"page.html\">text</a>"
+  },
+  {
+   "q": "Image syntax?",
+   "a": "<img src=\"file\" alt=\"description\">"
+  },
+  {
+   "q": "Bulleted vs numbered list?",
+   "a": "<ul> vs <ol>, items in <li>"
+  }
+ ],
+ "explain": "Explain links, images and lists to someone who has never programmed, in your own words, with an example you make up."
+}

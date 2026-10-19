@@ -1,0 +1,112 @@
+{
+ "id": "cs-1-11",
+ "level": 1,
+ "title": "Classes and properties",
+ "concepts": [
+  "classes"
+ ],
+ "skills": [
+  "classes",
+  "objects",
+  "properties"
+ ],
+ "bridge": "C# classes have fields, constructors and methods like Java, plus **properties**: `public int Health { get; private set; }` reads like a field but controls who can change it.",
+ "lesson": "```\npublic class Enemy\n{\n    public string Name { get; }                  // read-only property, set in the constructor\n    public int Health { get; private set; }      // anyone can read, only Enemy can change\n\n    public Enemy(string name, int health)\n    {\n        Name = name;\n        Health = health;\n    }\n\n    public bool IsDead => Health <= 0;           // a computed property\n\n    public void TakeDamage(int amount)\n    {\n        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        Health = Math.Max(0, Health - amount);\n    }\n\n    public override string ToString() => $\"{Name} ({Health} HP)\";\n}\n\nvar goblin = new Enemy(\"Goblin\", 30);\ngoblin.TakeDamage(12);\nConsole.WriteLine(goblin);      // Goblin (18 HP)\n```\n\n- **Properties** (`{ get; private set; }`) are C#'s answer to Java's getters and setters: other code reads `goblin.Health` but can't write it, so health can never go negative by accident.\n- `=>` makes one-line members.\n- `ToString()` controls how it prints.\n\nThis is exactly how Unity scripts are shaped: a class per kind of thing (enemy, turret, player), fields for its state, methods for what it does.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\n\npublic class Enemy\n{\n    public string Name { get; }\n    public int Health { get; private set; }\n    public Enemy(string name, int health) { Name = name; Health = health; }\n    public bool IsDead => Health <= 0;\n    public void TakeDamage(int amount) => Health = Math.Max(0, Health - amount);\n    public override string ToString() => $\"{Name} ({Health} HP)\";\n}\n\nclass Program\n{\n    static void Main()\n    {\n        var g = new Enemy(\"Goblin\", 30);\n        g.TakeDamage(12);\n        Console.WriteLine(g + \" dead? \" + g.IsDead);\n        g.TakeDamage(50);\n        Console.WriteLine(g + \" dead? \" + g.IsDead);\n    }\n}\n"
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "An enemy",
+   "file": "Enemy.cs",
+   "prompt": "Make class Enemy with a read-only Name, Health with a private setter, a constructor Enemy(string name, int health), TakeDamage(int amount) (never below 0; negative amounts throw ArgumentOutOfRangeException), Heal(int amount) (never above the starting health), IsDead, and ToString() like \"Goblin (18 HP)\".",
+   "starter": "using System;\n\npublic class Enemy\n{\n}\n",
+   "tests": [
+    {
+     "call": "new Enemy(\"Goblin\", 30)",
+     "expect": "Goblin (30 HP)"
+    },
+    {
+     "call": "((Func<string>)(() => { var e = new Enemy(\"Goblin\", 30); e.TakeDamage(12); return e.ToString() + \" \" + e.IsDead; }))()",
+     "expect": "Goblin (18 HP) False"
+    },
+    {
+     "call": "((Func<string>)(() => { var e = new Enemy(\"Orc\", 20); e.TakeDamage(50); e.Heal(5); return e.Health + \" \" + e.IsDead; }))()",
+     "expect": "5 False"
+    },
+    {
+     "call": "((Func<string>)(() => { var e = new Enemy(\"Orc\", 20); e.TakeDamage(5); e.Heal(100); return e.Health.ToString(); }))()",
+     "expect": "20",
+     "hidden": true,
+     "hint_if_fail": "Heal never goes above the starting health: keep it in a field."
+    },
+    {
+     "call": "((Func<int>)(() => { new Enemy(\"x\", 5).TakeDamage(-1); return 0; }))()",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true
+    },
+    {
+     "src_has": "private set",
+     "why": "Health should have a private setter."
+    }
+   ],
+   "hints": [
+    "public int Health { get; private set; }  and a private readonly int maxHealth;",
+    "Heal: Health = Math.Min(maxHealth, Health + amount);"
+   ],
+   "solution": "using System;\n\npublic class Enemy\n{\n    private readonly int maxHealth;\n    public string Name { get; }\n    public int Health { get; private set; }\n\n    public Enemy(string name, int health)\n    {\n        Name = name;\n        Health = maxHealth = health;\n    }\n\n    public bool IsDead => Health <= 0;\n\n    public void TakeDamage(int amount)\n    {\n        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));\n        Health = Math.Max(0, Health - amount);\n    }\n\n    public void Heal(int amount) => Health = Math.Min(maxHealth, Health + amount);\n\n    public override string ToString() => $\"{Name} ({Health} HP)\";\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "public int Health { get; private set; } means…",
+   "choices": [
+    "anyone can change it",
+    "anyone can read it, only the class can change it",
+    "nobody can read it",
+    "it's a method"
+   ],
+   "answer": 1,
+   "why": "Read outside, write inside."
+  },
+  {
+   "q": "Why not a public field for Health?",
+   "choices": [
+    "Speed",
+    "Other code could set it to -50; the class can't protect its rules",
+    "C# forbids it",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "Encapsulation."
+  },
+  {
+   "q": "How is a Unity script shaped?",
+   "choices": [
+    "One big Main",
+    "A class with state (fields) and methods the engine calls",
+    "Only static methods",
+    "HTML"
+   ],
+   "answer": 1,
+   "why": "MonoBehaviour classes."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Read-only outside, writable inside?",
+   "a": "{ get; private set; }"
+  },
+  {
+   "q": "Computed property?",
+   "a": "public bool IsDead => Health <= 0;"
+  },
+  {
+   "q": "Custom printing?",
+   "a": "public override string ToString()"
+  }
+ ],
+ "explain": "Explain classes and properties to someone who has never programmed, in your own words, with an example you make up."
+}

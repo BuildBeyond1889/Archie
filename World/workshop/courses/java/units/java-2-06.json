@@ -1,0 +1,242 @@
+{
+ "id": "java-2-06",
+ "level": 2,
+ "title": "Generics",
+ "concepts": [
+  "generics",
+  "collections",
+  "interfaces"
+ ],
+ "skills": [
+  "generics",
+  "type safety",
+  "bounded types"
+ ],
+ "lesson": "You've used generics since Level 1: `ArrayList<String>`, `HashMap<String, Integer>`. The `<...>` part is a **type parameter**: the list is written once by the Java team, and you choose what it holds. Now you'll write your own.\n\n**Why generics exist.** Without them, a list would hold `Object`, and every time you took something out you'd cast it and hope: `String s = (String) list.get(0);`. Put a number in by mistake and the program crashes later, far from the bug. With `List<String>`, the compiler refuses the number on the spot. Generics move mistakes from run time to compile time, and save you the casts.\n\n**A generic class** names its type parameters after the class name:\n\n```\npublic class Pair<A, B> {\n    private final A first;\n    private final B second;\n    public Pair(A first, B second) { this.first = first; this.second = second; }\n    public A first() { return first; }\n    public B second() { return second; }\n}\n\nPair<String, Integer> p = new Pair<>(\"maize\", 40);\nint kg = p.second();          // no cast needed\n```\n\n`A` and `B` are placeholders; each use fills them in. `new Pair<>(...)` (the \"diamond\") lets Java work out the types.\n\n**A generic method** declares its own type parameter before the return type:\n\n```\nstatic <T> T firstOr(List<T> items, T fallback) {\n    return items.isEmpty() ? fallback : items.get(0);\n}\n```\n\n**Bounded types.** To find the biggest item, you must be able to compare items. Not every type can. So you put a **bound** on T:\n\n```\nstatic <T extends Comparable<T>> T max(List<T> items) {\n    T best = items.get(0);\n    for (T x : items) if (x.compareTo(best) > 0) best = x;\n    return best;\n}\n```\n\n`<T extends Comparable<T>>` reads \"any T that can compare itself to another T\". Integer, Double and String all qualify, so one method works for all of them. Inside, you may call `compareTo` because the bound promises it exists. (In a bound, `extends` is used for interfaces too.)\n\nThings to know:\n- Type parameters must be classes: `List<Integer>`, never `List<int>`.\n- Name them with single capital letters by habit: `T` (type), `E` (element), `K`/`V` (key/value).\n- You can't do `new T()`; Java erases T when it runs.\n- `List<Slime>` is **not** a `List<Enemy>`, even though a Slime is an Enemy, because otherwise you could add an Archer to a list of slimes.\n\nIn real programs, generics are everywhere: a game's `ObjectPool<Bullet>`, a `Cache<K, V>`, an inventory `Counter<Item>`, a robot's `RingBuffer<Reading>`. Write it once, use it for any type, and keep the compiler on your side.",
+ "example": {
+  "file": "Example.java",
+  "code": "import java.util.ArrayList;\nimport java.util.List;\n\nclass Box<T> {\n    private final List<T> items = new ArrayList<>();\n    void put(T item) { items.add(item); }\n    T take() { return items.isEmpty() ? null : items.remove(items.size() - 1); }\n    int size() { return items.size(); }\n}\n\npublic class Example {\n    static <T extends Comparable<T>> T smallest(List<T> xs) {\n        T best = xs.get(0);\n        for (T x : xs) if (x.compareTo(best) < 0) best = x;\n        return best;\n    }\n\n    public static void main(String[] args) {\n        Box<String> seeds = new Box<>();\n        seeds.put(\"maize\");\n        seeds.put(\"beans\");\n        String s = seeds.take();         // no cast\n        System.out.println(s + \", \" + seeds.size() + \" left\");\n        // seeds.put(42);                // would not compile: the box holds Strings\n\n        System.out.println(smallest(List.of(7, 3, 9)));\n        System.out.println(smallest(List.of(\"rice\", \"beans\", \"maize\")));\n    }\n}\n",
+  "notes": [
+   "Box<T> works for any type; T is chosen when you make one.",
+   "take() returns T, so the caller gets a String without casting.",
+   "Putting 42 in a Box<String> is a compile error: the point of generics.",
+   "smallest has a bound: T must be Comparable, so compareTo is allowed.",
+   "The same method works for Integers and Strings."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "A Pair of anything",
+   "file": "Pair.java",
+   "prompt": "Finish generic class Pair<A, B>. first() and second() are done. Write swap() returning a new Pair<B, A> with the two swapped; <C> Pair<A, C> withSecond(C newSecond) returning a new pair with the same first and a new second; and toString() giving \"(maize, 40)\".",
+   "starter": "public class Pair<A, B> {\n    private final A first;\n    private final B second;\n\n    public Pair(A first, B second) {\n        this.first = first;\n        this.second = second;\n    }\n\n    public A first() { return first; }\n    public B second() { return second; }\n\n    public Pair<B, A> swap() {\n        return null;\n    }\n\n    public <C> Pair<A, C> withSecond(C newSecond) {\n        return null;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "new Pair<>(\"maize\", 40)",
+     "expect": "(maize, 40)"
+    },
+    {
+     "call": "new Pair<>(\"maize\", 40).swap()",
+     "expect": "(40, maize)"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Pair<String, Integer> p = new Pair<>(\"beans\", 12); Pair<Integer, String> q = p.swap(); int kg = q.first() + 3; return kg + \"\"; }).get()",
+     "expect": "15",
+     "name": "swap keeps the types"
+    },
+    {
+     "call": "new Pair<>(\"Amina\", 40).withSecond(true)",
+     "expect": "(Amina, true)"
+    },
+    {
+     "call": "new Pair<>(null, 1).swap()",
+     "expect": "(1, null)",
+     "hidden": true,
+     "name": "null inside a pair"
+    }
+   ],
+   "hints": [
+    "swap: return new Pair<>(second, first);",
+    "withSecond: return new Pair<>(first, newSecond);",
+    "@Override public String toString() { return \"(\" + first + \", \" + second + \")\"; }"
+   ],
+   "solution": "public class Pair<A, B> {\n    private final A first;\n    private final B second;\n\n    public Pair(A first, B second) {\n        this.first = first;\n        this.second = second;\n    }\n\n    public A first() { return first; }\n    public B second() { return second; }\n\n    // The types swap too: a Pair<String, Integer> becomes a Pair<Integer, String>.\n    public Pair<B, A> swap() {\n        return new Pair<>(second, first);\n    }\n\n    public <C> Pair<A, C> withSecond(C newSecond) {\n        return new Pair<>(first, newSecond);\n    }\n\n    @Override\n    public String toString() {\n        return \"(\" + first + \", \" + second + \")\";\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Best of anything",
+   "file": "Best.java",
+   "prompt": "Write generic methods in Best. static <T extends Comparable<T>> T max(List<T> items) and min(...) give the biggest / smallest item, or null for an empty list. static <T> T firstOr(List<T> items, T fallback) gives the first item or the fallback if empty. static <T extends Comparable<T>> boolean isSorted(List<T> items) is true if every item is <= the next (an empty or one-item list is sorted).",
+   "starter": "import java.util.List;\n\npublic class Best {\n    public static <T extends Comparable<T>> T max(List<T> items) {\n        return null;\n    }\n\n    public static <T extends Comparable<T>> T min(List<T> items) {\n        return null;\n    }\n\n    public static <T> T firstOr(List<T> items, T fallback) {\n        return null;\n    }\n\n    public static <T extends Comparable<T>> boolean isSorted(List<T> items) {\n        return false;\n    }\n}\n",
+   "tests": [
+    {
+     "call": "Best.max(java.util.List.of(3, 9, 2))",
+     "expect": "9"
+    },
+    {
+     "call": "Best.max(java.util.List.of(\"maize\", \"beans\", \"rice\"))",
+     "expect": "rice"
+    },
+    {
+     "call": "Best.min(java.util.List.of(4.5, 2.0, 8.25))",
+     "expect": "2.0"
+    },
+    {
+     "call": "Best.firstOr(java.util.List.of(\"Amina\", \"Juma\"), \"nobody\")",
+     "expect": "Amina"
+    },
+    {
+     "call": "Best.isSorted(java.util.List.of(1, 2, 2, 5))",
+     "expect": "true"
+    },
+    {
+     "call": "Best.isSorted(java.util.List.of(\"b\", \"a\"))",
+     "expect": "false"
+    },
+    {
+     "call": "Best.max(new java.util.ArrayList<Integer>())",
+     "expect": "null",
+     "hidden": true,
+     "name": "empty max"
+    },
+    {
+     "call": "Best.firstOr(new java.util.ArrayList<String>(), \"nobody\")",
+     "expect": "nobody",
+     "hidden": true
+    },
+    {
+     "call": "Best.isSorted(new java.util.ArrayList<Integer>())",
+     "expect": "true",
+     "hidden": true,
+     "name": "empty is sorted"
+    }
+   ],
+   "hints": [
+    "max: if (items.isEmpty()) return null; T best = items.get(0); then compareTo in a loop.",
+    "x.compareTo(best) > 0 means x is bigger.",
+    "isSorted: for i from 1, if items.get(i - 1).compareTo(items.get(i)) > 0 return false."
+   ],
+   "solution": "import java.util.List;\n\npublic class Best {\n    public static <T extends Comparable<T>> T max(List<T> items) {\n        if (items.isEmpty()) return null;\n        T best = items.get(0);\n        for (T x : items) if (x.compareTo(best) > 0) best = x;\n        return best;\n    }\n\n    public static <T extends Comparable<T>> T min(List<T> items) {\n        if (items.isEmpty()) return null;\n        T best = items.get(0);\n        for (T x : items) if (x.compareTo(best) < 0) best = x;\n        return best;\n    }\n\n    public static <T> T firstOr(List<T> items, T fallback) {\n        return items.isEmpty() ? fallback : items.get(0);\n    }\n\n    public static <T extends Comparable<T>> boolean isSorted(List<T> items) {\n        for (int i = 1; i < items.size(); i++) {\n            if (items.get(i - 1).compareTo(items.get(i)) > 0) return false;\n        }\n        return true;\n    }\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "A counter for anything",
+   "file": "Counter.java",
+   "prompt": "Write generic class Counter<T> (use a LinkedHashMap<T, Integer> inside). add(T item) counts one more; addAll(List<T> items) adds each; count(T item) gives its count (0 if never added); distinct() gives how many different items; mostCommon() gives the item with the highest count (the one added first wins a tie), or null if nothing was added.",
+   "starter": "import java.util.*;\n\npublic class Counter<T> {\n    public void add(T item) { }\n    public void addAll(List<T> items) { }\n    public int count(T item) { return 0; }\n    public int distinct() { return 0; }\n    public T mostCommon() { return null; }\n}\n",
+   "tests": [
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Counter<String> c = new Counter<>(); c.addAll(java.util.List.of(\"maize\", \"beans\", \"maize\")); return c.count(\"maize\") + \" \" + c.count(\"rice\") + \" \" + c.distinct(); }).get()",
+     "expect": "2 0 2",
+     "name": "counts"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Counter<Integer> c = new Counter<>(); c.addAll(java.util.List.of(4, 7, 7, 4, 7)); return c.mostCommon() + \"\"; }).get()",
+     "expect": "7",
+     "name": "mostCommon"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Counter<String> c = new Counter<>(); c.add(\"ORS\"); c.add(\"ORS\"); return c.count(\"ORS\") + \"\"; }).get()",
+     "expect": "2",
+     "name": "add"
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Counter<String> c = new Counter<>(); c.addAll(java.util.List.of(\"b\", \"a\", \"a\", \"b\")); return c.mostCommon(); }).get()",
+     "expect": "b",
+     "hidden": true,
+     "name": "tie: first added wins",
+     "hint_if_fail": "Only replace the best on a strictly bigger count, and use a LinkedHashMap so order is kept."
+    },
+    {
+     "call": "((java.util.function.Supplier<String>) () -> { Counter<String> c = new Counter<>(); return c.mostCommon() + \" \" + c.distinct(); }).get()",
+     "expect": "null 0",
+     "hidden": true,
+     "name": "empty counter"
+    }
+   ],
+   "hints": [
+    "private final Map<T, Integer> counts = new LinkedHashMap<>();",
+    "add: counts.put(item, counts.getOrDefault(item, 0) + 1);",
+    "mostCommon: loop over counts.entrySet(), keep the entry with the biggest value (strictly bigger)."
+   ],
+   "solution": "import java.util.*;\n\npublic class Counter<T> {\n    private final Map<T, Integer> counts = new LinkedHashMap<>();   // keeps first-seen order\n\n    public void add(T item) {\n        counts.put(item, counts.getOrDefault(item, 0) + 1);\n    }\n\n    public void addAll(List<T> items) {\n        for (T item : items) add(item);\n    }\n\n    public int count(T item) {\n        return counts.getOrDefault(item, 0);\n    }\n\n    public int distinct() {\n        return counts.size();\n    }\n\n    public T mostCommon() {\n        T best = null;\n        int bestCount = 0;\n        for (Map.Entry<T, Integer> e : counts.entrySet()) {\n            if (e.getValue() > bestCount) {\n                best = e.getKey();\n                bestCount = e.getValue();\n            }\n        }\n        return best;\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What do generics mainly buy you?",
+   "choices": [
+    "Faster programs",
+    "Type mistakes caught at compile time, and no casts",
+    "Smaller files",
+    "Automatic sorting"
+   ],
+   "answer": 1,
+   "why": "List<String> refuses a number when you write the code."
+  },
+  {
+   "q": "`List<int> xs`",
+   "choices": [
+    "works",
+    "doesn't compile: use List<Integer>",
+    "makes an array",
+    "is the same as int[]"
+   ],
+   "answer": 1,
+   "why": "Type parameters must be classes."
+  },
+  {
+   "q": "What does `<T extends Comparable<T>>` let you do inside the method?",
+   "choices": [
+    "Call compareTo on T values",
+    "Create new T()",
+    "Use T as an int",
+    "Nothing extra"
+   ],
+   "answer": 0,
+   "why": "The bound promises compareTo exists."
+  },
+  {
+   "q": "Where does a generic method declare its type parameter?",
+   "choices": [
+    "After the method name",
+    "Before the return type: static <T> T first(...)",
+    "In the class name only",
+    "In the parameter list"
+   ],
+   "answer": 1,
+   "why": "static <T> T first(List<T> xs)."
+  },
+  {
+   "q": "Is a List<Slime> a List<Enemy> (when Slime extends Enemy)?",
+   "choices": [
+    "Yes",
+    "No, otherwise you could add an Archer to the slimes",
+    "Only if Enemy is abstract",
+    "Only for ArrayList"
+   ],
+   "answer": 1,
+   "why": "Generic types don't follow the class hierarchy that way."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Generic class header?",
+   "a": "class Box<T> { ... }  (T is a type parameter)"
+  },
+  {
+   "q": "Generic method header?",
+   "a": "static <T> T firstOr(List<T> items, T fallback)"
+  },
+  {
+   "q": "Bounded type for 'things that can be compared'?",
+   "a": "<T extends Comparable<T>>"
+  },
+  {
+   "q": "The diamond?",
+   "a": "new Pair<>(\"a\", 1): Java works out the type arguments."
+  }
+ ],
+ "explain": "Explain generics in your own words: what problem would you have without them? Use a box, list or counter you make up as the example."
+}

@@ -1,0 +1,217 @@
+{
+ "id": "cpp-2-01",
+ "level": 2,
+ "title": "Memory and addresses",
+ "concepts": [
+  "pointers",
+  "references",
+  "memory"
+ ],
+ "skills": [
+  "pointers",
+  "addresses",
+  "nullptr"
+ ],
+ "lesson": "In Level 1 you wrote `void addDamage(int& health, int dmg)` so a function could change the caller's variable. That `&` was your first look at **memory**. Level 2 is about how C++ stores things, who owns them, and how to clean up. This is the part of C++ that Python and C# hide from you, and the part Unreal expects you to understand.\n\n**Stack and heap, in plain words.** Every variable lives somewhere in memory, and every place in memory has an **address** (a number, like a house number).\n\n- The **stack** holds a function's local variables. They appear when the function starts and vanish when it ends. Fast, automatic, tidy.\n- The **heap** is a big shared space for things that must live longer, or whose size you only know while running (a level's enemies, a loaded texture). You ask for heap memory and something must give it back. Units 3 to 6 are about that.\n\n**Addresses and pointers.** `&x` gives the address of `x`. A **pointer** is a variable that holds an address. `*p` follows the pointer to the thing it points at.\n\n```\nint ammo = 30;\nint* p = &ammo;   // p holds ammo's address\n*p = 25;          // follow p and change what's there: ammo is now 25\nstd::cout << p;   // some address like 0x61fe14\n```\n\n**nullptr** means \"points at nothing\". Following a null pointer (`*p` when `p` is `nullptr`) crashes the program, so check first: `if (p) ...` or `if (p != nullptr) ...`. That habit saves hours.\n\n**References vs pointers.** Both let you reach someone else's variable.\n\n- A **reference** (`int& h`) is another name for one variable. It can't be null and can't be re-pointed. Use it for \"this function works on your thing\".\n- A **pointer** (`int* p`) can be `nullptr` and can be moved to point somewhere else. Use it for \"maybe there is a thing\" (a turret's current target, which may be none) or when you will point at different things over time.\n\n```\nvoid heal(int& hp)        { hp += 10; }          // there is always an hp\nvoid healTarget(int* hp)  { if (hp) *hp += 10; } // there may be no target\n```\n\n**The common mistake:** keeping a pointer to something that has gone away, like a pointer to a local variable after its function returned, or to a vector item after the vector grew and moved. The pointer still holds the old address, but nothing valid lives there. It is called a **dangling pointer**, and it is the most famous bug in C++.\n\nIn Unreal you will see pointers everywhere: `AActor* Target`, `UStaticMeshComponent* Mesh`. Almost every one can be null, which is why Unreal code is full of `if (Target)` checks.",
+ "example": {
+  "file": "example.cpp",
+  "code": "#include <iostream>\n#include <string>\n\nstruct Enemy\n{\n    std::string name;\n    int hp;\n};\n\nvoid heal(int& hp) { hp += 10; }\n\nvoid hitTarget(Enemy* target, int dmg)\n{\n    if (!target) return;        // no target: do nothing\n    target->hp -= dmg;          // -> follows the pointer, then picks a field\n}\n\nint main()\n{\n    int ammo = 30;\n    int* p = &ammo;\n    *p = 25;\n    std::cout << \"ammo \" << ammo << \"\\n\";\n\n    Enemy goblin{\"Goblin\", 30};\n    Enemy* target = &goblin;\n    hitTarget(target, 12);\n    heal(goblin.hp);\n    std::cout << goblin.name << \" has \" << goblin.hp << \" HP\\n\";\n\n    target = nullptr;           // lost the target\n    hitTarget(target, 99);      // safe: the function checks\n    std::cout << \"still \" << goblin.hp << \" HP\\n\";\n    return 0;\n}\n",
+  "notes": [
+   "int* p = &ammo; stores ammo's address in p; *p = 25 changes ammo through it.",
+   "target->hp is short for (*target).hp: follow the pointer, then take the field.",
+   "heal takes a reference because there is always an hp to change.",
+   "hitTarget takes a pointer because there may be no target, and it checks for nullptr before using it."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Swap through pointers",
+   "file": "swap_ptr.cpp",
+   "prompt": "Write void swapPtr(int* a, int* b) that swaps the two ints a and b point at. If either pointer is nullptr, do nothing.",
+   "starter": "void swapPtr(int* a, int* b)\n{\n    // follow the pointers with *a and *b\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int a = 1, b = 2; swapPtr(&a, &b); return a * 10 + b; }()",
+     "expect": "21"
+    },
+    {
+     "call": "[]{ int a = 4, b = 9; swapPtr(&b, &a); return a * 10 + b; }()",
+     "expect": "94"
+    },
+    {
+     "call": "[]{ int a = 5; swapPtr(&a, nullptr); return a; }()",
+     "expect": "5",
+     "hidden": true,
+     "hint_if_fail": "Check both pointers before following them."
+    },
+    {
+     "call": "[]{ int b = 6; swapPtr(nullptr, &b); return b; }()",
+     "expect": "6",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "*a is the int that a points at. You need a temporary int to hold one value.",
+    "if (!a || !b) return; int t = *a; *a = *b; *b = t;"
+   ],
+   "solution": "void swapPtr(int* a, int* b)\n{\n    if (!a || !b) return;   // nothing to swap with\n    int t = *a;\n    *a = *b;\n    *b = t;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Ammo by reference and by pointer",
+   "file": "ammo.cpp",
+   "prompt": "Write two functions that add n rounds of ammo, never going above 99.\nvoid addAmmoRef(int& ammo, int n) works on a reference.\nbool addAmmoPtr(int* ammo, int n) works on a pointer: if ammo is nullptr it returns false and does nothing, otherwise it adds and returns true.",
+   "starter": "void addAmmoRef(int& ammo, int n)\n{\n}\n\nbool addAmmoPtr(int* ammo, int n)\n{\n    return false;\n}\n",
+   "tests": [
+    {
+     "call": "[]{ int a = 10; addAmmoRef(a, 15); return a; }()",
+     "expect": "25"
+    },
+    {
+     "call": "[]{ int a = 90; addAmmoRef(a, 30); return a; }()",
+     "expect": "99",
+     "hint_if_fail": "Cap the ammo at 99."
+    },
+    {
+     "call": "[]{ int a = 10; bool ok = addAmmoPtr(&a, 5); return ok ? a : -1; }()",
+     "expect": "15"
+    },
+    {
+     "call": "addAmmoPtr(nullptr, 5)",
+     "expect": "false",
+     "hidden": true
+    },
+    {
+     "call": "[]{ int a = 98; addAmmoPtr(&a, 7); return a; }()",
+     "expect": "99",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "The reference version uses ammo like a normal int. The pointer version uses *ammo.",
+    "if (!ammo) return false; *ammo += n; if (*ammo > 99) *ammo = 99; return true;"
+   ],
+   "solution": "void addAmmoRef(int& ammo, int n)\n{\n    ammo += n;\n    if (ammo > 99) ammo = 99;\n}\n\n// a pointer can be null, so check before following it\nbool addAmmoPtr(int* ammo, int n)\n{\n    if (!ammo) return false;\n    addAmmoRef(*ammo, n);   // *ammo is the int itself\n    return true;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Lock on to a target",
+   "file": "lockon.cpp",
+   "prompt": "Enemy is given. Write Enemy* lockOn(std::vector<Enemy>& enemies, const std::string& name): a pointer to the first enemy with that name, or nullptr if there is none.\nThen write bool shoot(Enemy* target, int dmg): if target is nullptr return false; otherwise lower its hp by dmg (never below 0) and return true.",
+   "starter": "#include <string>\n#include <vector>\n\nstruct Enemy\n{\n    std::string name;\n    int hp;\n};\n\nEnemy* lockOn(std::vector<Enemy>& enemies, const std::string& name)\n{\n    return nullptr;\n}\n\nbool shoot(Enemy* target, int dmg)\n{\n    return false;\n}\n",
+   "tests": [
+    {
+     "call": "[]{ std::vector<Enemy> es = {{\"Goblin\", 30}, {\"Orc\", 50}}; Enemy* t = lockOn(es, \"Orc\"); return t ? t->hp : -1; }()",
+     "expect": "50"
+    },
+    {
+     "call": "[]{ std::vector<Enemy> es = {{\"Goblin\", 30}, {\"Orc\", 50}}; shoot(lockOn(es, \"Orc\"), 20); return es[1].hp; }()",
+     "expect": "30",
+     "hint_if_fail": "Return the address of the item inside the vector (&e), not a copy."
+    },
+    {
+     "call": "[]{ std::vector<Enemy> es = {{\"Goblin\", 30}}; return lockOn(es, \"Dragon\") == nullptr; }()",
+     "expect": "true"
+    },
+    {
+     "call": "shoot(nullptr, 10)",
+     "expect": "false"
+    },
+    {
+     "call": "[]{ Enemy e{\"Rat\", 5}; bool ok = shoot(&e, 20); return ok ? e.hp : -1; }()",
+     "expect": "0",
+     "hidden": true,
+     "hint_if_fail": "hp never goes below 0."
+    },
+    {
+     "call": "[]{ std::vector<Enemy> es = {{\"Bat\", 1}, {\"Bat\", 2}}; Enemy* t = lockOn(es, \"Bat\"); return t ? t->hp : -1; }()",
+     "expect": "1",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Loop with for (Enemy& e : enemies). The & matters: without it e is a copy that dies at the end of the loop.",
+    "if (e.name == name) return &e;",
+    "shoot: if (!target) return false; target->hp -= dmg; if (target->hp < 0) target->hp = 0; return true;"
+   ],
+   "solution": "#include <string>\n#include <vector>\n\nstruct Enemy\n{\n    std::string name;\n    int hp;\n};\n\nEnemy* lockOn(std::vector<Enemy>& enemies, const std::string& name)\n{\n    for (Enemy& e : enemies)       // & : the real item, not a copy\n        if (e.name == name) return &e;\n    return nullptr;                // no such enemy\n}\n\nbool shoot(Enemy* target, int dmg)\n{\n    if (!target) return false;\n    target->hp -= dmg;\n    if (target->hp < 0) target->hp = 0;\n    return true;\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "int x = 5; int* p = &x; *p = 8; What is x now?",
+   "choices": [
+    "5",
+    "8",
+    "The address of x",
+    "It doesn't compile"
+   ],
+   "answer": 1,
+   "why": "*p is x itself, so writing to *p changes x."
+  },
+  {
+   "q": "A turret may have no current target. Which parameter type fits best?",
+   "choices": [
+    "Enemy& target",
+    "Enemy* target, checked for nullptr",
+    "Enemy target (a copy)",
+    "const int target"
+   ],
+   "answer": 1,
+   "why": "A pointer can be null, which says 'maybe there is no target'."
+  },
+  {
+   "q": "What happens if you do *p when p is nullptr?",
+   "choices": [
+    "You get 0",
+    "Nothing",
+    "The program crashes (undefined behaviour)",
+    "p becomes valid"
+   ],
+   "answer": 2,
+   "why": "There is nothing at a null pointer to read."
+  },
+  {
+   "q": "Where do a function's local variables live?",
+   "choices": [
+    "On the heap",
+    "On the stack, and they vanish when the function returns",
+    "In a file",
+    "Forever"
+   ],
+   "answer": 1,
+   "why": "The stack is automatic: in when the function starts, out when it ends."
+  },
+  {
+   "q": "A function returns &local where local is its own int. What is the result?",
+   "choices": [
+    "A safe pointer",
+    "A dangling pointer to memory that is no longer valid",
+    "nullptr",
+    "A copy of local"
+   ],
+   "answer": 1,
+   "why": "local died when the function returned; the address now points at nothing valid."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Get the address of x?",
+   "a": "&x"
+  },
+  {
+   "q": "Follow pointer p to its value?",
+   "a": "*p (and p->field for a struct)"
+  },
+  {
+   "q": "A pointer to nothing?",
+   "a": "nullptr. Check with if (p) before using it."
+  },
+  {
+   "q": "Reference or pointer?",
+   "a": "Reference when there is always a thing; pointer when there might be none or it changes."
+  }
+ ],
+ "explain": "Explain the difference between a reference and a pointer in your own words, with a game example where each one is the right choice."
+}

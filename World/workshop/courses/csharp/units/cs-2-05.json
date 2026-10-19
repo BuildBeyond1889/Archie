@@ -1,0 +1,240 @@
+{
+ "id": "cs-2-05",
+ "level": 2,
+ "title": "Generics",
+ "concepts": [
+  "generics",
+  "collections",
+  "interfaces"
+ ],
+ "skills": [
+  "generics",
+  "constraints",
+  "reuse"
+ ],
+ "lesson": "You've used generics since Level 1: `List<int>`, `List<string>`, `Dictionary<string, int>`. The `<T>` is a **type parameter**: the list's code was written once, and you choose what goes in it. Now you'll write your own.\n\n**Why?** Say you want an inventory with a size limit. You could write `StringInventory`, then `ItemInventory`, then `AmmoInventory`, each a copy. Or write it once:\n\n```\npublic class Inventory<T>\n{\n    private readonly List<T> items = new();\n    public int Capacity { get; }\n    public Inventory(int capacity) { Capacity = capacity; }\n    public bool Add(T item)\n    {\n        if (items.Count >= Capacity) return false;\n        items.Add(item);\n        return true;\n    }\n}\n\nvar bag = new Inventory<string>(10);\nvar ammo = new Inventory<int>(3);\n```\n\nInside the class, `T` stands for \"whatever type the user picked\". The compiler checks it: `bag.Add(42)` is an error, which is the whole point. Before generics people used `List<object>` and cast everything back out, and every wrong cast was a crash waiting to happen.\n\n**Generic methods** work the same way:\n\n```\npublic static List<T> Repeat<T>(T item, int times) { ... }\nUtil.Repeat(\"arrow\", 3);   // T is string: the compiler works it out\n```\n\n**Constraints** say what T must be able to do. To find the largest item you must be able to compare them:\n\n```\npublic static T Largest<T>(List<T> items) where T : IComparable<T>\n```\n\nNow `item.CompareTo(best)` is allowed, and `Largest(new List<int> {...})` and `Largest(new List<string> {...})` both work. Other constraints: `where T : class` (a reference type), `where T : new()` (has an empty constructor, so you can write `new T()`), `where T : Enemy` (any kind of enemy).\n\n**The common mistake** is reaching for generics too early. Write the plain version first; make it generic when you need the same code for a second type.\n\nIn games, a classic generic is the **object pool**. Creating and destroying hundreds of bullets per second makes the game stutter, so you keep used bullets in a `Pool<Bullet>` and hand them out again. One `Pool<T>` works for bullets, sparks and enemies alike, and Unity even ships its own `ObjectPool<T>`.",
+ "example": {
+  "file": "Example.cs",
+  "code": "using System;\nusing System.Collections.Generic;\n\npublic class Inventory<T>\n{\n    private readonly List<T> items = new();\n    public int Capacity { get; }\n    public Inventory(int capacity) { Capacity = capacity; }\n    public int Count => items.Count;\n    public bool Add(T item)\n    {\n        if (items.Count >= Capacity) return false;\n        items.Add(item);\n        return true;\n    }\n}\n\npublic static class Util\n{\n    public static T Largest<T>(List<T> items) where T : IComparable<T>\n    {\n        T best = items[0];\n        foreach (T x in items) if (x.CompareTo(best) > 0) best = x;\n        return best;\n    }\n}\n\nclass Program\n{\n    static void Main()\n    {\n        var bag = new Inventory<string>(2);\n        Console.WriteLine($\"{bag.Add(\"sword\")} {bag.Add(\"shield\")} {bag.Add(\"bow\")}\");\n        Console.WriteLine(Util.Largest(new List<int> { 4, 19, 7 }));\n        Console.WriteLine(Util.Largest(new List<string> { \"maize\", \"beans\", \"sorghum\" }));\n    }\n}\n",
+  "notes": [
+   "Inventory<T> is written once and works for any type.",
+   "new Inventory<string>(2) fixes T to string; adding an int would not compile.",
+   "where T : IComparable<T> is what makes x.CompareTo(best) allowed.",
+   "Largest works for ints and strings without any copying."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Generic helpers",
+   "file": "Util.cs",
+   "prompt": "In static class Util write three generic methods:\n- T Largest<T>(List<T> items) where T : IComparable<T>: the biggest item; an empty list throws InvalidOperationException.\n- List<T> Repeat<T>(T item, int times): a list with the item that many times; negative times throws ArgumentOutOfRangeException.\n- void Swap<T>(ref T a, ref T b): swaps the two variables.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Util\n{\n    public static T Largest<T>(List<T> items) where T : IComparable<T>\n    {\n        return default;\n    }\n\n    // Repeat and Swap go here\n}\n",
+   "tests": [
+    {
+     "call": "Util.Largest(new List<int> { 4, 19, 7 })",
+     "expect": "19",
+     "name": "largest number"
+    },
+    {
+     "call": "Util.Largest(new List<string> { \"maize\", \"beans\", \"sorghum\" })",
+     "expect": "sorghum",
+     "name": "largest text"
+    },
+    {
+     "call": "Util.Repeat(\"arrow\", 3)",
+     "expect": "[arrow, arrow, arrow]",
+     "name": "repeat"
+    },
+    {
+     "call": "((Func<string>)(() => { int a = 1, b = 2; Util.Swap(ref a, ref b); string x = \"hi\", y = \"yo\"; Util.Swap(ref x, ref y); return a + \" \" + b + \" \" + x + \" \" + y; }))()",
+     "expect": "2 1 yo hi",
+     "name": "swap"
+    },
+    {
+     "call": "Util.Largest(new List<double>())",
+     "expect": "!ERR InvalidOperationException",
+     "hidden": true,
+     "name": "empty list"
+    },
+    {
+     "call": "Util.Repeat(5, 0)",
+     "expect": "[]",
+     "hidden": true,
+     "name": "zero times"
+    },
+    {
+     "src_has": "where T : IComparable<T>",
+     "why": "Largest needs the constraint where T : IComparable<T>."
+    }
+   ],
+   "hints": [
+    "Largest: if (items.Count == 0) throw new InvalidOperationException(\"empty\"); then keep the best so far with CompareTo.",
+    "public static List<T> Repeat<T>(T item, int times) { var list = new List<T>(); for (...) list.Add(item); return list; }",
+    "public static void Swap<T>(ref T a, ref T b) { T temp = a; a = b; b = temp; }"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic static class Util\n{\n    public static T Largest<T>(List<T> items) where T : IComparable<T>\n    {\n        if (items.Count == 0) throw new InvalidOperationException(\"There is nothing to compare.\");\n        T best = items[0];\n        foreach (T item in items)\n            if (item.CompareTo(best) > 0) best = item;   // allowed because of the constraint\n        return best;\n    }\n\n    public static List<T> Repeat<T>(T item, int times)\n    {\n        if (times < 0) throw new ArgumentOutOfRangeException(nameof(times));\n        var list = new List<T>();\n        for (int i = 0; i < times; i++) list.Add(item);\n        return list;\n    }\n\n    public static void Swap<T>(ref T a, ref T b)\n    {\n        T temp = a;\n        a = b;\n        b = temp;\n    }\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Inventory<T>",
+   "file": "Inventory.cs",
+   "prompt": "Write class Inventory<T>:\n- constructor Inventory(int capacity): capacity under 1 throws ArgumentOutOfRangeException. Property Capacity.\n- Count, IsFull (Count has reached Capacity).\n- bool Add(T item): false (and nothing added) when full, else true.\n- bool Remove(T item): removes one, true if it was there.\n- an indexer T this[int index] (read only).\n- List<T> ToList(): a COPY of the items, so changing it doesn't change the inventory.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Inventory<T>\n{\n    public Inventory(int capacity)\n    {\n    }\n\n    public int Count => 0;\n    public bool IsFull => false;\n\n    public bool Add(T item) => false;\n    public bool Remove(T item) => false;\n    public T this[int index] => default;\n    public List<T> ToList() => new List<T>();\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var bag = new Inventory<string>(2); bool a = bag.Add(\"sword\"); bool b = bag.Add(\"shield\"); bool c = bag.Add(\"bow\"); return a + \" \" + b + \" \" + c + \" \" + bag.Count + \" \" + bag.IsFull; }))()",
+     "expect": "True True False 2 True",
+     "name": "fills up"
+    },
+    {
+     "call": "((Func<string>)(() => { var ammo = new Inventory<int>(5); ammo.Add(30); ammo.Add(12); ammo.Remove(30); return ammo[0] + \" \" + ammo.Count + \" \" + ammo.Capacity; }))()",
+     "expect": "12 1 5",
+     "name": "works with ints"
+    },
+    {
+     "call": "((Func<string>)(() => { var bag = new Inventory<string>(3); bag.Add(\"potion\"); var copy = bag.ToList(); copy.Add(\"cheat\"); return bag.Count.ToString(); }))()",
+     "expect": "1",
+     "hidden": true,
+     "name": "ToList is a copy"
+    },
+    {
+     "call": "((Func<string>)(() => { var bag = new Inventory<string>(2); return bag.Remove(\"ghost\").ToString(); }))()",
+     "expect": "False",
+     "hidden": true,
+     "name": "removing something missing"
+    },
+    {
+     "call": "new Inventory<string>(0)",
+     "expect": "!ERR ArgumentOutOfRangeException",
+     "hidden": true,
+     "name": "zero capacity is refused"
+    }
+   ],
+   "hints": [
+    "Keep a private readonly List<T> items = new(); inside.",
+    "public bool IsFull => items.Count >= Capacity;  public T this[int index] => items[index];",
+    "public List<T> ToList() => new List<T>(items);"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Inventory<T>\n{\n    private readonly List<T> items = new();\n\n    public int Capacity { get; }\n\n    public Inventory(int capacity)\n    {\n        if (capacity < 1) throw new ArgumentOutOfRangeException(nameof(capacity));\n        Capacity = capacity;\n    }\n\n    public int Count => items.Count;\n    public bool IsFull => items.Count >= Capacity;\n\n    public bool Add(T item)\n    {\n        if (IsFull) return false;\n        items.Add(item);\n        return true;\n    }\n\n    public bool Remove(T item) => items.Remove(item);\n\n    // An indexer lets callers write bag[0].\n    public T this[int index] => items[index];\n\n    // Hand out a copy, so outside code can't sneak past the capacity rule.\n    public List<T> ToList() => new List<T>(items);\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "An object pool",
+   "file": "Pool.cs",
+   "prompt": "Write class Pool<T> where T : class, new() (the class Bullet is given to try it with):\n- constructor Pool(int prewarm): creates that many objects up front (negative throws ArgumentOutOfRangeException).\n- Created: how many objects the pool has made in total. Available: how many are waiting in the pool.\n- T Get(): hands out a waiting object, or makes a new one if none are waiting.\n- void Release(T item): puts it back. null throws ArgumentNullException; releasing an object that is already in the pool throws InvalidOperationException.",
+   "starter": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Bullet\n{\n    public bool Active { get; set; }\n}\n\npublic class Pool<T> where T : class, new()\n{\n    public Pool(int prewarm)\n    {\n    }\n\n    public int Created => 0;\n    public int Available => 0;\n\n    public T Get() => new T();\n\n    public void Release(T item)\n    {\n    }\n}\n",
+   "tests": [
+    {
+     "call": "((Func<string>)(() => { var pool = new Pool<Bullet>(3); return pool.Available + \" \" + pool.Created; }))()",
+     "expect": "3 3",
+     "name": "prewarm"
+    },
+    {
+     "call": "((Func<string>)(() => { var pool = new Pool<Bullet>(1); var a = pool.Get(); var b = pool.Get(); return pool.Available + \" \" + pool.Created; }))()",
+     "expect": "0 2",
+     "name": "makes more when empty"
+    },
+    {
+     "call": "((Func<string>)(() => { var pool = new Pool<Bullet>(0); var a = pool.Get(); pool.Release(a); var b = pool.Get(); return ReferenceEquals(a, b) + \" \" + pool.Created; }))()",
+     "expect": "True 1",
+     "name": "reuses released objects"
+    },
+    {
+     "call": "((Func<string>)(() => { var pool = new Pool<Bullet>(0); var a = pool.Get(); pool.Release(a); pool.Release(a); return \"no error\"; }))()",
+     "expect": "!ERR InvalidOperationException",
+     "hidden": true,
+     "name": "double release"
+    },
+    {
+     "call": "((Func<string>)(() => { new Pool<Bullet>(1).Release(null); return \"no error\"; }))()",
+     "expect": "!ERR ArgumentNullException",
+     "hidden": true,
+     "name": "null release"
+    }
+   ],
+   "hints": [
+    "Keep the waiting objects in a private readonly Stack<T> free = new();",
+    "Get: if (free.Count > 0) return free.Pop(); Created++; return new T();",
+    "Release: if (free.Contains(item)) throw new InvalidOperationException(...); free.Push(item);"
+   ],
+   "solution": "using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\npublic class Bullet\n{\n    public bool Active { get; set; }\n}\n\n// where T : class, new(): T is a reference type with an empty constructor, so `new T()` is allowed.\npublic class Pool<T> where T : class, new()\n{\n    private readonly Stack<T> free = new();\n\n    public int Created { get; private set; }\n    public int Available => free.Count;\n\n    public Pool(int prewarm)\n    {\n        if (prewarm < 0) throw new ArgumentOutOfRangeException(nameof(prewarm));\n        for (int i = 0; i < prewarm; i++)\n        {\n            free.Push(new T());\n            Created++;\n        }\n    }\n\n    public T Get()\n    {\n        if (free.Count > 0) return free.Pop();   // reuse first: no new memory\n        Created++;\n        return new T();\n    }\n\n    public void Release(T item)\n    {\n        if (item == null) throw new ArgumentNullException(nameof(item));\n        if (free.Contains(item)) throw new InvalidOperationException(\"That object is already back in the pool.\");\n        free.Push(item);\n    }\n}\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What does the T in Inventory<T> stand for?",
+   "choices": [
+    "Text",
+    "A type the user of the class chooses",
+    "Time",
+    "Total"
+   ],
+   "answer": 1,
+   "why": "A type parameter."
+  },
+  {
+   "q": "var bag = new Inventory<string>(5); bag.Add(42); What happens?",
+   "choices": [
+    "42 is turned into \"42\"",
+    "It doesn't compile",
+    "It throws at runtime",
+    "It is ignored"
+   ],
+   "answer": 1,
+   "why": "Generics are checked by the compiler."
+  },
+  {
+   "q": "Why does Largest<T> need where T : IComparable<T>?",
+   "choices": [
+    "For speed",
+    "Without it the compiler won't let you call CompareTo on a T",
+    "It's decoration",
+    "To allow null"
+   ],
+   "answer": 1,
+   "why": "The constraint promises T can be compared."
+  },
+  {
+   "q": "Which constraint lets you write new T()?",
+   "choices": [
+    "where T : class",
+    "where T : new()",
+    "where T : IComparable<T>",
+    "none"
+   ],
+   "answer": 1,
+   "why": "new() promises an empty constructor."
+  },
+  {
+   "q": "Why do games pool bullets instead of creating new ones every shot?",
+   "choices": [
+    "Pools are required by C#",
+    "Making and throwing away many objects causes stutters; reuse is smoother",
+    "Bullets can't be created",
+    "Pools use more memory on purpose"
+   ],
+   "answer": 1,
+   "why": "Less garbage, fewer pauses."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Generic class?",
+   "a": "public class Inventory<T> { ... }"
+  },
+  {
+   "q": "Generic method?",
+   "a": "public static List<T> Repeat<T>(T item, int times)"
+  },
+  {
+   "q": "Constraint for comparing?",
+   "a": "where T : IComparable<T>"
+  },
+  {
+   "q": "Object pool?",
+   "a": "Keep used objects and hand them out again instead of creating new ones"
+  }
+ ],
+ "explain": "Explain what generics are for, using an example of code you would otherwise have to copy for each type."
+}

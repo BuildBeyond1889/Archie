@@ -1,0 +1,8 @@
+{"name": "Reminders", "kind": "feature", "lang": "Python", "version": "1.0.0",
+ "summary": "Reminders at a date and time, once or repeating daily, weekly or monthly (vaccines, feeding, watering, payments). Times missed while the computer was off are caught up.",
+ "tags": ["reminder", "calendar", "schedule", "alarm", "repeat", "vaccine"],
+ "files": {"lib/__init__.py": "__init__.py", "lib/reminders.py": "reminders.py"},
+ "imports": {"py": ["from lib.reminders import Reminders"]},
+ "use": "r = Reminders('data/reminders.json'); r.add('2026-04-01 08:00', 'Water the seedlings', repeat='daily'); r.due()",
+ "test": {"run": ["python", "test_reminders.py"], "files": ["test_reminders.py"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

@@ -1,0 +1,72 @@
+{
+ "name": "Java",
+ "lang": "Java",
+ "grader": "Java",
+ "version": "1.1.0",
+ "summary": "Java the way university CS courses and AP Computer Science teach it: types, the compiler, methods, collections and objects, with problem sets graded by real tests.",
+ "levels": [
+  {
+   "n": 1,
+   "name": "Basics: types, input, strings, decisions, loops, collections, methods, exceptions, objects",
+   "ready": true
+  },
+  {
+   "n": 2,
+   "name": "Objects in depth: interfaces, inheritance, generics, testing with JUnit",
+   "ready": true
+  },
+  {
+   "n": 3,
+   "name": "Algorithms and data structures (MIT 6.006 / Princeton style, in Java)",
+   "ready": false
+  },
+  {
+   "n": 4,
+   "name": "Systems: files, threads, networking, databases",
+   "ready": false
+  },
+  {
+   "n": 5,
+   "name": "Mastering Java: the standard library, streams, debugging, performance",
+   "ready": false
+  },
+  {
+   "n": 6,
+   "name": "Professional craft: builds, design patterns, code review, security",
+   "ready": false
+  },
+  {
+   "n": 7,
+   "name": "Capstone: a real project, then a defense",
+   "ready": false
+  }
+ ],
+ "units": [
+  "java-1-01",
+  "java-1-02",
+  "java-1-03",
+  "java-1-04",
+  "java-1-05",
+  "java-1-06",
+  "java-1-07",
+  "java-1-08",
+  "java-1-09",
+  "java-1-10",
+  "java-1-11",
+  "java-1-12",
+  "java-2-01",
+  "java-2-02",
+  "java-2-03",
+  "java-2-04",
+  "java-2-05",
+  "java-2-06",
+  "java-2-07",
+  "java-2-08",
+  "java-2-09",
+  "java-2-10"
+ ],
+ "certs": [
+  "AP Computer Science A covers Level 1-2",
+  "Oracle Java Foundations / OCP later"
+ ]
+}

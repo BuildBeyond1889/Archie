@@ -1,0 +1,8 @@
+{"name": "Printable report (web)", "kind": "feature", "lang": "Web (HTML, CSS, JavaScript)", "version": "1.0.0",
+ "summary": "Make a clean report page (headings, text, tables with totals) and open the print dialog, or save it as PDF on a phone.",
+ "tags": ["report", "print", "pdf", "donor", "summary"],
+ "files": {"js/print.js": "print.js"},
+ "imports": {"js": ["<script src=\"js/print.js\"></script>"]},
+ "use": "printReport('March', [{heading:'Summary'}, {table: rows, totals:['kg']}])",
+ "test": {"run": ["node", "test_print.js"], "files": ["test_print.js"]},
+ "changelog": [{"version": "1.0.0", "note": "first version"}]}

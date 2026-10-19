@@ -1,0 +1,50 @@
+{
+ "name": "Database (SQLite)",
+ "kind": "feature",
+ "lang": "Python",
+ "version": "1.0.0",
+ "summary": "A real database in one file, with simple add / find / search / update / delete. Handles lots of records on old computers. New fields can be added later without losing data.",
+ "tags": [
+  "database",
+  "sqlite",
+  "records",
+  "data",
+  "search",
+  "table"
+ ],
+ "files": {
+  "lib/__init__.py": "__init__.py",
+  "lib/db.py": "db.py"
+ },
+ "imports": {
+  "py": [
+   "from lib.db import DB"
+  ]
+ },
+ "use": "db = DB('app.db'); people = db.table('people', name='text', age='int'); people.add(name='Amina', age=12)",
+ "test": {
+  "run": [
+   "python",
+   "test_db.py"
+  ],
+  "files": [
+   "test_db.py"
+  ]
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "CREATE TABLE IF NOT EXISTS",
+   "note": "Makes the table the first time; later runs reuse it."
+  },
+  {
+   "find": "ALTER TABLE",
+   "note": "Fields you add later are added to existing databases, so old data isn't lost."
+  }
+ ]
+}

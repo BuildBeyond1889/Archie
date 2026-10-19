@@ -1,0 +1,168 @@
+{
+ "id": "web-1-08",
+ "level": 1,
+ "title": "JavaScript: values and functions",
+ "concepts": [
+  "variables",
+  "types",
+  "functions"
+ ],
+ "skills": [
+  "javascript",
+  "variables",
+  "functions"
+ ],
+ "bridge": "JavaScript declares variables with `const` (can't be reassigned; use it by default) or `let` (can change). Text joins with template strings: `` `Hello, ${name}!` ``. Functions are `function add(a, b) { return a + b; }` or arrows: `const add = (a, b) => a + b;`. All numbers are one type (`number`), and `===` compares without converting types (always use it rather than `==`).",
+ "lesson": "JavaScript makes pages do things. It's also a full language in its own right (Node.js runs it outside the browser, and that's how Archie tests your code here).\n\n```\nconst crop = \"maize\";          // can't be reassigned\nlet kg = 40;                   // can change\nkg = kg + 10;\nconst price = 55.5;\nconst message = `${crop}: ${kg} kg at ${price} KSh`;   // template string, backticks\n```\n\n- **Types:** `number` (whole and decimal are the same type), `string`, `boolean` (`true`/`false`), `undefined` (no value yet), `null`, plus objects and arrays (next units). `typeof x` tells you.\n- **Converting:** `Number(\"42\")` or `parseFloat(\"2.5\")`; `String(42)`. Careful: `\"5\" + 5` is `\"55\"` (joins) but `\"5\" * 2` is `10`. When unsure, convert first.\n- **Comparing:** use `===` and `!==`. The older `==` converts types first (`\"5\" == 5` is true), which hides bugs.\n- **Rounding:** `Math.round(x * 100) / 100` for 2 decimals, or `x.toFixed(2)` which gives a string.\n\nFunctions:\n\n```\nfunction toDollars(ksh, rate) {\n  return Math.round(ksh / rate * 100) / 100;\n}\nconst greet = (name) => `Hello, ${name}!`;     // arrow function, same idea\n```\n\nEnd statements with `;` (JavaScript usually guesses them, but not always).",
+ "example": {
+  "file": "example.js",
+  "code": "const crop = \"maize\";\nlet kg = 40;\nkg += 10;\nconsole.log(`${crop}: ${kg} kg`);\nconsole.log(typeof kg, typeof crop, \"5\" + 5, \"5\" * 2, \"5\" === 5);\n\nfunction toDollars(ksh, rate) {\n  return Math.round((ksh / rate) * 100) / 100;\n}\nconst greet = (name) => `Hello, ${name}!`;\nconsole.log(toDollars(1300, 130), greet(\"Amina\"));\n",
+  "notes": [
+   "const and let.",
+   "Template strings with ${}.",
+   "Types, and why === matters.",
+   "A function and an arrow function."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Greeting",
+   "file": "ex1_greet.js",
+   "prompt": "Write a function greet(name, village) that returns \"Habari NAME from VILLAGE!\" using a template string.",
+   "starter": "function greet(name, village) {\n  return \"\";\n}\n",
+   "tests": [
+    {
+     "call": "greet(\"Wanjiru\", \"Nyeri\")",
+     "expect": "Habari Wanjiru from Nyeri!"
+    },
+    {
+     "call": "greet(\"Otieno\", \"Kisumu\")",
+     "expect": "Habari Otieno from Kisumu!",
+     "hidden": true
+    },
+    {
+     "src_has": "${",
+     "why": "Use a template string with ${...}."
+    }
+   ],
+   "hints": [
+    "Backticks, not quotes: `...`",
+    "return `Habari ${name} from ${village}!`;"
+   ],
+   "solution": "function greet(name, village) {\n  return `Habari ${name} from ${village}!`;\n}\n"
+  },
+  {
+   "id": "e2",
+   "title": "Shillings to dollars",
+   "file": "ex2_dollars.js",
+   "prompt": "Write toDollars(ksh, rate) returning the dollars as a NUMBER rounded to 2 decimals. Both arguments may arrive as text (\"1300\"), so convert them.",
+   "starter": "function toDollars(ksh, rate) {\n  return ksh / rate;\n}\n",
+   "tests": [
+    {
+     "call": "toDollars(1300, 130)",
+     "expect": 10
+    },
+    {
+     "call": "toDollars(\"5000\", \"129.5\")",
+     "expect": 38.61,
+     "hint_if_fail": "Convert text to numbers with Number(...) and round: Math.round(x * 100) / 100."
+    },
+    {
+     "call": "toDollars(0, 130)",
+     "expect": 0,
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "Number(ksh) / Number(rate)",
+    "Math.round(... * 100) / 100 keeps it a number (toFixed would make a string)."
+   ],
+   "solution": "function toDollars(ksh, rate) {\n  return Math.round((Number(ksh) / Number(rate)) * 100) / 100;\n}\n"
+  },
+  {
+   "id": "e3",
+   "title": "Arrow functions",
+   "file": "ex3_arrow.js",
+   "prompt": "Write three arrow functions: square (x times x), isEven (true for even numbers), and area (length times width, rounded to 1 decimal).",
+   "starter": "const square = (x) => 0;\n",
+   "tests": [
+    {
+     "call": "square(7)",
+     "expect": 49
+    },
+    {
+     "call": "isEven(10)",
+     "expect": true
+    },
+    {
+     "call": "isEven(7)",
+     "expect": false
+    },
+    {
+     "call": "area(2.5, 3.3)",
+     "expect": 8.3
+    },
+    {
+     "src_has": "=>",
+     "why": "Use arrow functions."
+    }
+   ],
+   "hints": [
+    "const isEven = (n) => n % 2 === 0;",
+    "const area = (l, w) => Math.round(l * w * 10) / 10;"
+   ],
+   "solution": "const square = (x) => x * x;\nconst isEven = (n) => n % 2 === 0;\nconst area = (l, w) => Math.round(l * w * 10) / 10;\n"
+  }
+ ],
+ "quiz": [
+  {
+   "q": "What is \"5\" + 5 in JavaScript?",
+   "choices": [
+    "10",
+    "\"55\"",
+    "an error",
+    "NaN"
+   ],
+   "answer": 1,
+   "why": "With a string involved, + joins."
+  },
+  {
+   "q": "Why === instead of ==?",
+   "choices": [
+    "It's faster",
+    "== converts types first, which hides bugs",
+    "== doesn't exist",
+    "No reason"
+   ],
+   "answer": 1,
+   "why": "\"5\" == 5 is true; \"5\" === 5 is false."
+  },
+  {
+   "q": "const vs let?",
+   "choices": [
+    "The same",
+    "const can't be reassigned; let can",
+    "let is older",
+    "const is for numbers"
+   ],
+   "answer": 1,
+   "why": "Use const unless it must change."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Template string?",
+   "a": "`Hello ${name}` with backticks"
+  },
+  {
+   "q": "Text to number in JS?",
+   "a": "Number(\"42\") or parseFloat(\"2.5\")"
+  },
+  {
+   "q": "Arrow function?",
+   "a": "const f = (a, b) => a + b;"
+  }
+ ],
+ "explain": "Explain javascript: values and functions to someone who has never programmed, in your own words, with an example you make up."
+}

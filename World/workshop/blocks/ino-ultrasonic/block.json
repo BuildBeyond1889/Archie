@@ -1,0 +1,62 @@
+{
+ "name": "Distance and water tank level",
+ "kind": "hardware",
+ "lang": "Arduino",
+ "version": "1.0.0",
+ "summary": "An HC-SR04 ultrasonic sensor measures distance; mounted above a tank it gives the water level in %. Reports a sensor problem instead of a wrong number.",
+ "tags": [
+  "ultrasonic",
+  "distance",
+  "water",
+  "tank",
+  "level",
+  "hc-sr04",
+  "sensor"
+ ],
+ "parts": [
+  "HC-SR04 (or waterproof JSN-SR04T for closed tanks)",
+  "4 jumper wires"
+ ],
+ "files": {
+  "sketch/ultrasonic.h": "ultrasonic.h"
+ },
+ "imports": {
+  "ino": [
+   "#include \"ultrasonic.h\""
+  ]
+ },
+ "use": "Ultrasonic sonar(9, 10); TankLevel tank(sonar, 120, 15); setup: sonar.begin(); loop: tank.percent()",
+ "test": {
+  "run": [
+   "g++",
+   "-std=c++17",
+   "-Wall",
+   "-x",
+   "c++",
+   "test_ultrasonic.cpp",
+   "-o",
+   "t.exe"
+  ],
+  "files": [
+   "test_ultrasonic.cpp"
+  ],
+  "stub": true,
+  "then": "t.exe"
+ },
+ "changelog": [
+  {
+   "version": "1.0.0",
+   "note": "first version"
+  }
+ ],
+ "points": [
+  {
+   "find": "us * 0.0343f / 2.0f",
+   "note": "Sound travels 0.0343 cm per microsecond; halve it because the sound goes down and back."
+  },
+  {
+   "find": "return v[n / 2];",
+   "note": "The middle of the sorted readings (the median) ignores one odd echo better than an average would."
+  }
+ ]
+}

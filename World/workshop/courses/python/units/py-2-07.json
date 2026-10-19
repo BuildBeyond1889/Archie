@@ -1,0 +1,244 @@
+{
+ "id": "py-2-07",
+ "level": 2,
+ "title": "Files, CSV and JSON",
+ "concepts": [
+  "files",
+  "csv",
+  "json",
+  "exceptions"
+ ],
+ "skills": [
+  "files",
+  "csv",
+  "json"
+ ],
+ "lesson": "Everything you've built so far forgets its data when the program stops. Files fix that: sensor logs, harvest records and game saves all live in files. You met simple text files in Level 1; this unit adds the two formats you'll use most, **CSV** and **JSON**, and the habits that keep file code safe.\n\n**Always use `with`**. It closes the file for you, even if an error happens halfway:\n\n```\nwith open(\"sensor.txt\", encoding=\"utf-8\") as f:\n    for line in f:\n        line = line.strip()          # remove the newline and spaces\n        if not line or line.startswith(\"#\"):\n            continue                 # skip blanks and comments\n        time, litres = line.split()\n```\n\nOpen with `\"r\"` (read, the default), `\"w\"` (write: empties the file first!) or `\"a\"` (add to the end). Always give `encoding=\"utf-8\"`: on Windows the default is different, and names like \"Müller\" or emoji would break.\n\n**CSV** (comma-separated values) is what spreadsheets save. Don't split on commas yourself (a name like \"Otieno, Jr.\" breaks it); use the `csv` module:\n\n```\nimport csv\nwith open(\"harvests.csv\", newline=\"\", encoding=\"utf-8\") as f:\n    for row in csv.DictReader(f):          # each row is a dict by header\n        kg = float(row[\"kg\"])              # CSV gives text: convert!\n\nwith open(\"summary.csv\", \"w\", newline=\"\", encoding=\"utf-8\") as f:\n    w = csv.writer(f)\n    w.writerow([\"farmer\", \"total_kg\"])\n    w.writerow([\"Amina\", 48.0])\n```\n\n`newline=\"\"` matters on Windows: without it you get a blank line between every row.\n\n**JSON** saves Python lists, dicts, strings, numbers, True/False and None, nested any way you like, as readable text. It's perfect for settings and save games:\n\n```\nimport json\nwith open(\"save.json\", \"w\", encoding=\"utf-8\") as f:\n    json.dump(state, f, indent=2)\nwith open(\"save.json\", encoding=\"utf-8\") as f:\n    state = json.load(f)\n```\n\nJSON can't hold your own objects directly. Turn them into dicts first (`dataclasses.asdict` helps), and rebuild them after loading. Tuples come back as lists.\n\n**When files go wrong**: the file might not exist yet (the first time a game runs), or might be damaged. Catch the specific errors and choose a sensible fallback:\n\n```\ntry:\n    with open(path, encoding=\"utf-8\") as f:\n        return json.load(f)\nexcept FileNotFoundError:\n    return new_game()\nexcept json.JSONDecodeError:\n    return new_game()        # damaged save: start fresh (or warn the player)\n```\n\n**Common mistakes**\n- Forgetting that everything read from a text file or CSV is a string: `\"40\" + \"12\"` is `\"4012\"`.\n- Opening with `\"w\"` when you meant `\"a\"`, wiping last week's records.\n- Catching every error with a bare `except:`. That hides real bugs; catch the ones you expect.\n\n**In real programs** a robot logs sensor readings to CSV to graph later, a game writes its save slot as JSON, and an app keeps its settings in a JSON file. Archie's own course progress is stored as JSON.",
+ "example": {
+  "file": "example.py",
+  "code": "import csv\nimport json\n\n# write a small CSV, then read it back\nrows = [[\"farmer\", \"kg\"], [\"Amina\", 40], [\"Juma\", 12.5]]\nwith open(\"harvests.csv\", \"w\", newline=\"\", encoding=\"utf-8\") as f:\n    csv.writer(f).writerows(rows)\n\ntotal = 0\nwith open(\"harvests.csv\", newline=\"\", encoding=\"utf-8\") as f:\n    for row in csv.DictReader(f):\n        total += float(row[\"kg\"])\nprint(\"total kg:\", total)\n\n# save and load a game state as JSON\nstate = {\"level\": 3, \"score\": 120, \"inventory\": [\"sword\", \"potion\"]}\nwith open(\"save.json\", \"w\", encoding=\"utf-8\") as f:\n    json.dump(state, f, indent=2)\n\n\ndef load(path):\n    try:\n        with open(path, encoding=\"utf-8\") as f:\n            return json.load(f)\n    except FileNotFoundError:\n        return {\"level\": 1, \"score\": 0, \"inventory\": []}\n\n\nprint(load(\"save.json\")[\"inventory\"], load(\"missing.json\")[\"level\"])\n",
+  "notes": [
+   "newline=\"\" and encoding=\"utf-8\" on every CSV file.",
+   "DictReader gives each row as a dict keyed by the header.",
+   "CSV values are text, so float() before adding.",
+   "json.dump writes nested lists and dicts; indent=2 keeps it readable.",
+   "A missing file gets a sensible default instead of a crash."
+  ]
+ },
+ "exercises": [
+  {
+   "id": "e1",
+   "title": "Read a sensor log",
+   "file": "ex1_sensor.py",
+   "prompt": "sensor.txt has lines like 06:00 412 (a time and the litres in the tank). Blank lines and lines starting with # must be skipped; extra spaces don't matter.\n- read_readings(path): a list of (time, litres) tuples with litres as an int, in file order. A file that doesn't exist gives [].\n- lowest(path): the (time, litres) tuple with the fewest litres, or None if there are no readings.",
+   "extra_files": {
+    "sensor.txt": "# tank sensor, litres\n06:00 412\n09:00 380\n\n12:00 295\n15:00 310\n18:00 270\n"
+   },
+   "starter": "def read_readings(path):\n    readings = []\n    return readings\n\n\ndef lowest(path):\n    pass\n",
+   "solution": "def read_readings(path):\n    readings = []\n    try:\n        with open(path, encoding=\"utf-8\") as f:\n            for line in f:\n                line = line.strip()\n                if not line or line.startswith(\"#\"):\n                    continue\n                time, litres = line.split()\n                readings.append((time, int(litres)))\n    except FileNotFoundError:\n        return []\n    return readings\n\n\ndef lowest(path):\n    readings = read_readings(path)\n    if not readings:\n        return None\n    return min(readings, key=lambda r: r[1])\n",
+   "tests": [
+    {
+     "check": "got = read_readings('sensor.txt')\nassert got == [('06:00', 412), ('09:00', 380), ('12:00', 295), ('15:00', 310), ('18:00', 270)], 'got %r' % (got,)",
+     "name": "reads the log"
+    },
+    {
+     "check": "got = lowest('sensor.txt')\nassert got == ('18:00', 270), 'got %r' % (got,)",
+     "name": "lowest reading"
+    },
+    {
+     "check": "got = read_readings('sensor.txt')\nassert all(type(r[1]) is int for r in got), 'litres should be ints, not text'",
+     "name": "numbers are numbers"
+    },
+    {
+     "check": "assert read_readings('no_such_file.txt') == []\nassert lowest('no_such_file.txt') is None",
+     "name": "missing file",
+     "hidden": true,
+     "hint_if_fail": "Wrap the open in try / except FileNotFoundError: return []."
+    },
+    {
+     "check": "with open('messy.txt', 'w', encoding='utf-8') as f:\n    f.write('#start\\n   07:00    100   \\n\\n\\n# note\\n08:00 90\\n')\nassert read_readings('messy.txt') == [('07:00', 100), ('08:00', 90)], read_readings('messy.txt')",
+     "name": "messy spacing",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "with open(path, encoding=\"utf-8\") as f: then for line in f: line = line.strip()",
+    "Skip with continue when not line or line.startswith(\"#\"). line.split() handles any amount of spaces.",
+    "Put the with block inside try / except FileNotFoundError. lowest: min(readings, key=lambda r: r[1])."
+   ]
+  },
+  {
+   "id": "e2",
+   "title": "Harvest totals from CSV",
+   "file": "ex2_csv.py",
+   "prompt": "harvests.csv has the header farmer,crop,kg.\n- totals_by_farmer(path): a dict farmer -> total kg (as a float). Use the csv module.\n- write_summary(in_path, out_path): writes a CSV with the header farmer,total_kg and one row per farmer, sorted by farmer name. Returns how many farmer rows it wrote.\nOpen CSV files with newline=\"\" and encoding=\"utf-8\".",
+   "extra_files": {
+    "harvests.csv": "farmer,crop,kg\nAmina,maize,40\nJuma,beans,12.5\nAmina,beans,8\nWanjiru,maize,55\nJuma,maize,30\n",
+    "empty.csv": "farmer,crop,kg\n"
+   },
+   "starter": "import csv\n\n\ndef totals_by_farmer(path):\n    totals = {}\n    return totals\n\n\ndef write_summary(in_path, out_path):\n    pass\n",
+   "solution": "import csv\n\n\ndef totals_by_farmer(path):\n    totals = {}\n    with open(path, newline=\"\", encoding=\"utf-8\") as f:\n        for row in csv.DictReader(f):\n            name = row[\"farmer\"]\n            totals[name] = totals.get(name, 0.0) + float(row[\"kg\"])\n    return totals\n\n\ndef write_summary(in_path, out_path):\n    totals = totals_by_farmer(in_path)\n    with open(out_path, \"w\", newline=\"\", encoding=\"utf-8\") as f:\n        w = csv.writer(f)\n        w.writerow([\"farmer\", \"total_kg\"])\n        for name in sorted(totals):\n            w.writerow([name, totals[name]])\n    return len(totals)\n",
+   "tests": [
+    {
+     "call": "totals_by_farmer('harvests.csv')",
+     "expect": {
+      "Amina": 48.0,
+      "Juma": 42.5,
+      "Wanjiru": 55.0
+     },
+     "name": "totals"
+    },
+    {
+     "check": "import csv\nn = write_summary('harvests.csv', 'summary.csv')\nassert n == 3, 'write_summary should return 3, got %r' % n\nwith open('summary.csv', newline='', encoding='utf-8') as f:\n    rows = [r for r in csv.reader(f) if r]\nassert rows[0] == ['farmer', 'total_kg'], 'header row: %r' % rows[0]\nassert [r[0] for r in rows[1:]] == ['Amina', 'Juma', 'Wanjiru'], 'rows sorted by farmer: %r' % rows\nassert [float(r[1]) for r in rows[1:]] == [48.0, 42.5, 55.0], rows",
+     "name": "summary file"
+    },
+    {
+     "check": "t = totals_by_farmer('harvests.csv')\nassert all(isinstance(v, float) for v in t.values()), 'totals should be numbers: convert with float()'",
+     "name": "numbers, not text"
+    },
+    {
+     "check": "import csv\nassert totals_by_farmer('empty.csv') == {}\nassert write_summary('empty.csv', 'empty_out.csv') == 0\nwith open('empty_out.csv', newline='', encoding='utf-8') as f:\n    rows = [r for r in csv.reader(f) if r]\nassert rows == [['farmer', 'total_kg']], 'only the header for no data: %r' % rows",
+     "name": "only a header",
+     "hidden": true
+    },
+    {
+     "check": "with open('more.csv', 'w', encoding='utf-8') as f:\n    f.write('farmer,crop,kg\\n\"Otieno, Jr.\",maize,10\\nOtieno,beans,2\\n')\nassert totals_by_farmer('more.csv') == {'Otieno, Jr.': 10.0, 'Otieno': 2.0}, 'a quoted name with a comma must stay one value: use csv, not split'",
+     "name": "commas inside names",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "for row in csv.DictReader(f): gives row[\"farmer\"] and row[\"kg\"] (text).",
+    "totals[name] = totals.get(name, 0.0) + float(row[\"kg\"])",
+    "csv.writer(f), writerow([\"farmer\", \"total_kg\"]), then a row per name in sorted(totals). Return len(totals)."
+   ]
+  },
+  {
+   "id": "e3",
+   "title": "Save and load a game",
+   "file": "ex3_save.py",
+   "prompt": "- save_game(state, path): writes the dict state as JSON with indent=2.\n- load_game(path): returns the saved dict. If the file is missing OR isn't valid JSON, return a NEW default: {\"level\": 1, \"score\": 0, \"inventory\": []}. (A fresh dict every time, so changing one default doesn't change the next.)",
+   "extra_files": {
+    "broken.json": "{\"level\": 4, \"score\": "
+   },
+   "starter": "import json\n\nDEFAULT = {\"level\": 1, \"score\": 0, \"inventory\": []}\n\n\ndef save_game(state, path):\n    pass\n\n\ndef load_game(path):\n    return DEFAULT\n",
+   "solution": "import json\n\n\ndef new_game():\n    return {\"level\": 1, \"score\": 0, \"inventory\": []}\n\n\ndef save_game(state, path):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        json.dump(state, f, indent=2)\n\n\ndef load_game(path):\n    try:\n        with open(path, encoding=\"utf-8\") as f:\n            return json.load(f)\n    except (FileNotFoundError, json.JSONDecodeError):\n        return new_game()\n",
+   "tests": [
+    {
+     "check": "s = {'level': 3, 'score': 120, 'inventory': ['sword', 'potion']}\nsave_game(s, 'slot1.json')\nassert load_game('slot1.json') == s, load_game('slot1.json')",
+     "name": "save then load"
+    },
+    {
+     "check": "import json\nsave_game({'level': 2, 'score': 5, 'inventory': []}, 'slot2.json')\ntext = open('slot2.json', encoding='utf-8').read()\nassert json.loads(text)['level'] == 2, 'the file should be JSON'\nassert '\\n  \"level\"' in text, 'use indent=2 so the save file is readable'",
+     "name": "readable JSON file"
+    },
+    {
+     "call": "load_game('no_save_yet.json')",
+     "expect": {
+      "level": 1,
+      "score": 0,
+      "inventory": []
+     },
+     "name": "no save yet"
+    },
+    {
+     "call": "load_game('broken.json')",
+     "expect": {
+      "level": 1,
+      "score": 0,
+      "inventory": []
+     },
+     "name": "damaged save",
+     "hidden": true,
+     "hint_if_fail": "json.load raises json.JSONDecodeError on bad JSON: catch it too."
+    },
+    {
+     "check": "d = load_game('no_save_yet.json')\nd['inventory'].append('cheat')\nd['score'] = 999\nassert load_game('no_save_yet.json') == {'level': 1, 'score': 0, 'inventory': []}, 'the default was changed by the last caller: build a new dict each time'",
+     "name": "fresh default",
+     "hidden": true
+    }
+   ],
+   "hints": [
+    "save: with open(path, \"w\", encoding=\"utf-8\") as f: json.dump(state, f, indent=2)",
+    "load: try the open and json.load; except (FileNotFoundError, json.JSONDecodeError): return a default.",
+    "Make the default inside a function (return {...}) so each call gets a new dict and a new list."
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "q": "Why use with open(...) as f: instead of f = open(...)?",
+   "choices": [
+    "It reads faster",
+    "The file is closed for you, even if an error happens",
+    "It allows writing",
+    "It's required for CSV"
+   ],
+   "answer": 1,
+   "why": "with guarantees the file gets closed."
+  },
+  {
+   "q": "You open an existing records file with \"w\". What happens to what was in it?",
+   "choices": [
+    "New text is added at the end",
+    "It's erased as the file opens",
+    "Python asks first",
+    "Nothing until you close it"
+   ],
+   "answer": 1,
+   "why": "\"w\" empties the file; use \"a\" to add."
+  },
+  {
+   "q": "A CSV row gives row[\"kg\"] as \"40\". What is row[\"kg\"] + row[\"kg\"]?",
+   "choices": [
+    "80",
+    "\"4040\"",
+    "An error",
+    "80.0"
+   ],
+   "answer": 1,
+   "why": "CSV values are text until you convert them."
+  },
+  {
+   "q": "Why use the csv module instead of line.split(\",\")?",
+   "choices": [
+    "It's the only way to open files",
+    "It handles quoted values that contain commas",
+    "split doesn't work on files",
+    "It sorts the rows"
+   ],
+   "answer": 1,
+   "why": "\"Otieno, Jr.\" must stay one value."
+  },
+  {
+   "q": "What does json.load give you for a file containing [1, 2, {\"a\": true}]?",
+   "choices": [
+    "A string",
+    "A list with 1, 2 and a dict {'a': True}",
+    "A tuple",
+    "An error"
+   ],
+   "answer": 1,
+   "why": "JSON arrays become lists, objects become dicts, true becomes True."
+  }
+ ],
+ "cards": [
+  {
+   "q": "Two arguments every CSV open should have?",
+   "a": "newline=\"\" and encoding=\"utf-8\""
+  },
+  {
+   "q": "Save a dict as readable JSON?",
+   "a": "json.dump(data, f, indent=2)"
+  },
+  {
+   "q": "Error for a file that isn't there?",
+   "a": "FileNotFoundError"
+  },
+  {
+   "q": "Error for a damaged JSON file?",
+   "a": "json.JSONDecodeError (a kind of ValueError)"
+  }
+ ],
+ "explain": "Explain when you'd choose CSV and when JSON, with an example of data you'd save in each."
+}
