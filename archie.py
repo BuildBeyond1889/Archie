@@ -48,6 +48,16 @@ import archie_focus as focusmod
 import archie_recap as recapmod
 import archie_gym as gym
 import archie_lecture as lecture
+import archie_review as review
+import archie_newsroll as newsroll
+import archie_autoupdate as autoupdate
+import archie_warm as warm
+import archie_housekeep as housekeep
+import archie_inbox as inboxm
+import archie_dates as datesm
+import archie_mail as mailm
+import archie_calchat as calchat
+import archie_examprep as examprep
 import archie_memory as mem
 try:
     import archie_world as world
@@ -199,11 +209,11 @@ General mode: be a helpful all-round assistant. Match the length of your answer
 to the question."""),
     "Tutor": ("qwen2.5:7b", """\
 Tutor mode: your job is to help the user actually learn, not to hand over answers.
-- For homework-style questions, first ask what they already know or have tried.
+- For homework-style questions, first ask what the user already knows or has tried.
 - Give hints and guide them one step at a time; let them do the thinking.
 - Use analogies from hands-on work (building, tools, materials) when they help.
-- End with one short question that checks they understood.
-- When they ask to be quizzed: one question at a time, wait for their answer, then
+- End with one short question that checks the user understood.
+- When the user asks to be quizzed: one question at a time, wait for their answer, then
   say what was right, what was off, and why."""),
     "Programmer": ("qwen2.5-coder:7b", """\
 Programmer mode: help write, explain and debug code (Python, C#, GDScript for
@@ -224,7 +234,7 @@ Literature & Writing mode: help with reading, essays, college application
 writing, stories, scripts and worldbuilding.
 - When giving feedback, point to specific sentences and explain why.
 - Suggest improvements but keep the user's own voice; don't rewrite whole pieces
-  unless they ask.
+  unless the user asks.
 - For books and stories, discuss themes, characters, structure and style."""),
     "Professor": ("qwen2.5:7b", """\
 Professor mode: teach like a world-class MIT professor who is also a wonderful
@@ -245,7 +255,7 @@ student who is new to the topic. Adapt this structure to the size of the questio
    Don't give the answers unless asked.
 Say when something is simplified, and what the fuller story is. Depth over
 breadth: better to truly nail one idea than skim five. Never use jargon without
-explaining it. After a long explanation, remind him he can type
+explaining it. After a long explanation, remind them the user can type
 "make flashcards from that" to keep it."""),
 }
 
@@ -469,10 +479,48 @@ class ArchieApp:
         os.makedirs(os.path.join(NOTES_DIR, "Lectures"), exist_ok=True)
         self.listener = Listener(NOTES_DIR, self.vault, LISTEN_STATE, self._bg_transcriber,
                                  lambda k, v: self.bg_q.put((k, v)), self._listen_busy,
-                                 tidy=lambda t: voice_tidy(quick_chat, self.cfg["model"], t),
+                                 tidy=lambda t, idea=False: (self._idea_tidy(t) if idea else
+                                                             voice_tidy(quick_chat, self.cfg["model"], t)),
                                  want_tidy=lambda: self.cfg.get("phone_tidy", True),
                                  paused=lambda: bool(self.cfg.get("audiobooks_paused")),
-                                 lecture=self._lecture_note)
+                                 lecture=self._lecture_note, hint=self._lecture_hint)
+        self.reviewer = None
+        try:                      # the lecture review: professor's material lined up with your recording
+            self.reviewer = review.Reviewer(
+                lambda: (self.vault() if self.vault() and os.path.isdir(self.vault()) else NOTES_DIR),
+                quick_chat, lambda: self.cfg["model"],
+                os.path.join(APP_DIR, "review_cache.json"), os.path.join(APP_DIR, "review_state.json"),
+                vision=self._review_vision, transcribe=self._review_transcribe,
+                wait=self._review_wait, report=lambda k, v: self.bg_q.put((k, v))).start()
+        except Exception:
+            self.reviewer = None
+        threading.Thread(target=self._newsroll_loop, daemon=True, name="news-roll").start()
+        self.updater = None
+        try:                      # once a day, at the first quiet stretch: Ollama, every model, then a health check
+            self.updater = autoupdate.AutoUpdate(
+                APP_DIR, OLLAMA_URL, lambda: self.cfg["model"],
+                busy=lambda: bool(self._listen_busy() or any(getattr(x, "working", False) for x in
+                                  (getattr(self, "reviewer", None), getattr(self, "examprep", None)))),
+                report=lambda m: self.bg_q.put(("status", m))).start()
+        except Exception:
+            self.updater = None
+        self.housekeep = None
+        try:                      # once a day when it's quiet: back up your stuff, keep the Backups folder tidy
+            self.housekeep = housekeep.Housekeep(
+                APP_DIR, lambda: self.vault(),
+                quiet=lambda: bool(self.updater and self.updater.quiet() and not self.updater.working),
+                report=lambda m: self.bg_q.put(("status", m))).start()
+        except Exception:
+            self.housekeep = None
+        self.examprep = None
+        try:                      # flashcards from every lecture, and a study guide before every exam
+            self.examprep = examprep.ExamPrep(
+                lambda: (self.vault() if self.vault() and os.path.isdir(self.vault()) else NOTES_DIR),
+                lambda: self.calendar, quick_chat, lambda: self.cfg["model"], self.study, self.exams,
+                os.path.join(APP_DIR, "examprep_state.json"), wait=self._review_wait,
+                report=lambda k, v: self.bg_q.put((k, v))).start()
+        except Exception:
+            self.examprep = None
         self.speaker = None
         self._rec_kind = "note"
         self._talk_pending = False
@@ -491,6 +539,17 @@ class ArchieApp:
         self.deadlines = Deadlines(DEADLINES_PATH)
         self.daily = DailyNote(self.vault, self.tasks, self.deadlines)
         self.calendar = cal.Calendar(CALENDAR_PATH)
+        try:                      # keep the main brain loaded around classes and while you're using Archie
+            self.warm = warm.Warm(OLLAMA_URL, lambda: self.cfg["model"], self.calendar,
+                                  lambda: bool(getattr(self, "busy", False) or
+                                               getattr(getattr(self, "recorder", None), "recording", False))).start()
+        except Exception:
+            self.warm = None
+        try:                      # Archie Inbox: drop, paste or "Send to Archie" -> a card that files it
+            self.inbox = inboxm.Inbox(APP_DIR, lambda: self.vault(), self.calendar)
+        except Exception:
+            self.inbox = None
+        self.inbox_types = inboxm.TYPES
         self.focus = focusmod.FocusTimer(os.path.join(APP_DIR, "focus_state.json"),
                                          os.path.join(STUDY_DIR, "focus_log.jsonl"))
         self._focus_view = "focus"
@@ -506,6 +565,21 @@ class ArchieApp:
             except Exception as e:      # e.g. the port is taken: say so when asked, carry on
                 self.world = None
                 self._world_err = str(e)
+        self.sync = None
+        try:   # 2026-11-08: Archie Lite on the laptop syncs through this (home network, paired laptop only)
+            import archie_sync
+            self.sync = archie_sync.SyncService(self).start()
+        except Exception as e:
+            self._sync_err = str(e)
+        self.mail_cards = []
+        try:   # 2026-11-09: Gmail (Outlook forwards into it) -> cards for school mail, attachments and dates; read-only
+            def _push(title, body, m):        # the phone: tapping it opens Archie (the Gmail app has its own)
+                ph = getattr(self.sync, "phone", None) if self.sync else None
+                if ph:
+                    ph.push(title, body, "today", f"mail:{m.get('uid')}")
+            self.mail = mailm.Mail(APP_DIR, on_card=self.mail_cards.append, push=_push).start()
+        except Exception:
+            self.mail = None
         os.makedirs(GYM_DIR, exist_ok=True)
         os.makedirs(MEMORY_DIR, exist_ok=True)
         old_gym = os.path.join(STUDY_DIR, "gym_log.json")        # 3.4 kept it with the flashcards: move it
@@ -564,6 +638,7 @@ class ArchieApp:
         if self.cfg.get("brief_daily", True) and not self.brief_state.shown_today():
             self.root.after(900, self._auto_brief)
         self.root.after(30, self._poll)
+        self.root.after(3000, self._inbox_poll)
         self.root.after(8000, self._scan_tick)
         self.root.after(2500, self._daily_tick)
         self.root.after(600, self._focus_tick)
@@ -707,7 +782,7 @@ class ArchieApp:
         self.menu.add_checkbutton(label="Save dropped files to Notes", variable=self.save_drops_var,
                                   command=self._toggle_save_drops)
         self.daily_var = tk.BooleanVar(value=bool(self.cfg.get("daily_note", True)))
-        self.menu.add_checkbutton(label="To-dos and brief in Obsidian daily note", variable=self.daily_var,
+        self.menu.add_checkbutton(label="To-dos in Obsidian daily note", variable=self.daily_var,
                                   command=self._toggle_daily)
         self.menu.add_command(label="Open today's daily note", command=self.open_daily)
         self.handwriting_var = tk.BooleanVar(value=bool(self.cfg.get("read_handwriting", True)))
@@ -795,6 +870,278 @@ class ArchieApp:
 
     # ----- the chat panel ---------------------------------------------------
 
+    # ----- the menu wheel: click ARCHIE, scroll to turn, click the green one to open it ----------------------
+    # (name, menu label it opens, description, little tags)
+    WHEEL = [("New chat", "New conversation", "Start fresh. This conversation is kept in your chat history.",
+              ["new conversation"]),
+             ("Study", "Study flashcards", "Flashcards with spaced repetition, one deck per class, plus your mock exams.",
+              ["flashcards", "decks", "mock exams"]),
+             ("Lectures", "Lectures", "Every class: lecture notes, reviews against the professor's slides, and exam prep.",
+              ["notes", "reviews", "exam prep"]),
+             ("Calendar", "Calendar", "Classes, exams, deadlines and everything else, synced to your phone and laptops.",
+              ["this week", "classes", "exams"]),
+             ("World", "Archie World (the globe)", "The globe: today's brief, live stories, governments, and the fighting by region.",
+              ["brief", "globe", "governments"]),
+             ("Workshop", "Workshop (code with Archie)", "Write code with Archie: projects, courses with real tests, and the offline docs.",
+              ["courses", "projects"]),
+             ("Vault", "Vault (the offline library)", "The offline library: Wikipedia, programming docs and Stack Exchange, no internet needed.",
+              ["Wikipedia", "docs"]),
+             ("Focus", "Focus timer (the owl)", "A focus timer on the owl. It blocks the distractions you pick until the time is up.",
+              ["timer", "blocking"]),
+             ("Create", "Make an image...", "Make an image from words, or turn a rough sketch into a picture.",
+              ["make an image", "sketch to image"]),
+             ("Brief", "Morning brief", "Your morning brief: today's classes, what's due, countdowns and the news.",
+              ["classes", "due", "news"]),
+             ("To-do", "Edit to-do list", "Your to-dos and deadlines, the same ones on every device.",
+              ["to-do", "deadlines"]),
+             ("History", "Chat history...", "Past conversations. Open one, keep going, or turn it into an Obsidian wiki.",
+              ["chat history", "build a wiki"]),
+             ("Voice", "Archie's voice", "How Archie sounds when it talks to you.",
+              ["voice"]),
+             ("Everything", None, "Every option in Archie's menu, all in one list.",
+              ["full menu"])]
+
+    # line icons on a 24-unit grid (same shapes as the mockup): ("l", x1,y1,x2,y2,...) polyline, ("o", x1,y1,x2,y2) circle,
+    # ("r", x1,y1,x2,y2) box, ("a", x1,y1,x2,y2,start,extent) arc, ("p", ...) closed outline
+    WHEEL_ICONS = {
+        "New chat": [("l", 12, 5, 12, 19), ("l", 5, 12, 19, 12)],
+        "Study": [("r", 4, 6, 16, 18), ("l", 8, 6, 8, 3, 20, 3, 20, 15, 16, 15)],
+        "Lectures": [("l", 9, 6, 9, 12), ("l", 15, 6, 15, 12), ("a", 9, 3, 15, 9, 0, 180), ("a", 9, 9, 15, 15, 180, 180),
+                     ("a", 5, 4, 19, 18, 180, 180), ("l", 12, 18, 12, 21)],
+        "Calendar": [("r", 4, 6, 20, 20), ("l", 4, 10, 20, 10), ("l", 9, 3, 9, 7), ("l", 15, 3, 15, 7)],
+        "World": [("o", 3, 3, 21, 21), ("l", 3, 12, 21, 12), ("o", 8, 3, 16, 21)],
+        "Workshop": [("l", 8, 8, 3, 12, 8, 16), ("l", 16, 8, 21, 12, 16, 16), ("l", 14, 5, 10, 19)],
+        "Vault": [("r", 4, 5, 10, 20), ("r", 10, 5, 14, 20), ("p", 15, 6, 19, 5, 21, 19, 17, 20)],
+        "Focus": [("o", 4, 4, 20, 20), ("l", 12, 8, 12, 12, 15, 14)],
+        "Create": [("r", 4, 4, 20, 20), ("l", 4, 17, 9, 12, 13, 16, 16, 13, 20, 17), ("o", 14, 7.5, 16.5, 10)],
+        "Brief": [("a", 7, 12, 17, 22, 0, 180), ("l", 7, 17, 17, 17), ("l", 12, 3, 12, 5), ("l", 5.6, 5.6, 7, 7),
+                  ("l", 3, 12, 5, 12), ("l", 19, 12, 21, 12), ("l", 17, 7, 18.4, 5.6)],
+        "To-do": [("l", 9, 6, 20, 6), ("l", 9, 12, 20, 12), ("l", 9, 18, 20, 18),
+                  ("o", 3.5, 5.5, 4.5, 6.5), ("o", 3.5, 11.5, 4.5, 12.5), ("o", 3.5, 17.5, 4.5, 18.5)],
+        "History": [("a", 3, 3, 21, 21, 120, 300), ("l", 3, 3, 3, 8, 8, 8), ("l", 12, 8, 12, 12, 15, 14)],
+        "Voice": [("p", 4, 9, 8, 9, 13, 5, 13, 19, 8, 15, 4, 15), ("a", 10, 8, 18, 16, -50, 100), ("a", 9, 5, 21, 19, -50, 100)],
+        "Everything": [("r", 4, 4, 10, 10), ("r", 14, 4, 20, 10), ("r", 4, 14, 10, 20), ("r", 14, 14, 20, 20)],
+    }
+
+    def _wheel_icon(self, c, name, x, y, size, col, tags):
+        s = size / 24.0
+        w = max(1, round(self.px(2) * size / 24.0))
+        for op in self.WHEEL_ICONS.get(name, []):
+            k, v = op[0], op[1:]
+            if k == "a":
+                x1, y1, x2, y2, st, ex = v
+                c.create_arc(x + (x1 - 12) * s, y + (y1 - 12) * s, x + (x2 - 12) * s, y + (y2 - 12) * s, start=st, extent=ex,
+                             style="arc", outline=col, width=w, tags=tags)
+                continue
+            pts = [(x + (v[j] - 12) * s, y + (v[j + 1] - 12) * s) for j in range(0, len(v), 2)]
+            flat = [q for p in pts for q in p]
+            if k == "l":
+                c.create_line(*flat, fill=col, width=w, capstyle="round", joinstyle="round", tags=tags)
+            elif k == "p":
+                c.create_polygon(*flat, fill="", outline=col, width=w, joinstyle="round", tags=tags)
+            elif k == "o":
+                c.create_oval(*flat, outline=col, width=w, tags=tags)
+            elif k == "r":
+                c.create_rectangle(*flat, outline=col, width=w, tags=tags)
+
+    def _wheel_open(self):
+        if getattr(self, "_wh", None):
+            return self._wheel_close()
+        p = self.panel
+        p.update_idletasks()
+        w, h = p.winfo_width(), p.winfo_height()
+        items = []
+        for name, label, desc, subs in self.WHEEL:
+            idx = None
+            if label:
+                for i in range((self.menu.index("end") or 0) + 1):
+                    try:
+                        if self.menu.type(i) in ("command", "cascade") and self.menu.entrycget(i, "label") == label:
+                            idx = i
+                            break
+                    except tk.TclError:
+                        pass
+                if idx is None:
+                    continue
+            items.append((name, idx, desc, subs))
+        if not items:
+            return
+        top = tk.Toplevel(p)
+        top.overrideredirect(True)
+        top.attributes("-topmost", True)
+        try:
+            top.attributes("-alpha", 0.97)
+        except tk.TclError:
+            pass
+        top.geometry(f"{w}x{h}+{p.winfo_rootx()}+{p.winfo_rooty()}")
+        c = tk.Canvas(top, width=w, height=h, bg="#0a0a0a", highlightthickness=0, bd=0)
+        c.pack(fill="both", expand=True)
+        cx, cy = self.px(60), self.px(26)
+        side = w >= h * 1.15                                  # wide window: the details sit on the right, else under the wheel
+        R = min(self.px(330), int((w * 0.5 if side else min(w, h * 0.55)) * 0.78))
+        for rr, dash, col in ((R, None, "#2b3311"), (int(R * 1.45), (3, 5), "#20260d"), (int(R * 0.6), None, "#1d1d1d")):
+            c.create_oval(cx - rr, cy - rr, cx + rr, cy + rr, outline=col, dash=dash, width=1)
+        c.create_line(cx, cy, cx + R * 1.1, cy + R * 1.1, fill="#1d2409", width=1)      # the 45° guide line
+        self._wh = {"top": top, "c": c, "items": items, "sel": 1 if len(items) > 1 else 0, "pos": 0.0, "cx": cx, "cy": cy,
+                    "R": R, "w": w, "h": h, "side": side, "anim": None, "grow": 0.0}
+        c.bind("<MouseWheel>", lambda e: self._wheel_turn(-1 if e.delta > 0 else 1))
+        c.bind("<Button-4>", lambda e: self._wheel_turn(-1))
+        c.bind("<Button-5>", lambda e: self._wheel_turn(1))
+        c.bind("<Button-1>", self._wheel_click)
+        top.bind("<Escape>", lambda e: self._wheel_close())
+        top.bind("<Return>", lambda e: self._wheel_go())
+        top.bind("<Up>", lambda e: self._wheel_turn(-1))
+        top.bind("<Down>", lambda e: self._wheel_turn(1))
+        top.bind("<FocusOut>", lambda e: self.root.after(120, self._wheel_close_if_away))
+        top.focus_force()
+        self._wheel_step()
+
+    def _wheel_close_if_away(self):
+        wh = getattr(self, "_wh", None)
+        if wh and wh["top"].focus_displayof() is None:
+            self._wheel_close()
+
+    def _wheel_close(self):
+        wh = getattr(self, "_wh", None)
+        if not wh:
+            return
+        wh["closing"] = True               # collapse back into the corner, then go
+        if not wh["anim"]:
+            self._wheel_step()
+
+    def _wheel_turn(self, d):
+        wh = getattr(self, "_wh", None)
+        if wh and not wh.get("closing"):
+            wh["sel"] = (wh["sel"] + d) % len(wh["items"])
+            if not wh["anim"]:
+                self._wheel_step()
+
+    def _wheel_click(self, e):
+        wh = getattr(self, "_wh", None)
+        if not wh or wh.get("closing"):
+            return
+        hit = wh["c"].find_overlapping(e.x - 3, e.y - 3, e.x + 3, e.y + 3)
+        for item in reversed(hit):
+            for t in wh["c"].gettags(item):
+                if t.startswith("wi") and t[2:].isdigit():   # one option ("wi" alone is the shared tag)
+                    i = int(t[2:])
+                    if i == wh["sel"]:
+                        return self._wheel_go()
+                    wh["sel"] = i
+                    if not wh["anim"]:
+                        self._wheel_step()
+                    return
+                if t == "wpanel":
+                    return                          # a click on the details text: do nothing
+        self._wheel_close()                         # clicked outside the options: fold it away
+
+    def _wheel_go(self):
+        wh = getattr(self, "_wh", None)
+        if not wh or wh.get("closing"):
+            return
+        name, idx = wh["items"][wh["sel"]][:2]
+        x, y = wh["top"].winfo_rootx() + self.px(80), wh["top"].winfo_rooty() + self.px(60)
+        self._wheel_close()
+
+        def run():
+            try:
+                if idx is None:
+                    self.menu.tk_popup(x, y)
+                elif self.menu.type(idx) == "cascade":
+                    self.root.nametowidget(self.menu.entrycget(idx, "menu")).tk_popup(x, y)
+                else:
+                    self.menu.invoke(idx)
+            except tk.TclError:
+                pass
+        self.root.after(260, run)
+
+    def _wheel_step(self):
+        import math
+        wh = getattr(self, "_wh", None)
+        if not wh:
+            return
+        n, c, px = len(wh["items"]), wh["c"], self.px
+        target = wh["sel"]
+        d = target - wh["pos"]
+        if d > n / 2:
+            d -= n
+        if d < -n / 2:
+            d += n
+        wh["pos"] = (wh["pos"] + d * 0.28) % n
+        g = wh["grow"] + ((0.0 if wh.get("closing") else 1.0) - wh["grow"]) * 0.3
+        wh["grow"] = g
+        c.delete("wi")
+        R = wh["R"] * (0.25 + 0.75 * g)
+        for i, (name, _, _, _) in enumerate(wh["items"]):
+            off = i - wh["pos"]
+            if off > n / 2:
+                off -= n
+            if off < -n / 2:
+                off += n
+            a = abs(off)
+            if a > 3.6:
+                continue
+            ang = math.radians(45 + off * 15 * g - (1 - g) * 40)
+            x, y = wh["cx"] + R * math.cos(ang), wh["cy"] + R * math.sin(ang)
+            on = a < 0.5
+            rad = px(27 if on else 22) * (0.4 + 0.6 * g)
+            shade = max(0.25, 1 - a * 0.24) * g
+            mix = lambda h1: "#%02x%02x%02x" % tuple(int(int(h1[k:k + 2], 16) * shade + 10 * (1 - shade)) for k in (1, 3, 5))
+            tags = ("wi", f"wi{i}")
+            if on:                                  # the chosen one: lime circle with a soft halo
+                for gr, col in ((px(13), "#141a07"), (px(7), "#1d2409")):
+                    c.create_oval(x - rad - gr, y - rad - gr, x + rad + gr, y + rad + gr, fill=col, outline="", tags=tags)
+            c.create_oval(x - rad, y - rad, x + rad, y + rad, fill="#c6f432" if on else "#141414",
+                          outline="" if on else mix("#2e2e2e"), width=1, tags=tags)
+            if g > 0.35:
+                self._wheel_icon(c, name, x, y, rad * 0.95, "#0a0a0a" if on else mix("#c6f432"), tags)
+            c.create_text(x + rad + px(12), y, text=name, anchor="w", fill=mix("#c6f432") if on else mix("#bdbdb7"),
+                          font=(FONT, 15 if on else 11, "bold" if on else "normal"), tags=tags)
+        # the details of the chosen option: number, big name, what it does, its tags
+        if g > 0.6 and not wh.get("closing"):
+            name, _, desc, subs = wh["items"][wh["sel"]]
+            W, H = wh["w"], wh["h"]
+            if wh["side"]:
+                x0, y0, tw = int(W * 0.56), int(H * 0.2), int(W * 0.4)
+            else:
+                x0, y0, tw = px(26), int(wh["cy"] + wh["R"] * 1.08 + px(20)), W - px(52)
+            pt = ("wi", "wpanel")
+            c.create_text(x0, y0, anchor="nw", text=f"{wh['sel'] + 1:02d} / {n:02d}", fill="#c6f432",
+                          font=(MONO, 9, "bold"), tags=pt)
+            yy = y0 + px(22)
+            t = c.create_text(x0, yy, anchor="nw", text=name, fill="#f2f2ec", font=(FONT, 24, "bold"), width=tw, tags=pt)
+            yy = c.bbox(t)[3] + px(10)
+            t = c.create_text(x0, yy, anchor="nw", text=desc, fill="#b9b9b3", font=(FONT, 11), width=tw, tags=pt)
+            yy = c.bbox(t)[3] + px(14)
+            xx = x0
+            for s in subs:                         # little outlined tags, wrapping to a new row when full
+                t = c.create_text(xx + px(12), yy + px(6), anchor="nw", text=s, fill="#c6f432", font=(MONO, 9), tags=pt)
+                b = c.bbox(t)
+                if b[2] + px(12) > x0 + tw and xx > x0:
+                    c.delete(t)
+                    xx, yy = x0, yy + px(34)
+                    t = c.create_text(xx + px(12), yy + px(6), anchor="nw", text=s, fill="#c6f432", font=(MONO, 9), tags=pt)
+                    b = c.bbox(t)
+                r = (b[3] - b[1] + px(12)) / 2
+                c.create_line(b[0] - px(12) + r, b[1] - px(6), b[2] + px(12) - r, b[1] - px(6), fill="#4d5e14", tags=pt)
+                c.create_line(b[0] - px(12) + r, b[3] + px(6), b[2] + px(12) - r, b[3] + px(6), fill="#4d5e14", tags=pt)
+                c.create_arc(b[0] - px(12), b[1] - px(6), b[0] - px(12) + 2 * r, b[3] + px(6), start=90, extent=180,
+                             style="arc", outline="#4d5e14", tags=pt)
+                c.create_arc(b[2] + px(12) - 2 * r, b[1] - px(6), b[2] + px(12), b[3] + px(6), start=-90, extent=180,
+                             style="arc", outline="#4d5e14", tags=pt)
+                xx = b[2] + px(12) + px(8)
+            c.create_text(x0, yy + px(46), anchor="nw", fill="#6f6f6a", width=tw, font=(MONO, 8), tags=pt,
+                          text="scroll to turn the wheel · click the green one to open · Esc closes")
+        if wh.get("closing") and g < 0.05:
+            wh["top"].destroy()
+            self._wh = None
+            return
+        if abs(d) > 0.01 or abs((0.0 if wh.get("closing") else 1.0) - g) > 0.01:
+            wh["anim"] = self.root.after(16, self._wheel_step)
+        else:
+            wh["anim"] = None
+            wh["pos"] = float(target)
+
     def _build_panel(self):
         p = self.panel = tk.Toplevel(self.root)
         p.overrideredirect(True)
@@ -815,6 +1162,7 @@ class ArchieApp:
         title = tk.Label(head, text="ARCHIE", bg=BG, fg=TEXT, font=(MONO, 11, "bold"))
         title.pack(side="left", padx=(0, px(8)))
         self.head_title, self.head_owl = title, owl
+        title.configure(cursor="hand2", text="ARCHIE ▾")
         self._chips_compact = False
         self._chip_w = {}
         head.bind("<Configure>", lambda e: self.root.after_idle(self._fit_header), add="+")
@@ -826,6 +1174,11 @@ class ArchieApp:
         for w in (head, title, owl):
             w.bind("<ButtonPress-1>", self._panel_press)
             w.bind("<B1-Motion>", self._panel_drag)
+        # ARCHIE opens the menu wheel on a click; dragging it still moves the window
+        title.bind("<ButtonPress-1>", lambda e: setattr(self, "_title_down", (e.x_root, e.y_root)), add="+")
+        title.bind("<ButtonRelease-1>", lambda e: self._wheel_open() if (
+            abs(e.x_root - getattr(self, "_title_down", (-99, -99))[0]) + abs(e.y_root - getattr(self, "_title_down", (-99, -99))[1]) < 6
+        ) else None)
         self.model_popup = tk.Menu(p, tearoff=0)
         self.model_choice = tk.StringVar(value=self.cfg["model"])
 
@@ -933,6 +1286,7 @@ class ArchieApp:
         self.chat.bind("<Configure>", self._chat_resized)
         self.chat.bind("<1>", lambda e: self.chat.focus_set())   # select + copy answers
 
+        p.bind("<Control-v>", self._inbox_paste, add="+")    # a screenshot or copied files -> inbox card
         # Drag-and-drop files onto the panel
         if TkinterDnD:
             for w in (p, self.chat, self.entry):
@@ -1475,8 +1829,500 @@ class ArchieApp:
         self.add_attachments(paths)
 
     def _on_drop(self, e):
-        self.add_attachments(self.root.tk.splitlist(e.data))
+        """A dropped file gets an inbox card (save it where it belongs, or ask Archie about it)."""
+        paths = list(self.root.tk.splitlist(e.data))
+        rest = []
+        for p in paths:
+            if self.inbox and os.path.isfile(p):
+                self._inbox_card(p)
+            else:
+                rest.append(p)
+        if rest:
+            self.add_attachments(rest)
         return e.action
+
+    # ----- Archie Inbox: drop / paste / "Send to Archie" -> one card: what it is, which class, where it goes ---------
+    def _inbox_poll(self):
+        try:
+            for path in self.inbox.take_queue() if self.inbox else []:
+                if not self.panel_visible():
+                    self.show_panel()
+                self._inbox_card(path)
+            while self.mail_cards:             # new mail: a Windows notification, and its card waits in the chat
+                m = self.mail_cards.pop(0)
+                self._mail_card(m)
+
+                def toast(m=m):
+                    try:
+                        ok = mailm.windows_toast(m, os.path.join(APP_DIR, "archie.png"))
+                    except Exception:
+                        ok = False
+                    if not ok:
+                        self._mail_show = True     # no Windows notification: open the panel instead (as before)
+                threading.Thread(target=toast, daemon=True, name="mail-toast").start()
+            if getattr(self, "_mail_show", False):
+                self._mail_show = False
+                if not self.panel_visible():
+                    self.show_panel()
+            for path, klass in self.inbox.take_dates() if self.inbox else []:
+                if not self.panel_visible():
+                    self.show_panel()
+                self._dates_card(path, klass)
+        except Exception:
+            pass
+        self.root.after(2000, self._inbox_poll)
+
+    def _inbox_paste(self, _e=None):
+        """Ctrl+V: a screenshot or copied files become inbox cards. Plain text pastes as usual."""
+        try:
+            from PIL import ImageGrab
+            got = ImageGrab.grabclipboard()
+        except Exception:
+            return None
+        if got is None:
+            return None
+        if isinstance(got, list):
+            files = [p for p in got if os.path.isfile(p)]
+            for p in files:
+                self._inbox_card(p)
+            return "break" if files else None
+        try:
+            os.makedirs(SNIPS_DIR, exist_ok=True)
+            now = datetime.datetime.now()
+            stamp = now.strftime("%Y-%m-%d ") + now.strftime("%I.%M %p").lstrip("0")
+            path = os.path.join(SNIPS_DIR, f"Screenshot ({stamp}).png")
+            i = 2
+            while os.path.exists(path):
+                path = os.path.join(SNIPS_DIR, f"Screenshot ({stamp}) {i}.png")
+                i += 1
+            got.save(path)
+        except Exception:
+            return None
+        self._inbox_card(path)
+        return "break"
+
+    def _inbox_card(self, path):
+        px = self.px
+        try:
+            g = self.inbox.guess(path)
+        except Exception as e:
+            self._write(f"I couldn't read {os.path.basename(path)} ({e}).\n", "sys")
+            return
+        t = self.chat
+        W = max(px(300), t.winfo_width() - px(70))
+        card = tk.Frame(t, bg=SURFACE, highlightthickness=1, highlightbackground="#4d5e14", padx=px(14), pady=px(12))
+        tk.Frame(card, bg=SURFACE, width=W, height=1).pack(anchor="w")          # holds the card's width
+        st = {"kind": g["kind"], "klass": g["klass"], "done": False}
+        size = g["size"]
+        sz = f"{size / 1048576:.1f} MB" if size >= 1048576 else f"{max(1, size // 1024)} KB"
+        tk.Label(card, text=g["name"], bg=SURFACE, fg=TEXT, font=(FONT, 10, "bold"), anchor="w", justify="left",
+                 wraplength=W).pack(anchor="w", fill="x")
+        tk.Label(card, text=f"{sz} · just arrived", bg=SURFACE, fg=MUTED, font=(MONO, 8), anchor="w").pack(anchor="w")
+        tk.Label(card, text="NAME", bg=SURFACE, fg=DIM, font=(MONO, 7)).pack(anchor="w", pady=(px(10), px(3)))
+        nrow = tk.Frame(card, bg=SURFACE)
+        nrow.pack(anchor="w", fill="x")
+        stem0, ext0 = os.path.splitext(g["name"])
+        name_var = tk.StringVar(value=stem0)
+        ne = tk.Entry(nrow, textvariable=name_var, bg=INPUT_BG, fg=TEXT, insertbackground=ACCENT, relief="flat",
+                      font=(FONT, 10), highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
+        ne.pack(side="left", fill="x", expand=True, ipady=px(4))
+        tk.Label(nrow, text=ext0, bg=SURFACE, fg=MUTED, font=(MONO, 9), padx=px(6)).pack(side="left")
+        guess = tk.Label(card, bg=SURFACE, fg=MUTED, font=(MONO, 9), anchor="w", justify="left", wraplength=W)
+        guess.pack(anchor="w", pady=(px(8), 0))
+        if g.get("dup"):
+            d = g["dup"]
+            tk.Label(card, text=f"⚠ already saved {d.get('date', '')} → {self.inbox.rel(d.get('dest', ''))}",
+                     bg=SURFACE, fg="#f5a524", font=(MONO, 9), anchor="w", justify="left",
+                     wraplength=W).pack(anchor="w", pady=(px(6), 0))
+        rows = {}
+        for key, title in (("kind", "WHAT IS IT"), ("klass", "CLASS")):
+            tk.Label(card, text=title, bg=SURFACE, fg=DIM, font=(MONO, 7)).pack(anchor="w", pady=(px(10), px(3)))
+            rows[key] = tk.Frame(card, bg=SURFACE)
+            rows[key].pack(anchor="w", fill="x")
+        tk.Label(card, text="SAVE TO", bg=SURFACE, fg=DIM, font=(MONO, 7)).pack(anchor="w", pady=(px(10), px(3)))
+        dest = tk.Label(card, bg=INPUT_BG, fg=BODY, font=(MONO, 9), anchor="w", justify="left", wraplength=W - px(16),
+                        padx=px(8), pady=px(5))
+        dest.pack(anchor="w", fill="x")
+        acts = tk.Frame(card, bg=SURFACE)
+        acts.pack(anchor="w", fill="x", pady=(px(12), 0))
+        cf = tkfont.Font(family=FONT, size=9)
+
+        def chips(frame, options, cur, pick):
+            for w in frame.winfo_children():
+                w.destroy()
+            line, used = None, W + 1
+            for opt, label in options:
+                wv = cf.measure(label) + px(26)
+                if used + wv > W:
+                    line = tk.Frame(frame, bg=SURFACE)
+                    line.pack(anchor="w", pady=(0, px(5)))
+                    used = 0
+                on = opt == cur
+                c = tk.Label(line, text=label, bg=ACCENT if on else INPUT_BG, fg=TILE if on else BODY,
+                             font=(FONT, 9, "bold" if on else "normal"), padx=px(9), pady=px(2), cursor="hand2")
+                c.pack(side="left", padx=(0, px(6)))
+                c.bind("<ButtonRelease-1>", lambda e, o=opt: pick(o))
+                used += wv
+
+        def redraw():
+            if st["done"]:
+                return
+            chips(rows["kind"], [(k, k) for k in self.inbox_types], st["kind"], lambda o: (st.update(kind=o), redraw()))
+            cls = [(c, c) for c in self.inbox.classes()] + [(None, "no class")]
+            if st["klass"] and st["klass"] not in [c for c, _ in cls]:
+                cls.insert(0, (st["klass"], st["klass"]))
+            chips(rows["klass"], cls, st["klass"], lambda o: (st.update(klass=o), redraw()))
+            gg = dict(g, kind=st["kind"], klass=st["klass"])
+            guess.configure(text="looks like " + self.inbox.describe(gg) if st["kind"] == g["kind"] and st["klass"] == g["klass"]
+                            else "you picked " + self.inbox.describe(gg))
+            dest.configure(text=self.inbox.rel(os.path.join(self.inbox.dest_dir(st["kind"], st["klass"]),
+                                                             self.inbox.renamed(path, name_var.get()))))
+            self._queue_bars()
+
+        def button(text, cmd, main=False):
+            b = tk.Label(acts, text=text, bg=ACCENT if main else INPUT_BG, fg=TILE if main else BODY,
+                         font=(MONO, 9, "bold" if main else "normal"), padx=px(14), pady=px(6), cursor="hand2")
+            b.pack(side="left", padx=(0, px(8)))
+            b.bind("<ButtonRelease-1>", lambda e: cmd())
+            return b
+
+        def finish(msg, uid=None):
+            st["done"] = True
+            for w in card.winfo_children()[1:]:
+                w.destroy()
+            line = tk.Frame(card, bg=SURFACE)
+            line.pack(anchor="w", fill="x")
+            tk.Label(line, text=msg, bg=SURFACE, fg="#d9f08a", font=(MONO, 9), anchor="w", justify="left",
+                     wraplength=W - px(90)).pack(side="left")
+            if uid:
+                u = tk.Label(line, text="undo 10", bg=SURFACE, fg=ACCENT, font=(MONO, 9, "bold"), cursor="hand2")
+                u.pack(side="right")
+
+                def tick(n):
+                    if not u.winfo_exists():
+                        return
+                    if n <= 0:
+                        u.destroy()
+                        return
+                    u.configure(text=f"undo {n}")
+                    self.root.after(1000, tick, n - 1)
+
+                def do_undo():
+                    if self.inbox.undo(uid):
+                        for w in line.winfo_children():
+                            w.destroy()
+                        tk.Label(line, text="↶ undone, nothing was saved", bg=SURFACE, fg=MUTED, font=(MONO, 9)).pack(side="left")
+                u.bind("<ButtonRelease-1>", lambda e: do_undo())
+                tick(10)
+            self._queue_bars()
+
+        def save():
+            try:
+                out, uid = self.inbox.save(path, st["kind"], st["klass"], new_name=name_var.get())
+            except Exception as e:
+                return finish(f"couldn't save it: {e}")
+            finish(f"✓ saved to {self.inbox.rel(out)}", uid)
+            if st["kind"] == "syllabus" and not st.get("dates"):   # a syllabus: read its dates right away (nothing is added until you tick)
+                self._dates_card(out, st["klass"])
+
+        def dates():
+            if st.get("dates"):
+                return
+            st["dates"] = True
+            db.configure(text="reading its dates ↓", fg=MUTED, cursor="")
+            self._dates_card(path, st["klass"])
+
+        def ask():
+            finish("attached to your next message")
+            self.add_attachments([path])
+
+        button("Save again anyway" if g.get("dup") else "Save", save, main=True)
+        db = button("Find dates", dates) if file_kind(path) else None
+        button("Ask Archie about it", ask)
+        button("Not now", lambda: finish("left where it was"))
+        redraw()
+        name_var.trace_add("write", lambda *a: redraw())
+        ne.bind("<Return>", lambda e: (save(), "break")[1])
+        t.configure(state="normal")
+        if t.index("end-1c") != "1.0" and t.get("end-2c") != "\n":
+            t.insert("end", "\n")
+        t.window_create("end", window=card, padx=px(4), pady=px(4))
+        t.insert("end", "\n")
+        t.configure(state="disabled")
+        t.see("end")
+        self._queue_bars()
+
+    def _mail_card(self, m):
+        """New mail that matters: who, what, why; its attachments go to the inbox card, its dates to the dates reader."""
+        px = self.px
+        t = self.chat
+        W = max(px(300), t.winfo_width() - px(70))
+        card = tk.Frame(t, bg=SURFACE, highlightthickness=1, highlightbackground="#4d5e14" if m.get("prof") else BORDER,
+                        padx=px(14), pady=px(12))
+        tk.Frame(card, bg=SURFACE, width=W, height=1).pack(anchor="w")
+        top = tk.Frame(card, bg=SURFACE)
+        top.pack(anchor="w", fill="x")
+        tk.Label(top, text="✉ GMAIL", bg=SURFACE, fg=ACCENT, font=(MONO, 8, "bold")).pack(side="left")
+        try:
+            d = datetime.datetime.fromisoformat(m["date"])
+            when = f"{d:%a %b} {d.day} · {d.hour % 12 or 12}:{d:%M} {'AM' if d.hour < 12 else 'PM'}"
+        except (ValueError, KeyError):
+            when = ""
+        tk.Label(top, text="  " + " · ".join([when] + m.get("why", [])), bg=SURFACE, fg=MUTED, font=(MONO, 8)).pack(side="left")
+        tk.Label(card, text=m.get("from") or m.get("addr", ""), bg=SURFACE, fg=TEXT, font=(FONT, 11, "bold"), anchor="w",
+                 justify="left", wraplength=W).pack(anchor="w", pady=(px(8), 0))
+        tk.Label(card, text=m.get("subject", ""), bg=SURFACE, fg=BODY, font=(FONT, 10), anchor="w", justify="left",
+                 wraplength=W).pack(anchor="w")
+        if m.get("snippet"):
+            tk.Label(card, text=m["snippet"], bg=SURFACE, fg=MUTED, font=(FONT, 9), anchor="w", justify="left",
+                     wraplength=W).pack(anchor="w", pady=(px(6), 0))
+        files = [p for p in m.get("attachments") or [] if os.path.exists(p)]
+        if files:
+            tk.Label(card, text="ATTACHMENTS · click one to file it", bg=SURFACE, fg=DIM, font=(MONO, 7)).pack(anchor="w", pady=(px(10), px(3)))
+            for p in files:
+                sz = os.path.getsize(p)
+                f = tk.Label(card, text=f"📎 {os.path.basename(p)}  ·  {sz / 1048576:.1f} MB" if sz >= 1048576 else
+                             f"📎 {os.path.basename(p)}  ·  {max(1, sz // 1024)} KB", bg=INPUT_BG, fg=BODY, font=(FONT, 9),
+                             anchor="w", padx=px(8), pady=px(4), cursor="hand2")
+                f.pack(anchor="w", fill="x", pady=(0, px(4)))
+                f.bind("<ButtonRelease-1>", lambda e, p=p, f=f: (f.configure(fg=MUTED, text=f.cget("text") + "  ↓", cursor=""),
+                                                                 f.unbind("<ButtonRelease-1>"), self._inbox_card(p)))
+        acts = tk.Frame(card, bg=SURFACE)
+        acts.pack(anchor="w", fill="x", pady=(px(12), 0))
+
+        def button(text, cmd, main=False):
+            b = tk.Label(acts, text=text, bg=ACCENT if main else INPUT_BG, fg=TILE if main else BODY,
+                         font=(MONO, 9, "bold" if main else "normal"), padx=px(14), pady=px(6), cursor="hand2")
+            b.pack(side="left", padx=(0, px(8)))
+            b.bind("<ButtonRelease-1>", lambda e: cmd(b))
+            return b
+
+        def open_mail(b):
+            import webbrowser
+            webbrowser.open(m.get("link") or "https://mail.google.com/")
+
+        def dates(b):
+            b.configure(text="reading its dates ↓", fg=MUTED, cursor="")
+            b.unbind("<ButtonRelease-1>")
+            self._dates_card(m["body_path"], None)
+
+        def done(b):
+            for w in card.winfo_children()[1:]:
+                w.destroy()
+            tk.Label(card, text=f"✓ {m.get('subject', '')}"[:90], bg=SURFACE, fg=MUTED, font=(MONO, 9), anchor="w").pack(anchor="w")
+            self._queue_bars()
+
+        button("Open in Gmail", open_mail, main=True)
+        if m.get("body_path") and os.path.exists(m["body_path"]):
+            button("Find dates", dates)
+        button("Done", done)
+        t.configure(state="normal")
+        if t.index("end-1c") != "1.0" and t.get("end-2c") != "\n":
+            t.insert("end", "\n")
+        t.window_create("end", window=card, padx=px(4), pady=px(4))
+        t.insert("end", "\n")
+        t.configure(state="disabled")
+        t.see("end")
+        self._queue_bars()
+
+    def _dates_card(self, path, klass=None):
+        """The dates reader: reads a syllabus/schedule/screenshot, lists what it found; ticked ones go on the calendar."""
+        px = self.px
+        t = self.chat
+        W = max(px(300), t.winfo_width() - px(70))
+        card = tk.Frame(t, bg=SURFACE, highlightthickness=1, highlightbackground="#4d5e14", padx=px(14), pady=px(12))
+        tk.Frame(card, bg=SURFACE, width=W, height=1).pack(anchor="w")
+        name = os.path.basename(path)
+        ext = os.path.splitext(name)[1].lower().strip(".")[:4].upper() or "FILE"
+        src = tk.Frame(card, bg=INPUT_BG, padx=px(10), pady=px(8))
+        src.pack(anchor="w", fill="x")
+        tk.Label(src, text=ext, bg="#1b1b1b", fg=ACCENT, font=(MONO, 8, "bold"), width=4, pady=px(6)).pack(side="left")
+        srct = tk.Frame(src, bg=INPUT_BG, padx=px(10))
+        srct.pack(side="left", fill="x", expand=True)
+        tk.Label(srct, text=name, bg=INPUT_BG, fg=TEXT, font=(FONT, 9), anchor="w", justify="left",
+                 wraplength=W - px(90)).pack(anchor="w")
+        status = tk.Label(srct, text="reading it… about a minute; keep working", bg=INPUT_BG, fg=MUTED, font=(MONO, 8), anchor="w")
+        status.pack(anchor="w")
+        body = tk.Frame(card, bg=SURFACE)
+        body.pack(anchor="w", fill="x")
+        st = {"plan": None, "done": False, "err": None, "raw": None, "t0": time.time(), "step": ""}
+        cf = tkfont.Font(family=FONT, size=9)
+
+        def place():
+            t.configure(state="normal")
+            if t.index("end-1c") != "1.0" and t.get("end-2c") != "\n":
+                t.insert("end", "\n")
+            t.window_create("end", window=card, padx=px(4), pady=px(4))
+            t.insert("end", "\n")
+            t.configure(state="disabled")
+            t.see("end")
+            self._queue_bars()
+
+        def work():
+            try:
+                model = self.cfg["model"]
+
+                def look(p):
+                    with open(p, "rb") as f:
+                        return self._review_vision(f.read(), "page")
+                text = datesm.read(path, read_text, look)
+                if not text.strip():
+                    raise ValueError("there's no text in it I can read")
+                ask = lambda prompt: quick_chat(model, prompt, max_tokens=4096, timeout=900, num_ctx=16384,
+                                                json_mode=True, temperature=0.1)
+                st["raw"] = datesm.find(text, name, ask, progress=lambda i, n: st.update(step=f" · part {i + 1} of {n}" if n > 1 else ""))
+            except Exception as e:
+                st["err"] = str(e) or type(e).__name__
+            st["done"] = True
+
+        def wait():
+            if not card.winfo_exists():
+                return
+            if not st["done"]:
+                status.configure(text=f"reading it{st['step']}… {int(time.time() - st['t0'])} s; keep working")
+                return self.root.after(1000, wait)
+            if st["err"]:
+                status.configure(text=f"couldn't read it: {st['err']}"[:200], fg="#f5a524")
+                return self._queue_bars()
+            try:
+                existing = self.calendar.load()
+            except Exception:
+                existing = []
+            raw = st["raw"]
+            course = klass or raw.get("course") or ""
+            st["plan"] = datesm.plan(raw, course=course, existing=existing)
+            st["found"] = raw.get("course") or ""
+            status.configure(text=f"read in {int(time.time() - st['t0'])} s · nothing added yet")
+            show()
+
+        def show():
+            for w in body.winfo_children():
+                w.destroy()
+            p = st["plan"]
+            rows = p["rows"]
+            if not rows:
+                tk.Label(body, text="I didn't find any dates in it.", bg=SURFACE, fg=TEXT, font=(FONT, 12, "bold"),
+                         anchor="w").pack(anchor="w", pady=(px(12), px(4)))
+                return self._queue_bars()
+            tk.Label(body, text=f"Found {len(rows)} thing{'s' if len(rows) != 1 else ''}" + (f" in {p['course']}" if p["course"] else ""),
+                     bg=SURFACE, fg=TEXT, font=(FONT, 13, "bold"), anchor="w").pack(anchor="w", pady=(px(12), px(2)))
+            tk.Label(body, text="Untick anything that's wrong. Hover a line to see where I found it.", bg=SURFACE, fg=MUTED,
+                     font=(FONT, 9), anchor="w").pack(anchor="w")
+            # which class these are for (names exams "<class> Midterm", and weekly classes "<class>")
+            tk.Label(body, text="CLASS", bg=SURFACE, fg=DIM, font=(MONO, 7)).pack(anchor="w", pady=(px(10), px(3)))
+            crow = tk.Frame(body, bg=SURFACE)
+            crow.pack(anchor="w", fill="x")
+            opts = []
+            for c in [p["course"], st["found"], klass] + (self.inbox.classes() if self.inbox else []):
+                if c and c not in opts:
+                    opts.append(c)
+            line, used = None, W + 1
+            for c in opts + [""]:
+                lab = c or "no class"
+                wv = cf.measure(lab) + px(26)
+                if used + wv > W:
+                    line = tk.Frame(crow, bg=SURFACE)
+                    line.pack(anchor="w", pady=(0, px(5)))
+                    used = 0
+                on = c == p["course"]
+                ch = tk.Label(line, text=lab, bg=ACCENT if on else INPUT_BG, fg=TILE if on else BODY,
+                              font=(FONT, 9, "bold" if on else "normal"), padx=px(9), pady=px(2), cursor="hand2")
+                ch.pack(side="left", padx=(0, px(6)))
+                ch.bind("<ButtonRelease-1>", lambda e, c=c: (datesm.retitle(p, c), show()))
+                used += wv
+            for label, rs in datesm.grouped(rows):
+                tk.Label(body, text=label, bg=SURFACE, fg=DIM, font=(MONO, 7)).pack(anchor="w", pady=(px(12), px(3)))
+                for r in rs:
+                    row(r)
+            for w_ in p["warns"]:
+                tk.Label(body, text="⚠ " + w_, bg=SURFACE, fg="#f5a524", font=(FONT, 9), anchor="w", justify="left",
+                         wraplength=W).pack(anchor="w", pady=(px(8), 0))
+            acts = tk.Frame(body, bg=SURFACE)
+            acts.pack(anchor="w", fill="x", pady=(px(12), 0))
+            n = sum(1 for r in rows if r["on"] and r["events"])
+            b = tk.Label(acts, text=f"Add {n} to calendar" if n else "Nothing ticked", bg=ACCENT if n else INPUT_BG,
+                         fg=TILE if n else MUTED, font=(MONO, 9, "bold"), padx=px(14), pady=px(6), cursor="hand2" if n else "")
+            b.pack(side="left", padx=(0, px(8)))
+            if n:
+                b.bind("<ButtonRelease-1>", lambda e: add())
+            c_ = tk.Label(acts, text="Cancel", bg=INPUT_BG, fg=BODY, font=(MONO, 9), padx=px(14), pady=px(6), cursor="hand2")
+            c_.pack(side="left")
+            c_.bind("<ButtonRelease-1>", lambda e: end("nothing added"))
+            self._queue_bars()
+
+        def row(r):
+            can = bool(r["events"])
+            f = tk.Frame(body, bg=SURFACE, pady=px(3), cursor="hand2" if can else "")
+            f.pack(anchor="w", fill="x")
+            box = tk.Label(f, text="☑" if r["on"] else "☐", bg=SURFACE, fg=ACCENT if r["on"] else (MUTED if can else DIM),
+                           font=(FONT, 11), width=2, anchor="n")
+            box.pack(side="left", anchor="n")
+            tk.Label(f, text="●", bg=SURFACE, fg=cal.KINDS.get(r["kind"], cal.KINDS["event"])[1], font=(FONT, 7),
+                     anchor="n").pack(side="left", anchor="n", pady=(px(3), 0), padx=(0, px(6)))
+            txt = tk.Frame(f, bg=SURFACE)
+            txt.pack(side="left", fill="x", expand=True)
+            tl = tk.Label(txt, text=r["title"], bg=SURFACE, fg=TEXT if r["on"] else MUTED, anchor="w",
+                          font=(FONT, 10, "bold" if r["on"] else "overstrike" if can else "normal"))
+            tl.pack(anchor="w")
+            wl = tk.Label(txt, text=r["when"] + (f" · {r['note']}" if r["note"] else ""), bg=SURFACE, fg=MUTED,
+                          font=(FONT, 9), anchor="w", justify="left", wraplength=W - px(50))
+            wl.pack(anchor="w")
+            if r["quote"]:
+                q = "“" + (r["quote"][:140] + ("…" if len(r["quote"]) > 140 else "")) + "”" + (f" · page {r['page']}" if r["page"] else "")
+                for w_ in (f, tl, wl):
+                    self._tip(w_, q)
+            if can:
+                def flip(_e=None, r=r):
+                    r["on"] = not r["on"]
+                    show()
+                for w_ in (f, box, tl, wl, txt):
+                    w_.bind("<ButtonRelease-1>", flip)
+
+        def add():
+            try:
+                ids = datesm.add(self.calendar, st["plan"]["rows"])
+            except Exception as e:
+                return end(f"couldn't add them: {e}")
+            end(f"✓ added {len(ids)} to your calendar" if len(ids) != 1 else "✓ added 1 to your calendar", ids)
+
+        def end(msg, ids=None):
+            for w in body.winfo_children():
+                w.destroy()
+            line = tk.Frame(body, bg=SURFACE)
+            line.pack(anchor="w", fill="x", pady=(px(10), 0))
+            tk.Label(line, text=msg, bg=SURFACE, fg="#d9f08a", font=(MONO, 9), anchor="w").pack(side="left")
+            if ids:
+                op = tk.Label(line, text="open calendar", bg=SURFACE, fg=MUTED, font=(MONO, 9), cursor="hand2")
+                op.pack(side="left", padx=(px(12), 0))
+                first = min((e["date"] for r in st["plan"]["rows"] if r["on"] for e in r["events"]), default=None)
+                op.bind("<ButtonRelease-1>", lambda e: self.show_calendar(first) if first else self.show_calendar())
+                u = tk.Label(line, text="undo 10", bg=SURFACE, fg=ACCENT, font=(MONO, 9, "bold"), cursor="hand2")
+                u.pack(side="right")
+
+                def tick(n):
+                    if not u.winfo_exists():
+                        return
+                    if n <= 0:
+                        return u.destroy()
+                    u.configure(text=f"undo {n}")
+                    self.root.after(1000, tick, n - 1)
+
+                def undo():
+                    for i in ids:
+                        try:
+                            self.calendar.delete(i)
+                        except Exception:
+                            pass
+                    for w in line.winfo_children():
+                        w.destroy()
+                    tk.Label(line, text="↶ undone, nothing was added", bg=SURFACE, fg=MUTED, font=(MONO, 9)).pack(side="left")
+                u.bind("<ButtonRelease-1>", lambda e: undo())
+                tick(10)
+            self._queue_bars()
+
+        place()
+        threading.Thread(target=work, daemon=True, name="dates-reader").start()
+        self.root.after(1000, wait)
 
     def add_attachments(self, paths):
         for path in paths:
@@ -2114,6 +2960,16 @@ class ArchieApp:
             self._w("\n")
             self._brief_parts["cards"] = (rev, new)
 
+        # What updated itself since last time (shown once)
+        try:
+            up = self.updater.brief_line() if self.updater else None
+        except Exception:
+            up = None
+        if up:
+            self._w("updates\n", "b_head")
+            self._w(up[0] + "\n", "body")
+            self.updater.mark_shown()
+
         # Footer
         foot = []
         part = [f for f in os.listdir(WIKI_DIR) if f.endswith(".part")] if os.path.isdir(WIKI_DIR) else []
@@ -2276,7 +3132,7 @@ class ArchieApp:
         except Exception as e:
             self._snip_cancel()
             self._write(f"I couldn't capture the screen ({e}). If it mentions PIL, run "
-                        "Install Extras.bat.\n", "sys")
+                        "Tools\\Install Extras.bat.\n", "sys")
 
     def _restore_after_snip(self):
         self.snipping = False
@@ -2291,7 +3147,10 @@ class ArchieApp:
             return
         if not self.panel_visible():
             self.show_panel()
-        self.add_attachments([path])
+        if getattr(self, "inbox", None):          # a snip gets the inbox card: save it, or ask Archie about it
+            self._inbox_card(path)
+        else:
+            self.add_attachments([path])
         self.panel.lift()
         self.panel.focus_force()
         self.entry.focus_force()
@@ -2521,6 +3380,26 @@ class ArchieApp:
         save_config(self.cfg)
         if not self.cfg["audiobooks_paused"]:
             self.listener.start()
+
+    def _exam_prep_event(self, val):
+        klass, title, out, left = val
+        vault = self.vault()
+        self._write(f"Exam prep ready: {title} ({'today' if left == 0 else 'tomorrow' if left == 1 else f'in {left} days'}). ", "sys")
+        if vault and os.path.abspath(out).startswith(os.path.abspath(vault)):
+            rel = os.path.relpath(out, vault).replace("\\", "/")
+            self._link("open in obsidian", lambda: obs.open_in_obsidian(vault, rel), "sys")
+        self._write("\n", "sys")
+
+    def _review_event(self, val):
+        klass, out = val
+        vault = self.vault()
+        self._write(f"Lecture review ready: {klass}: {os.path.basename(out)[11:-3]}. ", "sys")
+        if vault and os.path.abspath(out).startswith(os.path.abspath(vault)):
+            rel = os.path.relpath(out, vault).replace("\\", "/")
+            self._link("open in obsidian", lambda: obs.open_in_obsidian(vault, rel), "sys")
+        else:
+            self._link("open it", lambda: open_folder(out), "sys")
+        self._write("\n", "sys")
 
     def _listen_event(self, kind, val):
         if kind == "listen_lecture":
@@ -2868,6 +3747,8 @@ class ArchieApp:
     def _lecture_note(self, path, is_vault, text, timed):
         """Called from the listener (background) after a recording is typed out. Returns the
         note's path if it's a lecture, None to treat it as an ordinary voice note."""
+        if "ideas" in [p_.lower() for p_ in re.split(r"[\\/]", os.path.dirname(path))]:
+            return None                         # Ideas recordings become idea notes, never lectures
         minutes = int(self.cfg.get("lecture_minutes") or 75)
         duration = timed[-1][1] if timed else 0.0
         start = lecture.recording_start(path, duration)
@@ -2875,23 +3756,43 @@ class ArchieApp:
         if not (klass or lecture.in_lectures_folder(path) or duration >= lecture.LONG_ENOUGH):
             return None
         name = os.path.basename(path)
+        label = lecture.recording_label(name)
         paras = lecture.paragraphs(timed)
         report = lambda f, what: self.bg_q.put(("status", f"lecture notes for {klass or name}: {what}..."))
+        vault = self.vault()
+        base = vault if vault and os.path.isdir(vault) else NOTES_DIR
+        # The same lecture recorded on more than one device (both the whole time, or the phone died and the
+        # laptop took over): stitch them into one transcript, no part twice, and rewrite that lecture's note.
+        me = {"audio": name, "start": start.timestamp(), "dur": duration,
+              "segs": [[round(a_, 2), round(b_, 2), x] for a_, b_, x in timed], "label": label}
+        other = self._lecture_match(base, klass, start, duration, name) if klass else None
+        side = self._lecture_sides()
+        srcs = [me]
+        if other:
+            known = (side.get(os.path.normcase(other["path"])) or {}).get("sources") or [
+                {"audio": other["audio"], "start": other["start"].timestamp(), "dur": other["duration"],
+                 "paras": [[t, x] for t, x in other["paras"]], "label": ""}]
+            srcs = [x for x in known if x["audio"] != name] + [me]
+        t0, merged_segs, spans = review.stitch(srcs)
+        start_all = datetime.datetime.fromtimestamp(t0) if spans else start
+        dur_all = max([x["start"] + float(x.get("dur") or 0) for x in srcs]) - t0 if spans else duration
+        merged = lecture.paragraphs(merged_segs) if spans else paras
+        label = next((x.get("label") for x in srcs if x.get("label")), "")
 
         def wait():
             while self._listen_busy():
                 time.sleep(2)
         try:
-            data = lecture.build(quick_chat, self.cfg["model"], paras, klass, progress=report, wait=wait)
+            data = lecture.build(quick_chat, self.cfg["model"], merged, klass, progress=report, wait=wait)
         except Exception as e:
-            data = {"title": f"Lecture {start:%b %d}".replace(" 0", " "),
+            data = {"title": f"Lecture {start_all:%b %d}".replace(" 0", " "),
                     "summary": f"*(Archie couldn't sort this one ({e}). The full transcript is below; "
                                "ask Archie about this note to summarize it.)*",
                     "key_points": [], "topics": [], "terms": [], "todos": [], "questions": [], "mindmap": []}
-        todos = lecture.resolve_todos(data.get("todos") or [], start.date(), cal.find_date)
-        vault = self.vault()
-        base = vault if vault and os.path.isdir(vault) else NOTES_DIR
-        out = lecture.note_path(base, klass, start, data["title"])
+        if label:
+            data["title"] = label               # the name you gave it on the phone or laptop
+        todos = lecture.resolve_todos(data.get("todos") or [], start_all.date(), cal.find_date)
+        out = other["path"] if other else lecture.note_path(base, klass, start_all, data["title"])
         mm_stem = None
         if data.get("mindmap"):
             mm_stem = os.path.splitext(os.path.basename(out))[0] + " (mind map)"
@@ -2900,20 +3801,183 @@ class ArchieApp:
                     f.write(lecture.mindmap_file(data, todos, klass))
             except OSError:
                 mm_stem = None
-        md = lecture.note_markdown(data, klass=klass, start=start, duration=duration, audio_name=name,
-                                   audio_in_vault=bool(is_vault), paras=paras, todos=todos, audio_path=path,
+        first = spans[0][0] if spans else name
+        md = lecture.note_markdown(data, klass=klass, start=start_all, duration=dur_all, audio_name=first,
+                                   audio_in_vault=bool(is_vault), paras=merged, todos=todos, audio_path=path,
                                    mindmap_note=mm_stem)
+        if len(srcs) > 1:
+            md = self._stitched_md(md, spans, start_all, bool(is_vault),
+                                   [x["audio"] for x in srcs if x["audio"] not in {sp[0] for sp in spans}])
         with open(out, "w", encoding="utf-8") as f:
             f.write(md)
+        key = os.path.normcase(out)
+        rec = side.get(key) or {}
+        had = set(rec.get("todos") or [])
         added = 0
         for t in todos:
+            if t["task"] in had:                # already on your list (from another recording of this lecture)
+                continue
+            had.add(t["task"])
             try:
                 self.tasks.add(t["task"] + (f" ({klass})" if klass else ""), t.get("due"))
                 added += 1
             except Exception:
                 pass
-        self._lecture_last = {"klass": klass, "title": data["title"], "added": added}
+        side[key] = {"sources": srcs, "todos": sorted(had), "at": time.time()}
+        self._lecture_sides(side)
+        self._lecture_last = {"klass": klass, "title": data["title"] + (f" (stitched from {len(spans)} recordings)" if len(spans) > 1 else ""),
+                              "added": added}
+        if getattr(self, "reviewer", None):
+            self.reviewer.kick.set()           # line it up with the professor's material, if there is any
+        if getattr(self, "examprep", None):
+            self.examprep.kick.set()           # flashcards, and the exam guide if an exam is coming
         return out
+
+    IDEA_PROMPT = """Below is the user thinking out loud (a recorded idea, typed out from speech). Turn it into a clear
+idea note in Markdown, keeping THEIR ideas and wording, adding nothing the user didn't say:
+## The idea
+(2 to 4 sentences: what it is, in their words)
+## Details
+(bullets, grouped under short headings if there are several threads)
+## Next steps
+(things they said they'd do or should check; "none mentioned" if there are none)
+## Open questions
+(what the user wasn't sure about; leave the section out if there are none)
+Fix obvious speech-to-text mistakes, drop filler. Output only the note.
+
+Transcript:
+"""
+
+    def _idea_tidy(self, text):
+        parts, buf = [], ""
+        for para in text.split("\n\n"):
+            if buf and len(buf) + len(para) > 12000:
+                parts.append(buf)
+                buf = ""
+            buf += ("\n\n" if buf else "") + para
+        if buf:
+            parts.append(buf)
+        out = [quick_chat(self.cfg["model"], self.IDEA_PROMPT + p_, max_tokens=4096, timeout=900, num_ctx=16384,
+                          temperature=0.2) for p_ in parts]
+        return "\n\n".join(o.strip() for o in out if o and o.strip())
+
+    def _lecture_sides(self, data=None):
+        """Each lecture's recordings, kept so a later one can be stitched in: lecture_sources.json."""
+        p = os.path.join(APP_DIR, "lecture_sources.json")
+        if data is None:
+            try:
+                with open(p, encoding="utf-8") as f:
+                    d = json.load(f)
+                return d if isinstance(d, dict) else {}
+            except (OSError, ValueError):
+                return {}
+        if len(data) > 400:                     # keep the newest 400 lectures
+            data = dict(sorted(data.items(), key=lambda kv: kv[1].get("at", 0))[-400:])
+        try:
+            with open(p + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+            os.replace(p + ".tmp", p)
+        except OSError:
+            pass
+
+    def _lecture_match(self, base, klass, start, duration, name):
+        """A lecture note for this class whose recording overlaps this one or comes within 15 minutes of it
+        (the phone and the laptop both recorded it, or one took over from the other), or None."""
+        d = os.path.join(base, "Lectures", re.sub(r'[<>:"/\\|?*#^\[\]]', " ", klass).strip() or "Other")
+        if not os.path.isdir(d):
+            return None
+        a0, a1 = start.timestamp(), start.timestamp() + duration
+        best = None
+        for fn in os.listdir(d):
+            if not fn.endswith(".md") or fn.endswith((" (review).md", " (review, rebuilt).md", "(mind map).md")):
+                continue
+            if fn[:10] not in (start.strftime("%Y-%m-%d"), (start - datetime.timedelta(days=1)).strftime("%Y-%m-%d")):
+                continue
+            lec = review.read_lecture(os.path.join(d, fn))
+            if not lec or lec["audio"] == name:
+                continue
+            b0 = lec["start"].timestamp()
+            b1 = b0 + (lec["duration"] or 0)
+            gap = max(a0, b0) - min(a1, b1)    # negative when they overlap
+            if gap <= 15 * 60 and (best is None or gap < best[0]):
+                best = (gap, lec)
+        return best[1] if best else None
+
+    @staticmethod
+    def _stitched_md(md, spans, start_all, in_vault, unused=()):
+        """Name every recording in a stitched lecture note, and which part of the lecture came from each."""
+        fmt = lambda s: (f"{int(s) // 3600}:{int(s) % 3600 // 60:02d}:{int(s) % 60:02d}" if s >= 3600
+                         else f"{int(s) // 60:02d}:{int(s) % 60:02d}")
+        recs = ";".join(f"{a}@{off:.0f}" for a, off, _, _ in spans)
+        md = md.replace("\n---\n", f'\nrecordings: "{recs}"\nseconds: {start_all.second}\n---\n', 1)
+        line = ("> Stitched from " + str(len(spans)) + " recordings: " +
+                " · ".join(f"[[{a}]] {fmt(f)}–{fmt(t)}" for a, _, f, t in spans) +
+                " (where they overlapped, the part that heard more was used)") if len(spans) > 1 else ""
+        if unused:
+            line += ("\n" if line else "") + "> Also recorded: " + ", ".join(f"[[{a}]]" for a in unused) + \
+                " (the other recording heard more, so the notes use it)"
+        anchor = "> Recorded on your phone, typed out and sorted on your PC by Archie."
+        md = md.replace(anchor, anchor + "\n" + line, 1) if line else md
+        if in_vault:
+            first = f"![[{spans[0][0]}]]"
+            md = md.replace(first, "\n".join(f"![[{a}]]" for a, _, _, _ in spans), 1)
+        return md
+
+    def _newsroll_loop(self):
+        """The news notes fold up as they age: days -> weeks -> months (archie_newsroll.py). At start, then every 3 hours."""
+        time.sleep(90)
+        while True:
+            try:
+                vault = self.vault()
+                if vault and os.path.isdir(vault):
+                    newsroll.roll(vault, quick_chat, self.cfg["model"],
+                                  report=lambda m: self.bg_q.put(("status", m)))
+            except Exception:
+                pass
+            time.sleep(3 * 3600)
+
+    def _lecture_hint(self, path):
+        """Whisper's spelling list for a recording: terms from its class's material."""
+        if not getattr(self, "reviewer", None):
+            return None
+        try:
+            klass = lecture.folder_class(path) or lecture.class_for(
+                lecture.recording_start(path), self.calendar, int(self.cfg.get("lecture_minutes") or 75))
+        except Exception:
+            klass = None
+        return self.reviewer.hint(path, klass) if klass else None
+
+    def _review_wait(self):
+        while self._listen_busy() or self.listener.running.is_set():
+            time.sleep(3)
+
+    def _review_vision(self, data, what):
+        """Read a picture (a scanned page or a board photo) with the vision model."""
+        import base64, tempfile
+        model = pick_vision_model(self.cfg["model"])
+        fd, tmp = tempfile.mkstemp(suffix=".jpg" if data[:2] == b"\xff\xd8" else ".png")
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
+            b64 = read_image_b64(tmp)
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        ask = ("Type out everything written on this whiteboard or chalkboard: words, formulas, diagrams "
+               "described in a few words. Plain text, no comments." if what == "board" else
+               "Type out all the text on this page exactly, in reading order. Plain text, no comments.")
+        from archie_brain import _post
+        import json as _j
+        with _post("/api/chat", {"model": model, "stream": False, "options": {"num_predict": 1500, "temperature": 0.1},
+                                 "messages": [{"role": "user", "content": ask, "images": [b64]}]}, timeout=600) as r:
+            return (_j.load(r).get("message", {}).get("content") or "").strip()
+
+    def _review_transcribe(self, path):
+        timed = []
+        self._bg_transcriber().transcribe(path, pause=self._listen_busy, timed=timed)
+        return timed
 
     SCHOOL_DAY = [
         ("Morning", "Open me and read the brief: your countdowns, today's classes, to-dos from yesterday's "
@@ -3030,8 +4094,9 @@ class ArchieApp:
                                            "make flashcards from this note.", None),
                 ("Search everything you've written", "turn on  notes  and I search your Notes folder, your whole vault "
                                                      "and past chats, and show where each answer came from (src:).", None),
-                ("Daily note", "daily  opens today's note with your to-dos and brief;  log: <what happened>  adds a "
-                               "timestamped line. Focus sessions and the drawing gym log themselves there.", None),
+                ("Daily note", "daily  opens today's note with your to-dos;  log: <what happened>  adds a timestamped "
+                               "line. Focus sessions, the drawing gym and recaps log there too, while  To-dos in "
+                               "Obsidian daily note  is on.", None),
                 ("Save to your vault", "save → obsidian  under any answer, or right-click the owl > Save this chat. "
                                        "Saved notes link to related ones, so they join the graph.", None),
                 ("Linked wiki", "build wiki  turns a whole conversation into a set of linked notes.", None),
@@ -3758,6 +4823,8 @@ class ArchieApp:
             self._gym_count_pose()          # the one on screen counts if you spent time on it
         self.gym.record(s["poses"], s["active"], s["cats"])
         try:
+            if not self.cfg.get("daily_note", True):   # 2026-11-08: respect the daily-note checkbox
+                raise OSError("daily note is off")
             self.daily.log(f"drawing gym: {s['poses']} pictures, {max(1, round(s['active'] / 60))} min")
         except Exception:
             pass
@@ -4136,6 +5203,46 @@ class ArchieApp:
                 lines.append("- " + cal.describe(e, today))
         return lines[:15]
 
+    def change_event_from_text(self, text):
+        """Change or remove an event by asking (the model picks which; the change is checked, then shown with undo)."""
+        self._you(text)
+        res = {}
+
+        def work():
+            try:
+                res["p"] = calchat.plan(text, self.calendar, lambda p: quick_chat(
+                    self.cfg["model"], p, max_tokens=200, timeout=120, json_mode=True, temperature=0.1))
+            except Exception as e:
+                res["p"] = {"error": f"I couldn't change it: {e}"}
+
+        def done():
+            if "p" not in res:
+                return self.root.after(300, done)
+            p = res["p"]
+            self._archie()
+            if p.get("error"):
+                self._write(p["error"] + "\n", "abody")
+                return self._end_span()
+            msg, undo = calchat.apply(p, self.calendar)
+            self._write(msg + " ", "abody")
+            if p["action"] == "change":
+                d = datetime.date.fromisoformat(p["changes"].get("date") or p["event"]["date"])
+                self._link("open calendar", lambda: self.show_calendar(d), "abody")
+                self._write("  ", "abody")
+
+            def back():
+                undo()
+                self._draw_date_chip()
+                self._sync_daily(quiet=True)
+                self.bg_q.put(("status", "undone: the calendar is back how it was"))
+            self._link("undo", back, "abody")
+            self._end_span()
+            self._write("\n", "abody")
+            self._draw_date_chip()
+            self.root.after(50, lambda: self._sync_daily(quiet=True))
+        threading.Thread(target=work, daemon=True, name="cal-change").start()
+        self.root.after(300, done)
+
     def add_event_from_text(self, ev, text):
         e = self.calendar.add(ev["title"], ev["date"], ev["kind"], ev.get("time"), repeat=ev.get("repeat"))
         self._you(text)
@@ -4160,7 +5267,7 @@ class ArchieApp:
             return
         if not imagine.sketch_installed():
             self._write("Turning sketches into pictures needs one small extra download (the sketch reader). "
-                        "Quit Archie, run Get Sketch Model.bat (online, once), then start Archie again.\n", "sys")
+                        "Quit Archie, run Tools\\Get Sketch Model.bat (online, once), then start Archie again.\n", "sys")
             return
         if not self.panel_visible():
             self.show_panel()
@@ -5142,7 +6249,7 @@ class ArchieApp:
     def _recap_process(self, path, secs):
         tr = self._get_transcriber()
         f = self.focus
-        focus_line = (f"He finished {f.done_today} focus session(s) today, {f.minutes_today} minutes in all."
+        focus_line = (f"The user finished {f.done_today} focus session(s) today, {f.minutes_today} minutes in all."
                       if f.done_today else "")
         token = object()
         self._recap_job = token
@@ -5319,6 +6426,8 @@ class ArchieApp:
                 data["note"] = rel
                 where = " It's in Obsidian (Archie/Recaps)"
                 try:
+                    if not self.cfg.get("daily_note", True):   # 2026-11-08: respect the daily-note checkbox
+                        raise OSError("daily note is off")
                     self.daily.log(f"evening recap: [[{obs.link_name(rel)}]]")
                     where += " and linked in today's daily note"
                 except Exception:
@@ -6262,12 +7371,51 @@ class ArchieApp:
         hint = tk.Label(w, text="", bg=BG, fg=MUTED, font=(MONO, 8), anchor="w")
         hint.pack(side="bottom", fill="x", padx=px(14))
 
+        def stop_edit(_e=None):
+            if st.get("edit"):
+                st["edit"] = None
+                what.delete(0, "end")
+                weekly.set(False)
+                addb.configure(text="add")
+                draw()
+
+        def start_edit(e):
+            """Click an event: its words go in the box; change them, pick another day to move it, then save."""
+            st["edit"] = e
+            st["sel"] = datetime.date.fromisoformat(e["date"]) if not e.get("repeat") else st["sel"]
+            st["month"] = st["sel"].replace(day=1)
+            st["kind"] = e["kind"] if e["kind"] in cal.KINDS else "event"
+            draw_kinds()
+            what.delete(0, "end")
+            what.insert(0, e["title"] + (f" {cal.fmt_time(e['time'])}" if e.get("time") else ""))
+            weekly.set(bool(e.get("repeat")))
+            addb.configure(text="save")
+            draw()
+            what.focus_set()
+            what.icursor("end")
+        what.bind("<Escape>", stop_edit)
+
         def add():
             txt = what.get().strip()
             if not txt:
                 return
             t, span = cal.find_time(txt)
             title = (txt[:span[0]] + txt[span[1]:]).strip(" ,.-") if span else txt
+            if st.get("edit"):
+                old = st["edit"]
+                e = self.calendar.update(old["id"], title=title or old["title"], kind=st["kind"], time=t,
+                                         date=old["date"] if old.get("repeat") and weekly.get() else st["sel"],
+                                         repeat="weekly" if weekly.get() else None)
+                st["edit"] = None
+                what.delete(0, "end")
+                weekly.set(False)
+                addb.configure(text="add")
+                draw()
+                if e:
+                    hint.configure(text=f"saved {cal.describe(e)}", fg=ACCENT)
+                self._draw_date_chip()
+                self._sync_daily(quiet=True)
+                return
             e = self.calendar.add(title or cal.KINDS[st["kind"]][0], st["sel"], st["kind"], t,
                                   repeat="weekly" if weekly.get() else None)
             what.delete(0, "end")
@@ -6396,15 +7544,22 @@ class ArchieApp:
                 tk.Frame(row, bg=cal.KINDS.get(e["kind"], cal.KINDS["event"])[1], width=px(3)).pack(side="left", fill="y")
                 tk.Label(row, text=cal.fmt_time(e.get("time")) or "all day", bg=BG, fg=MUTED, font=(MONO, 8),
                          width=8, anchor="w").pack(side="left", padx=(px(8), 0))
-                tk.Label(row, text=e["title"] + ("  ↻" if e.get("repeat") else ""), bg=BG, fg=TEXT,
-                         font=(FONT, 10), anchor="w").pack(side="left", fill="x", expand=True)
+                tl_ = tk.Label(row, text=e["title"] + ("  ↻" if e.get("repeat") else ""), bg=BG,
+                               fg=ACCENT if (st.get("edit") or {}).get("id") == e["id"] else TEXT,
+                               font=(FONT, 10), anchor="w", cursor="hand2")
+                tl_.pack(side="left", fill="x", expand=True)
+                tl_.bind("<ButtonRelease-1>", lambda ev, e=e: start_edit(e))
                 tk.Label(row, text=cal.KINDS.get(e["kind"], cal.KINDS["event"])[0].lower(), bg=BG,
                          fg=cal.KINDS.get(e["kind"], cal.KINDS["event"])[1], font=(MONO, 8)).pack(side="left", padx=px(6))
                 x = tk.Label(row, text="✕", bg=BG, fg=MUTED, font=(MONO, 8), cursor="hand2")
                 x.pack(side="left")
                 x.bind("<ButtonRelease-1>", lambda ev, e=e: remove(e))
-            hint.configure(text=f"adding to {sel.strftime('%a %b %d').replace(' 0', ' ')} · e.g. "
-                                "bio midterm 9am", fg=MUTED)
+            if st.get("edit"):
+                hint.configure(text=f"editing \"{st['edit']['title']}\" · change it, click another day to move it, "
+                                    f"then save ({sel.strftime('%a %b %d').replace(' 0', ' ')}) · Esc cancels", fg=ACCENT)
+            else:
+                hint.configure(text=f"adding to {sel.strftime('%a %b %d').replace(' 0', ' ')} · e.g. "
+                                    "bio midterm 9am · click an event to change it", fg=MUTED)
 
         def remove(e):
             if e.get("repeat"):
@@ -7385,8 +8540,9 @@ class ArchieApp:
         if not self.cfg.get("daily_note", True) or not self.vault():
             return
         try:
-            brief = self._brief_md() if getattr(self, "_brief_parts", None) else None
-            changes = self.daily.sync(brief=brief)
+            # 2026-11-08: the chat's morning brief stays out of Obsidian (only to-dos sync);
+            # an empty list also clears a brief already in today's note
+            changes = self.daily.sync(brief=[])
         except Exception as e:
             if not quiet:
                 self._write(f"Couldn't update today's daily note: {e}\n", "sys")
@@ -7407,7 +8563,7 @@ class ArchieApp:
         save_config(self.cfg)
         if self.cfg["daily_note"]:
             self._sync_daily()
-            self._write("Your to-dos and brief now go in today's Obsidian daily note "
+            self._write("Your to-dos now go in today's Obsidian daily note "
                         "(in an \"Archie\" section). Type  daily  to open it.\n", "sys")
 
     def _recap_plan(self, rc):
@@ -7536,7 +8692,7 @@ class ArchieApp:
             m.add_radiobutton(label=VOICES[v], variable=self.voice_choice, value=v,
                               command=lambda n=v: self.set_voice(n))
         if not found:
-            m.add_command(label="(run Get Voice.bat to download voices)", state="disabled")
+            m.add_command(label="(run Tools\\Get Voice.bat to download voices)", state="disabled")
         m.add_separator()
         for label, sp in (("Slower", 0.85), ("Normal speed", 1.0), ("Faster", 1.2)):
             m.add_radiobutton(label=label, variable=self.speed_choice, value=str(sp),
@@ -7869,7 +9025,7 @@ class ArchieApp:
                         "and tell you which articles I used.\n", "sys")
         else:
             self._write("Wikipedia is on, but there's no Wikipedia file yet. Double-click "
-                        "Get Wikipedia.bat in the Archie folder to download one.\n", "sys")
+                        "Get Wikipedia.bat in the Archie\\Tools folder to download one.\n", "sys")
 
     def toggle_notes(self):
         self.cfg["use_notes"] = not self.cfg.get("use_notes")
@@ -7942,7 +9098,7 @@ class ArchieApp:
             sched = []
         if sched:
             parts.append(f"The user's calendar (today is {datetime.date.today():%A %B %d, %Y}); use it when "
-                         "they ask about their schedule, exams or what's coming up:\n" + "\n".join(sched))
+                         "the user asks about their schedule, exams or what's coming up:\n" + "\n".join(sched))
         try:
             wk = self.thisweek.prompt_block()
         except Exception:
@@ -8153,7 +9309,7 @@ class ArchieApp:
             self._write("I can't find Ollama right now. Start the Ollama app, then click "
                         "+ (New chat) to try again.\n", "sys")
         elif not list_models():
-            self._write("No models are installed yet. Double-click Get Models.bat in the "
+            self._write("No models are installed yet. Double-click Tools\\Get Models.bat in the "
                         "Archie folder.\n", "sys")
 
     def new_conversation(self):
@@ -8408,6 +9564,10 @@ class ArchieApp:
             self.entry.delete("1.0", "end")
             self.list_exams()
             return
+        if not files and calchat.looks_like_edit(text, self.calendar):   # "move X to 6pm", "cancel Y"
+            self.entry.delete("1.0", "end")
+            self.change_event_from_text(text)
+            return
         ereq = cal.parse_event(text) if not files else None
         if ereq:
             self.entry.delete("1.0", "end")
@@ -8597,8 +9757,8 @@ class ArchieApp:
                         body = body[:24000] + "\n[...the rest of the note is cut off...]"
                     system.append({"role": "system", "content":
                         f"The user has this note open in Obsidian right now ({note['path']}). When they "
-                        "say \"this note\" or ask what they have open, they mean this one, not any other notes or "
-                        "excerpts below. Use it to answer; if they ask to be quizzed, "
+                        "says \"this note\" or asks what the user has open, the user means this one, not any other notes or "
+                        "excerpts below. Use it to answer; if the user asks to be quizzed, "
                         "ask one question at a time about it.\n\n--- " + note["path"] + " ---\n"
                         + body + "\n--- end of note ---"})
                     out_q.put(("sources", ["Obsidian: " + obs.link_name(note["path"])]))
@@ -8633,10 +9793,10 @@ class ArchieApp:
                 system.append({"role": "system", "content":
                     f"The user is reading {ctx['title']}. Below is the text of {ctx['label']}"
                     + (" (excerpts spread across it, because it is long)" if ctx["sampled"] else "")
-                    + ". Work ONLY from this text. When they ask to be quizzed: ask ONE question at "
+                    + ". Work ONLY from this text. When the user asks to be quizzed: ask ONE question at "
                     "a time (events, characters, details, why things happen), wait for their answer, "
                     "then say what was right and what was off, and quote the line that shows it. "
-                    "Don't reveal anything that happens later in the book. If they ask about "
+                    "Don't reveal anything that happens later in the book. If the user asks about "
                     "something this text doesn't cover, say so.\n\n"
                     f"--- {ctx['title']}, {ctx['label']} ---\n{ctx['text']}\n--- end ---"})
                 out_q.put(("sources", wiki_sources + [f"{ctx['title']}, {ctx['label']}"]))
@@ -8802,6 +9962,12 @@ class ArchieApp:
                     self._lecture_woke()
                 elif kind in ("listen_note", "listen_book", "listen_error", "listen_lecture"):
                     self._listen_event(kind, val)
+                elif kind == "lecture_review":
+                    self._review_event(val)
+                    if getattr(self, "examprep", None):
+                        self.examprep.kick.set()
+                elif kind == "exam_prep":
+                    self._exam_prep_event(val)
                 elif kind == "talk_done":
                     self._talk_done(val)
                 elif kind == "voice_progress":

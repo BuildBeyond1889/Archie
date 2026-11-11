@@ -35,7 +35,7 @@ def _natural(s):
 
 class Listener:
     def __init__(self, notes_dir, get_vault, state_path, transcriber, report, is_busy,
-                 tidy=None, want_tidy=lambda: True, paused=lambda: False, lecture=None):
+                 tidy=None, want_tidy=lambda: True, paused=lambda: False, lecture=None, hint=None):
         self.notes_dir = notes_dir
         self.get_vault = get_vault
         self.state_path = state_path
@@ -46,6 +46,7 @@ class Listener:
         self.want_tidy = want_tidy
         self.paused = paused
         self.lecture = lecture              # (path, is_vault, text, timed) -> note path, or None if it isn't a lecture
+        self.hint = hint                    # (path) -> Whisper's spelling list for that class, or None
         self.running = threading.Event()
         self.state = self._load()
 
@@ -79,9 +80,9 @@ class Listener:
         roots.append((self.notes_dir, False))
         for root, is_vault in roots:
             for dp, dns, fns in os.walk(root):
-                dns[:] = [d for d in dns if not d.startswith(".") and d.lower() not in ("audiobooks", "recordings")]
+                dns[:] = [d for d in dns if not d.startswith(".") and d.lower() not in ("audiobooks", "recordings", "materials")]
                 parts = [p.lower() for p in os.path.relpath(dp, root).split(os.sep)]
-                inbox = "voice inbox" in parts or "lectures" in parts
+                inbox = "voice inbox" in parts or "lectures" in parts or "ideas" in parts
                 for fn in fns:
                     ext = os.path.splitext(fn)[1].lower()
                     if ext not in AUDIO_EXT:
@@ -161,7 +162,11 @@ class Listener:
             self.report("status", f"typing out {name}...")
             tr = self.transcriber()
             timed = []
-            text = tr.transcribe(path, pause=self.is_busy, timed=timed,
+            try:
+                prompt = self.hint(path) if self.hint else None
+            except Exception:
+                prompt = None
+            text = tr.transcribe(path, pause=self.is_busy, timed=timed, prompt=prompt,
                                  progress=lambda f: self.report("status", f"typing out {name}... {int(f * 100)}%"))
             if self.lecture and text:
                 out = self.lecture(path, is_vault, text, timed)
@@ -170,16 +175,29 @@ class Listener:
                     self._save()
                     self.report("listen_lecture", (name, out))
                     return
+            idea = "ideas" in [p.lower() for p in re.split(r"[\\/]", os.path.dirname(path))]
             tidied = ""
-            if text and self.tidy and self.want_tidy():
-                self.report("status", f"tidying {name} into notes...")
+            if text and len(text.split()) >= 25 and self.tidy and (self.want_tidy() or idea):   # a line or two is kept as said
+                self.report("status", f"tidying {name} into {'an idea note' if idea else 'notes'}...")
                 try:
-                    tidied = self.tidy(text)
+                    try:
+                        tidied = self.tidy(text, idea) if idea else self.tidy(text)
+                    except TypeError:
+                        tidied = self.tidy(text)
                 except Exception:
                     tidied = ""
             when = datetime.datetime.fromtimestamp(os.path.getmtime(path))
             title = f"Voice note {when:%b %d %I:%M %p}".replace(" 0", " ")
-            lines = ["---", "tags: [voice-note]", f"recorded: {when:%Y-%m-%d %H:%M}",
+            try:
+                from archie_lecture import recording_label
+                label = recording_label(name)
+            except Exception:
+                label = name.split(" · ")[0].strip() if " · " in name else ""
+            if idea:
+                title = label or f"Idea {when:%b %d %I:%M %p}".replace(" 0", " ")
+            elif label:
+                title = label
+            lines = ["---", f"tags: [{'idea' if idea else 'voice-note'}]", f"recorded: {when:%Y-%m-%d %H:%M}",
                      f"source: \"[[{name}]]\"", "---", "", f"# {title}", "",
                      f"![[{name}]]" if is_vault else f"*Recording: {path}*", ""]
             if tidied:

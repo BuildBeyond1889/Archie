@@ -115,7 +115,8 @@ DEFAULT_SOURCES = {
     # prediction-market questions to show (matched against Polymarket's biggest markets)
     "polymarket_keywords": ["Fed", "rate cut", "recession", "ceasefire", "oil", "Bitcoin", "election", "tariff"],
     # close to home: local news searches for the news brief
-    "local": [{"name": "Close to home", "q": "\"Your County\" OR \"Your Town\""}],
+    "local": [{"name": "Western New York", "q": "Buffalo OR Jamestown OR \"Chautauqua County\" OR Erie PA"},
+              {"name": "North Country", "q": "\"Your County\" OR \"Your Town\""}],
     "firms_map_key": "",       # free NASA FIRMS key for wildfires (optional)
     # GDELT: a free global database of events pulled from news in 100+ languages
     "gdelt": [{"region": "ukraine", "q": "(drone OR shelling OR missile OR offensive) (Ukraine OR Russia)"},
@@ -512,6 +513,12 @@ def fetch_json(url, **kw):
         raise FetchError("not JSON")
 
 
+def xml_clean(text):
+    """Repairs the usual ways feeds break XML: stray control characters and bare & signs. (self-heal 2026-11-08)"""
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
+    return re.sub(r"&(?!#\d+;|#x[0-9a-fA-F]+;|[A-Za-z][A-Za-z0-9]*;)", "&amp;", text)
+
+
 def online(timeout=3):
     for host in ("https://www.gstatic.com/generate_204", "https://1.1.1.1"):
         try:
@@ -561,7 +568,10 @@ def parse_feed(text):
     try:
         root = ET.fromstring(text.encode("utf-8"))
     except ET.ParseError as e:
-        raise FetchError(f"feed not readable ({e})")
+        try:
+            root = ET.fromstring(xml_clean(text).encode("utf-8"))   # self-heal: repair and retry
+        except ET.ParseError:
+            raise FetchError(f"feed not readable ({e})")
     out = []
     ns_atom = "{http://www.w3.org/2005/Atom}"
     items = root.iter("item")
@@ -1069,9 +1079,46 @@ class WorldService:
             except OSError:
                 pass
 
+    NEWS_BOOST_RSS = [   # news boost 2026-11-08: regions and beats the list had no outlets for
+        {"name": "South China Morning Post", "url": "https://www.scmp.com/rss/91/feed", "side": "Hong Kong"},
+        {"name": "Nikkei Asia", "url": "https://asia.nikkei.com/rss/feed/nar"},
+        {"name": "The Hindu", "url": "https://www.thehindu.com/news/international/feeder/default.rss", "side": "Indian"},
+        {"name": "Japan Times", "url": "https://www.japantimes.co.jp/feed/"},
+        {"name": "AllAfrica", "url": "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf", "side": "African press"},
+        {"name": "MercoPress", "url": "https://en.mercopress.com/rss"},
+        {"name": "Ars Technica", "url": "https://feeds.arstechnica.com/arstechnica/index"},
+        {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"},
+        {"name": "Nature News", "url": "https://www.nature.com/nature.rss"},
+        {"name": "Polygon", "url": "https://www.polygon.com/rss/index.xml"},
+        {"name": "Game Developer", "url": "https://www.gamedeveloper.com/rss.xml"},
+        {"name": "Cartoon Brew", "url": "https://www.cartoonbrew.com/feed"},
+    ]
+    NEWS_BOOST_GNEWS = [
+        {"name": "Latin America (Spanish press)", "q": "Venezuela OR Colombia OR México OR Argentina OR Perú",
+         "hl": "es-419", "gl": "MX"},
+        {"name": "Brazil (Portuguese press)", "q": "Brasil governo OR Lula OR Congresso", "hl": "pt-BR", "gl": "BR"},
+        {"name": "Asia-Pacific", "q": "China OR Taiwan OR Korea OR Japan OR India OR Pakistan OR Philippines",
+         "hl": "en-US", "gl": "US"},
+    ]
+
     def _migrate_sources(self):
         """Feeds that don't offer working RSS: read them through a Google News site search instead.
         Also adds feeds that came with updates (like ReliefWeb) to an existing sources.json."""
+        if not self.sources.get("_news_boost_2026_11_08"):
+            have = {r.get("url") for r in self.sources.get("rss", [])}
+            for r in self.NEWS_BOOST_RSS:
+                if r["url"] not in have:
+                    self.sources.setdefault("rss", []).append(dict(r))
+            haveq = {g.get("q") for g in self.sources.get("gnews", [])}
+            for g in self.NEWS_BOOST_GNEWS:
+                if g["q"] not in haveq:
+                    self.sources.setdefault("gnews", []).append(dict(g))
+            self.sources["_news_boost_2026_11_08"] = True
+            try:
+                with open(SOURCES_PATH, "w", encoding="utf-8") as f:
+                    json.dump(self.sources, f, indent=2, ensure_ascii=False)
+            except OSError:
+                pass
         if not any("reliefweb" in (r.get("url") or "") for r in self.sources.get("rss", [])):
             self.sources.setdefault("rss", []).append(next(r for r in DEFAULT_SOURCES["rss"] if "reliefweb" in r["url"]))
             try:
@@ -1373,6 +1420,12 @@ class WorldService:
             self._reclassify()
         if self.store.kv_get("aicheck_v") != 2:
             self._recheck_ai_types()
+        if not getattr(self, "_caught_up", False):    # news boost 2026-11-08: fill the hole left while Archie was off
+            self._caught_up = True
+            try:
+                self._catch_up()
+            except Exception as e:
+                self.log("catch-up failed:", e)
         jobs = [
             ("quakes", 300, self.pull_quakes),
             ("gdacs", 1800, self.pull_gdacs),
@@ -1418,6 +1471,7 @@ class WorldService:
             ("weekly", 3600, self.maybe_weekly),
             ("prune", 86400, self.store.prune),
         ]
+        self._job_plan = [(k, e) for k, e, _ in jobs]   # for Archie Doctor
         for key, every, fn in jobs:
             if self.stop.is_set():
                 return
@@ -1425,6 +1479,7 @@ class WorldService:
                 self.busy = key
                 try:
                     fn()
+                    self.store.x("DELETE FROM health WHERE name=? AND kind='job' AND ok=0", (key,))   # recovered
                 except Exception as e:
                     self.store.health(key, "job", False, 0, str(e))
                     self.log("world job", key, "failed:", e)
@@ -1453,8 +1508,15 @@ class WorldService:
     def pull_gdacs(self):
         kinds = {"TC": "cyclone", "FL": "flood", "VO": "volcano", "DR": "drought", "WF": "wildfire", "EQ": None}
         rows = []
+        api_err = ""
         try:
-            d = fetch_json("https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP")
+            try:
+                d = fetch_json("https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP", timeout=60)
+            except FetchError as e:              # self-heal: GDACS is often slow; one more try before the backup feed
+                api_err = str(e)
+                time.sleep(5)
+                d = fetch_json("https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP", timeout=90)
+                api_err = ""
             for f in d.get("features", []):
                 p = f.get("properties", {})
                 kind = kinds.get(p.get("eventtype"))
@@ -1478,24 +1540,33 @@ class WorldService:
                                          "episodeid": p.get("episodeid"), "sev": sd.get("severity"),
                                          "sevunit": sd.get("severityunit"), "eventname": p.get("eventname"),
                                          "geom": (p.get("url") or {}).get("geometry", "") if isinstance(p.get("url"), dict) else ""})))
-        except FetchError:
-            text = fetch("https://www.gdacs.org/xml/rss.xml")
-            root = ET.fromstring(text.encode("utf-8"))
+        except FetchError as e:
+            api_err = api_err or str(e)
+            text = fetch("https://www.gdacs.org/xml/rss.xml", timeout=60)
+            try:
+                root = ET.fromstring(text.encode("utf-8"))
+            except ET.ParseError:
+                root = ET.fromstring(xml_clean(text).encode("utf-8"))   # self-heal: repair the broken XML
             ns = {"gdacs": "http://www.gdacs.org", "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#"}
             for it in root.iter("item"):
-                et = it.findtext("gdacs:eventtype", default="", namespaces=ns)
-                kind = kinds.get(et)
-                lat, lng = it.findtext("geo:Point/geo:lat", namespaces=ns), it.findtext("geo:Point/geo:long", namespaces=ns)
-                if not kind or lat is None:
+                try:                              # self-heal: one bad entry no longer sinks the whole update
+                    et = it.findtext("gdacs:eventtype", default="", namespaces=ns)
+                    kind = kinds.get(et)
+                    lat, lng = it.findtext("geo:Point/geo:lat", namespaces=ns), it.findtext("geo:Point/geo:long", namespaces=ns)
+                    if not kind or lat is None:
+                        continue
+                    rows.append((f"gdacs:{et}{it.findtext('gdacs:eventid', namespaces=ns)}", kind, it.findtext("title") or kind,
+                                 float(lat), float(lng), None, (it.findtext("gdacs:alertlevel", default="", namespaces=ns)).lower(),
+                                 parse_date(it.findtext("pubDate")) or now(), it.findtext("link") or "",
+                                 json.dumps({"severity": it.findtext("gdacs:severity", default="", namespaces=ns)})))
+                except (TypeError, ValueError):
                     continue
-                rows.append((f"gdacs:{et}{it.findtext('gdacs:eventid', namespaces=ns)}", kind, it.findtext("title") or kind,
-                             float(lat), float(lng), None, (it.findtext("gdacs:alertlevel", default="", namespaces=ns)).lower(),
-                             parse_date(it.findtext("pubDate")) or now(), it.findtext("link") or "",
-                             json.dumps({"severity": it.findtext("gdacs:severity", default="", namespaces=ns)})))
+        if not rows and api_err:                  # self-heal: an empty backup feed never wipes the map
+            raise FetchError(f"GDACS backup feed had no events (main feed: {api_err})")
         self.store.x("DELETE FROM hazards WHERE id LIKE 'gdacs:%'")
         self.store.many("INSERT OR REPLACE INTO hazards(id, kind, title, lat, lng, mag, level, time, url, extra) "
                         "VALUES(?,?,?,?,?,?,?,?,?,?)", rows)
-        self.store.health("GDACS disasters", "hazard", True, len(rows))
+        self.store.health("GDACS disasters", "hazard", True, len(rows), f"used the backup feed (main feed: {api_err})" if api_err else "")
 
     # ---------- storm tracks: where each cyclone has been and where it's forecast to go ----------
     NHC_CLASS = {"TD": "Tropical depression", "TS": "Tropical storm", "HU": "Hurricane", "MH": "Major hurricane",
@@ -1900,15 +1971,30 @@ class WorldService:
                 d["kp_24h"] = [val(r) for r in rows[-8:]]
         except Exception as e:
             errs.append(f"Kp: {e}")
-        try:
-            rows = rows_of(fetch_json("https://services.swpc.noaa.gov/products/solar-wind/plasma-1-day.json", timeout=30),
-                           ["time_tag", "density", "speed"])
-            for r in reversed(rows):
-                if r["speed"] not in (None, ""):
-                    d["wind_kms"], d["density"] = float(r["speed"]), float(r["density"] or 0)
+        # self-heal 2026-11-08: NOAA retired products/solar-wind/plasma-*.json (SCN 26-21); the new file is
+        # json/rtsw/rtsw_wind_1m.json (proton_speed, proton_density). Try each until one gives a reading.
+        wind_errs = []
+        for url in ("https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json",
+                    "https://services.swpc.noaa.gov/products/solar-wind/plasma-1-day.json"):
+            try:
+                data = fetch_json(url, timeout=30)
+                if isinstance(data, list) and data and isinstance(data[0], dict) and any("active" in str(k).lower() for k in data[0]):
+                    act = [r for r in data if str(r.get("active", "")).lower() in ("true", "1")]
+                    data = act or data           # prefer the spacecraft NOAA marks as active
+                rows = rows_of(data, ["time_tag", "density", "speed", "proton_density", "proton_speed"])
+                rows = [r for r in rows if (r["proton_speed"] if r["proton_speed"] not in (None, "") else r["speed"]) not in (None, "")]
+                rows.sort(key=lambda r: str(r["time_tag"] or ""))
+                if rows:
+                    r = rows[-1]
+                    sp = r["proton_speed"] if r["proton_speed"] not in (None, "") else r["speed"]
+                    de = r["proton_density"] if r["proton_density"] not in (None, "") else r["density"]
+                    d["wind_kms"], d["density"] = float(sp), float(de or 0)
                     break
-        except Exception as e:
-            errs.append(f"solar wind: {e}")
+                wind_errs.append(url.rsplit("/", 1)[-1] + ": no readings")
+            except Exception as e:
+                wind_errs.append(url.rsplit("/", 1)[-1] + f": {e}")
+        if "wind_kms" not in d:
+            errs.append("solar wind: " + "; ".join(wind_errs))
         try:
             fl = fetch_json("https://services.swpc.noaa.gov/json/goes/primary/xray-flares-7-day.json", timeout=30)
             day = [f for f in fl if isinstance(f, dict) and (parse_date(f.get("max_time") or f.get("begin_time")) or 0) > now() - 86400]
@@ -2652,6 +2738,37 @@ class WorldService:
                 self.store.health(s["name"], "rss", True, len(entries))
             except (FetchError, Exception) as e:
                 self.store.health(s["name"], "rss", False, 0, str(e))
+                self._rss_fallback(s, e)
+
+    def _rss_fallback(self, s, err):
+        """self-heal 2026-11-08: when a feed fails (broken certificate, dead URL), read the same site through a
+        Google News site: search so its headlines keep coming. The feed itself is still tried first every time.
+        Set "site" on a source in sources.json to choose the domain; "fallback": false turns this off."""
+        if s.get("fallback") is False:
+            return
+        site = s.get("site")
+        if not site:
+            host = (urllib.parse.urlparse(s.get("url", "")).hostname or "").lower()
+            parts = [p for p in host.split(".") if p]
+            if len(parts) < 2:
+                return
+            keep = 3 if len(parts) >= 3 and parts[-2] in ("co", "com", "org", "net", "gov", "ac") and len(parts[-1]) == 2 else 2
+            site = ".".join(parts[-keep:])
+        lang = s.get("lang", "en")
+        hl, gl = ("en-US", "US") if lang.startswith("en") else (lang, lang.upper())
+        q = urllib.parse.quote(f"site:{site} when:1d")
+        url = f"https://news.google.com/rss/search?q={q}&hl={hl}&gl={gl}&ceid={gl}:{hl.split('-')[0]}"
+        try:
+            entries = parse_feed(fetch(url))
+            for e in entries:   # Google appends " - Publisher" to titles
+                if e.get("source") and e["title"].endswith(" - " + e["source"]):
+                    e["title"] = e["title"][: -len(e["source"]) - 3]
+                e["source"] = ""                  # keep the feed's own name so its lean and side still apply
+            self._add_items("rss", s["name"], entries[:25], lang, s.get("side", ""), s.get("lean", ""))
+            self.store.health(s["name"], "rss", bool(entries), len(entries),
+                              f"own feed failing ({str(err)[:80]}); reading {site} through Google News")
+        except Exception as e:
+            self.store.health(s["name"], "rss", False, 0, f"{str(err)[:80]}; Google News backup also failed: {e}")
 
     def pull_gnews(self):
         for s in self.sources.get("gnews", []):
@@ -2671,6 +2788,86 @@ class WorldService:
                 self.store.health("Google News: " + s["name"], "gnews", True, len(entries))
             except (FetchError, Exception) as e:
                 self.store.health("Google News: " + s["name"], "gnews", False, 0, str(e))
+        # news boost 2026-11-08: every followed topic gets its own search, so following brings news in
+        for topic in self.watch.get("follow", []):
+            if self.stop.is_set():
+                return
+            q = self._topic_query(topic)
+            if q:
+                self._gnews_pull("Following: " + topic, q)
+
+    @staticmethod
+    def _topic_query(topic):
+        """'video games, game studio' -> '"video games" OR "game studio"' (the brief's own matching splits on commas too)."""
+        ph = [p.strip().replace('"', "") for p in str(topic).split(",") if p.strip()]
+        return " OR ".join(f'"{p}"' if " " in p else p for p in ph)
+
+    def _gnews_pull(self, name, q, hl="en-US", gl="US", side="", region=None, when="1d", limit=25,
+                    feed="gnews", item_name=None, health=True):
+        """One Google News search into the items table. Returns how many new items it added."""
+        url = (f"https://news.google.com/rss/search?q={urllib.parse.quote(q + ' when:' + when)}"
+               f"&hl={hl}&gl={gl}&ceid={gl}:{hl.split('-')[0]}")
+        label = "Google News: " + name
+        try:
+            entries = parse_feed(fetch(url))
+            for e in entries:   # Google appends " - Publisher" to titles
+                if e.get("source") and e["title"].endswith(" - " + e["source"]):
+                    e["title"] = e["title"][: -len(e["source"]) - 3]
+                if item_name:
+                    e["source"] = ""   # keep the feed's own name, so its lean and side still apply
+            n = self._add_items(feed, item_name or label, entries[:limit], hl.split("-")[0], side, "", region)
+            if health:
+                self.store.health(label, "gnews", True, len(entries))
+            return n
+        except (FetchError, Exception) as e:
+            if health:
+                self.store.health(label, "gnews", False, 0, str(e))
+            return 0
+
+    @staticmethod
+    def _site_of(s):
+        site = s.get("site")
+        if site:
+            return site
+        host = (urllib.parse.urlparse(s.get("url", "")).hostname or "").lower()
+        parts = [p for p in host.split(".") if p]
+        if len(parts) < 2:
+            return None
+        keep = 3 if len(parts) >= 3 and parts[-2] in ("co", "com", "org", "net", "gov", "ac") and len(parts[-1]) == 2 else 2
+        return ".".join(parts[-keep:])
+
+    def _catch_up(self, min_gap_hours=3):
+        """news boost 2026-11-08: feeds only list their latest stories, so whatever ran while Archie was off is
+        gone from them. After a gap, search Google News for each outlet, search and followed topic over the
+        missed days (stories older than 4 days are skipped anyway)."""
+        r = self.store.q("SELECT MAX(fetched) m FROM items", one=True)
+        last = (r["m"] if r else None) or 0
+        gap = now() - last
+        if not last or gap < min_gap_hours * 3600:
+            return 0
+        days = max(1, min(4, int((gap + 2 * 3600) // 86400) + 1))
+        when, n = f"{days}d", 0
+        for s in self.sources.get("rss", []):
+            if self.stop.is_set():
+                return n
+            site = self._site_of(s)
+            if site and s.get("fallback") is not False:
+                lang = s.get("lang", "en")
+                hl, gl = ("en-US", "US") if lang.startswith("en") else (lang, lang.upper())
+                n += self._gnews_pull("catch-up " + s["name"], f"site:{site}", hl, gl, s.get("side", ""), None, when,
+                                      100, "rss", s["name"], health=False)
+        for s in self.sources.get("gnews", []):
+            if self.stop.is_set():
+                return n
+            n += self._gnews_pull(s["name"], s["q"], s.get("hl", "en-US"), s.get("gl", "US"), s.get("side", ""),
+                                  s.get("region"), when, 100, health=False)
+        for topic in self.watch.get("follow", []):
+            q = self._topic_query(topic)
+            if q and not self.stop.is_set():
+                n += self._gnews_pull("Following: " + topic, q, when=when, limit=100, health=False)
+        self.store.health("Catch-up after a gap", "news", True, n,
+                          f"Archie was off about {int(gap // 3600)} h; filled in {n} stories from the last {days} day(s)")
+        return n
 
     def pull_local(self):
         for s in self.sources.get("local", []):
@@ -3451,7 +3648,8 @@ Reference:
             stats[(r["week"], r["region"])] = r["military"]
         folder = os.path.join(vault, "Archie", "World", "Weekly")
         os.makedirs(folder, exist_ok=True)
-        chart = os.path.join(folder, f"{wk} fighting.png")
+        name = f"Week of {monday:%b} {monday.day}, {monday.year}"      # the note's name in Obsidian ("Week of Nov 2, 2026")
+        chart = os.path.join(folder, f"{name} fighting.png")
         regions = [r for r in REGIONS if r not in ("usa", "germany")]
         has_chart = len(weeks) >= 2
         if has_chart:
@@ -3548,7 +3746,13 @@ Reference:
             ls = sorted(f[:-3] for f in os.listdir(lessons_dir) if f.endswith(".md") and monday.isoformat() <= f[:10] <= days[-1])
             if ls:
                 out += ["## Lessons you saved"] + [f"- [[{n}]]" for n in ls] + [""]
-        path = os.path.join(folder, f"{wk}.md")
+        path = os.path.join(folder, f"{name}.md")
+        old = os.path.join(folder, f"{wk}.md")                 # this week under its old name ("2026-W45"): replace it
+        if os.path.exists(old) and not os.path.exists(path):
+            try:
+                os.replace(old, path)
+            except OSError:
+                pass
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(out))
         return path
@@ -3821,18 +4025,47 @@ Reports:
             out.append(s)
         return out
 
+    # 2026-11-08: sports and celebrity stories stay in the feed but out of the brief ("brief_skip_soft": false in
+    # watch.json turns this off). Only unambiguous words and team names, so "Rockets", "Hurricanes" or "Cardinals"
+    # in real news never trip it.
+    SOFT_RE = re.compile(
+        r"\b(NFL|NBA|WNBA|MLB|NHL|MLS|NCAA|UFC|ATP|WTA|PGA|LPGA|NASCAR|F1|Formula (?:1|One)|Grand Prix|Premier League|"
+        r"Champions League|La Liga|Serie A|Bundesliga|Super Bowl|World Series|Stanley Cup|NBA Finals|March Madness|"
+        r"Grand Slam|Wimbledon|US Open|French Open|Australian Open|Paris Masters|Ryder Cup|Masters title|"
+        r"quarterback|touchdowns?|playoffs?|postseason|preseason|home runs?|innings|hat-?trick|rebounds|"
+        r"head coach|free agen(?:t|cy)|trade rumou?rs|draft pick|transfer window|"
+        r"Lakers|Celtics|Knicks|Warriors|Mavericks|Nuggets|Bucks|Sixers|76ers|Clippers|Timberwolves|Pelicans|Grizzlies|"
+        r"Yankees|Dodgers|Red Sox|Mets|Astros|Phillies|Braves|Padres|Mariners|Blue Jays|Guardians|White Sox|Cubs|Orioles|"
+        r"Cowboys|Commanders|Raiders|Colts|Packers|Steelers|Chiefs|49ers|Seahawks|Broncos|Bengals|Ravens|Dolphins|Vikings|"
+        r"Buccaneers|Falcons|Texans|Jaguars|Chargers|Browns|Rams|Bills|"
+        r"Maple Leafs|Canucks|Oilers|Flyers|Penguins|Bruins|Blackhawks|Red Wings|Capitals|Sabres|Golden Knights|Pistons|"
+        r"Cavaliers|Raptors|Steelers|Islanders|Devils|Avalanche|"
+        r"beat(?:s|en)? [A-Z][\w.' -]{1,30}? \d{1,3}-\d{1,3}|scores? (?:twice|a hat)|"
+        r"celebrit(?:y|ies)|red carpet|Kardashians?|bodybuild(?:er|ing)|reality (?:TV|star)|influencer|Met Gala|"
+        r"engagement ring|dating rumou?rs|ex-girlfriend|ex-boyfriend|baby bump|wardrobe malfunction)\b", re.I)
+
+    HARD_RE = re.compile(r"\b(Trump|Biden|Vance|Rubio|White House|Congress|Senate|senator|governor|president|"
+                         r"prime minister|minister|parliament|election|lawmakers?|press secretary|court|lawsuit|"
+                         r"police|arrested|charged|killed|shooting|strike|war|sanctions?|tariffs?|FBI|DOJ)\b", re.I)
+
+    def _soft(self, s):
+        t = s.get("t") or ""
+        return (bool(self.watch.get("brief_skip_soft", True)) and bool(self.SOFT_RE.search(t))
+                and not self.HARD_RE.search(t))   # politics or crime in a sports story keeps it in
+
     def _news_brief(self, cap=True):
         since = now() - 24 * 3600
         stories = self._story_rows(since)
         mute = self.watch.get("mute", [])
         stories = [s for s in stories if not self._matches(s, mute)]
+        brief_stories = [s for s in stories if not self._soft(s)]   # the feed and followed topics still get them
         def foreign(s):
             return s["cc"] not in (None, "US") and s["region"] != "usa" and bool(s["place"]) and s["place"].lower() in s["t"].lower()
-        home = [s for s in stories if not s["local"] and (s["region"] == "usa" or s["cc"] == "US" or
+        home = [s for s in brief_stories if not s["local"] and (s["region"] == "usa" or s["cc"] == "US" or
                 (not foreign(s) and (s["l"] + s["c"] + s["r"]) * 2 >= s["n"]))]
-        local = [s for s in stories if s["local"]]
+        local = [s for s in brief_stories if s["local"]]
         homeids = {s["id"] for s in home} | {s["id"] for s in local}
-        glob = self._one_per_story([s for s in stories if s["id"] not in homeids])
+        glob = self._one_per_story([s for s in brief_stories if s["id"] not in homeids])
         home = self._one_per_story(home)
         following = []
         pool = self._story_rows(now() - 3 * 86400) if self.watch.get("follow") else []
@@ -3841,6 +4074,8 @@ Reports:
             hits = [s for s in pool if self._matches(s, [topic])]
             following.append({"topic": topic, "stories": hits[:4]})
         take = self.store.kv_get("news_take") or {}
+        if take.get("date") != self._edition_day():
+            take = {}                            # self-heal: an old overview is worse than none
         week_end = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
         rank = {"election": 0, "central bank": 1, "launch": 3, "earnings": 4, "economy": 2}
         coming = [i for i in self.store.kv_get("worldcal", []) if i["date"] <= week_end]
@@ -3854,9 +4089,17 @@ Reports:
                 watched = [dict(r) for r in self.civic.q("SELECT * FROM watch_events WHERE at > ? ORDER BY n DESC LIMIT 12", (now() - 2 * 86400,))]
         except Exception:
             pass
-        return {"now": now(), "take": take, "coming": coming, "global": glob[:8], "home": home[:7], "local": local[:5], "watched": watched,
+        return {"now": now(), "take": take, "coming": coming, "global": glob[:self._cap("brief_global", 12)], "home": home[:self._cap("brief_home", 10)],
+                "local": local[:self._cap("brief_local", 8)], "watched": watched,
                 "following": following, "follow": self.watch.get("follow", []), "mute": mute,
                 "outlets": len({i["source"] for i in self.store.q("SELECT DISTINCT source FROM items WHERE published > ?", (since,))})}
+
+    def _cap(self, key, default):
+        """news boost 2026-11-08: how many stories each brief section shows (was 8 / 7 / 5)."""
+        try:
+            return max(1, min(40, int(self.watch.get(key) or default)))
+        except (TypeError, ValueError):
+            return default
 
     def build_edition(self, kind="morning"):
         b = self._news_brief()
@@ -3870,7 +4113,8 @@ Reports:
 
     def maybe_edition(self, force=False):
         ed = self.store.kv_get("news_edition") or {}
-        if not force and ed.get("day") == self._edition_day():
+        empty = not (ed.get("global") or ed.get("home"))   # self-heal: an empty edition gets rebuilt
+        if not force and ed.get("day") == self._edition_day() and not empty:
             if ed.get("take_pending") and time.time() - ed.get("at", 0) > 600:
                 self._write_take()          # the summary failed last time: try again
             return
@@ -3884,6 +4128,9 @@ Reports:
 
     def refresh_brief(self):
         """Rebuild the brief now (the refresh bar) and rewrite its summary in the background."""
+        b = self._news_brief()
+        if len(b["global"]) + len(b["home"]) < 4:   # self-heal: just started, nothing pulled yet; keep what is there
+            return self.news_brief()
         self.build_edition("update")
         threading.Thread(target=self._write_take, daemon=True).start()
         return self.news_brief()
@@ -3893,12 +4140,13 @@ Reports:
             return
         try:
             ed = self.store.kv_get("news_edition") or {}
-            if not ed:
+            if not ed or not (ed.get("global") or ed.get("home")):   # self-heal: no headlines, no summary
                 return
             lines = ["GLOBAL:"] + [f"- {s['t']} ({s['n']} outlets)" for s in ed.get("global", [])[:8]] + \
                     ["AT HOME (United States):"] + [f"- {s['t']} ({s['n']} outlets)" for s in ed.get("home", [])[:7]]
             prompt = ("Write the top of a news brief for one reader, using ONLY these headlines (grouped by how many "
-                      "outlets covered them). Plain words, neutral, no opinions, no invented details.\n"
+                      "outlets covered them). Plain words, neutral, no opinions, no invented details. Use people's and "
+                      "places' names exactly as they are written in the headlines. Fill in BOTH fields.\n"
                       'Reply ONLY with JSON: {"world": "3 sentences on the biggest things happening in the world", '
                       '"home": "2 sentences on the biggest things in the United States"}\n\n' + "\n".join(lines))
             try:
@@ -3907,10 +4155,33 @@ Reports:
             except Exception as e:
                 self.store.health("News brief writer", "news", False, 0, str(e))
                 return
+            world, home = str(d.get("world") or "").strip(), str(d.get("home") or "").strip()
+            # self-heal 2026-11-08: small models sometimes leave one half blank; ask again for just that half,
+            # and if that fails too, say it plainly from the top headlines rather than show a dash
+            for key, sect, n_sent, label in (("world", "global", 3, "the world"), ("home", "home", 2, "the United States")):
+                if (world if key == "world" else home) or not ed.get(sect):
+                    continue
+                heads = [s["t"] for s in ed.get(sect, [])[:8]]
+                text = ""
+                try:
+                    from archie_brain import quick_chat
+                    again = json.loads(quick_chat(self.get_model(),
+                        f"Using ONLY these headlines, write {n_sent} plain, neutral sentences on the biggest things in "
+                        f"{label}. Use names exactly as written. Reply ONLY with JSON: {{\"text\": \"...\"}}\n\n"
+                        + "\n".join("- " + h for h in heads), max_tokens=250, timeout=120, json_mode=True, temperature=0.3))
+                    text = str(again.get("text") or "").strip()
+                except Exception:
+                    text = ""
+                if not text:
+                    text = "Top stories: " + "; ".join(h.rstrip(" .") for h in heads[:2]) + "."
+                if key == "world":
+                    world = text
+                else:
+                    home = text
             cur = self.store.kv_get("news_edition") or {}
             if cur.get("at") != ed.get("at"):
                 return                           # a newer edition replaced it meanwhile
-            cur["take"] = {"world": d.get("world", ""), "home": d.get("home", ""), "written": now()}
+            cur["take"] = {"world": world, "home": home, "written": now()}
             cur["take_pending"] = False
             self.store.kv_set("news_edition", cur)
             self.store.health("News brief writer", "news", True, 1)
@@ -4302,6 +4573,58 @@ Background:
             "brief_new": self.big_count(),
             "storms": self.store.kv_get("storms", {}), "iss": self.store.kv_get("iss_tle"),
         }
+
+    def doctor(self):
+        """Archie Doctor (2026-11-08): everything the background does, in one report: what works, what fixed
+        itself (backup feeds, repaired XML, catch-up), what needs a look, and whether each job keeps running."""
+        rows = [dict(r) for r in self.store.q("SELECT * FROM health ORDER BY kind, name")]
+        t = now()
+        healed_words = ("google news", "backup", "catch-up", "filled in")
+        healed, failing, feeds_ok, feeds = [], [], 0, 0
+        for r in rows:
+            err = (r.get("error") or "")
+            if r["kind"] != "job":
+                feeds += 1
+                feeds_ok += 1 if r["ok"] else 0
+            if r["ok"] and any(w in err.lower() for w in healed_words):
+                healed.append(r)
+            elif not r["ok"]:
+                failing.append(r)
+        quiet = [r for r in rows if r["ok"] and r["kind"] in ("rss", "gnews", "telegram") and r.get("last") and t - r["last"] > 6 * 3600]
+        jobs = []
+        errs = {r["name"]: r for r in rows if r["kind"] == "job"}
+        for key, every in getattr(self, "_job_plan", []):
+            try:
+                age = self.store.kv_age("t:" + key)
+            except Exception:
+                age = None
+            ran = age is not None and age < 10 ** 9
+            stalled = bool(ran and age > 3 * every + 900)
+            e = errs.get(key)
+            jobs.append({"key": key, "every": every, "ago": int(age) if ran else None, "stalled": stalled,
+                         "error": (e.get("error") if e and not e["ok"] else "")})
+        r24 = self.store.q("SELECT COUNT(*) n, COUNT(DISTINCT source) s, MAX(fetched) f FROM items WHERE fetched > ?",
+                           (t - 86400,), one=True)
+        ed = self.store.kv_get("news_edition") or {}
+        brief = {"day": ed.get("day"), "kind": ed.get("kind"), "at": ed.get("at"),
+                 "stories": len(ed.get("global") or []) + len(ed.get("home") or []) + len(ed.get("local") or []),
+                 "summary": bool((ed.get("take") or {}).get("world")), "pending": bool(ed.get("take_pending")),
+                 "today": ed.get("day") == self._edition_day(), "next_hour": self._brief_hour()}
+        return {"version": VERSION, "now": t, "online": self.is_online, "last_cycle": self.last_cycle, "busy": self.busy,
+                "feeds": feeds, "feeds_ok": feeds_ok, "healed": healed, "failing": failing, "quiet": quiet,
+                "jobs": jobs, "news": {"items": r24["n"] if r24 else 0, "sources": r24["s"] if r24 else 0,
+                                       "last": r24["f"] if r24 else None},
+                "brief": brief, "lite": self._lite_doctor()}
+
+    def _lite_doctor(self):
+        """Archie Lite on the laptop (2026-11-09): archie_sync.py hands World this function when it starts."""
+        fn = getattr(self, "lite_status", None)
+        if not callable(fn):
+            return None
+        try:
+            return fn()
+        except Exception as e:
+            return {"error": str(e)}
 
     def sources_report(self):
         rows = [dict(r) for r in self.store.q("SELECT * FROM health ORDER BY kind, name")]
@@ -4838,6 +5161,8 @@ def _make_server(svc):
                     return self._send(200, {"hash": svc.pop_nav()})
                 if path == "/api/sources":
                     return self._send(200, svc.sources_report())
+                if path == "/api/doctor":
+                    return self._send(200, svc.doctor())
                 if path == "/api/saved":
                     return self._send(200, svc.saved_list())
                 if path == "/api/calendar":

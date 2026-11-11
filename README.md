@@ -42,8 +42,15 @@ It started as one chat window and grew, over more than forty releases, into the 
 </tr>
 </table>
 
+### On your phone and laptops
+- **Archie phone app** (installable web app, reached privately over Tailscale): Today with *since you last opened*, record lectures and ideas, scan handouts into clean PDFs, quick-add, edit the calendar, email cards, news, and ask Archie. Works offline; everything waits and syncs.
+- **Archie Lite** for laptops (`ArchieLite/`): a tray owl and panel that records lectures, files anything you drop, shows mail pop-ups and the news, and updates itself from the PC.
+- **One inbox card** on every device: name it, say what it is and which class, and it's filed where the lecture review will find it, with a duplicate check.
+- **Mail:** watches Gmail read-only (Outlook can forward into it) and makes a card for school mail, attachments and dates, with quiet hours and notifications.
+- **Dates reader:** drop a syllabus, tick what's right, and the semester is on the calendar, with weekly classes that skip breaks.
+
 ### Study
-- **Lecture capture:** record a class on your phone; the PC wakes itself afterwards, types it out and writes the note (summary, key points with times, terms, to-dos, review questions, a mind map).
+- **Lecture capture:** record a class on the phone or a laptop (marks, board photos, notes; two devices stitch into one). The PC types it out, writes the note, then a **review** that lines the lecture up with the professor's slides and readings, plus flashcards and **exam prep** from three weeks out.
 - **Flashcards** with spaced review from a topic, a note, a chat, a book chapter or a file, checked the way a professor would.
 - **Mock exams** with timing and partial credit, and **chapter quizzes** on any book that never spoil what comes later.
 
@@ -98,20 +105,23 @@ Windows 10 or 11, an NVIDIA graphics card (8 GB is plenty), Python 3.10 or newer
 
 1. Install [Ollama](https://ollama.com) and [Python](https://www.python.org) (or Anaconda).
 2. Download this repository (green **Code** button, then **Download ZIP**) and unzip it, for example to `D:\Archie`.
-3. Double-click **Setup Archie.bat**. It starts Ollama, downloads a small starter model and opens Archie.
+3. Double-click **Tools\Setup Archie.bat**. It starts Ollama, downloads a small starter model and opens Archie.
 4. Optional extras, each its own double-click (online, once):
 
 | File | Adds |
 |---|---|
-| `Get Models.bat` | The full set of models: main, coder, vision (about 13 GB) |
-| `Install Extras.bat` | PDF and Word reading, drag and drop, the offline library reader, notes search |
-| `Get Wikipedia.bat` | All of English Wikipedia, text only (about 53 GB) |
-| `Get Voice.bat` | Voice notes and talking (Whisper and Piper) |
-| `Get Handwriting Model.bat` | A better reader for handwriting and scans |
-| `Get Image Maker.bat`, `Get Sketch Model.bat` | Image making and sketch to image (about 10 GB) |
-| `Get Code Editor.bat` | VSCodium with offline AI and the Archie Coach add-on |
+| `Tools\Get Models.bat` | The full set of models: main, coder, vision (about 13 GB) |
+| `Tools\Install Extras.bat` | PDF and Word reading, drag and drop, the offline library reader, notes search |
+| `Tools\Get Wikipedia.bat` | All of English Wikipedia, text only (about 53 GB) |
+| `Tools\Get Voice.bat` | Voice notes and talking (Whisper and Piper) |
+| `Tools\Get Handwriting Model.bat` | A better reader for handwriting and scans |
+| `Tools\Get Image Maker.bat`, `Get Sketch Model.bat` | Image making and sketch to image (about 10 GB) |
+| `Tools\Get Code Editor.bat` | VSCodium with offline AI and the Archie Coach add-on |
+| `Set up phone.bat` | The phone app over Tailscale |
+| `ArchieLite\Make Archie Lite stick.bat` | A USB stick that installs Archie Lite on a laptop (`Allow Archie Lite.bat` on the PC opens the firewall for it) |
+| `Tools\Connect Gmail.bat` | Mail cards (you type a Gmail app password; it's encrypted with Windows and stays on the PC) |
 
-From then on, **Start Archie.bat** opens it, and the owl's right-click menu has everything else.
+The helpers live in `Tools\`. From then on, **Start Archie.bat** opens it, and the owl's right-click menu has everything else.
 
 ## How it works
 
@@ -140,12 +150,19 @@ flowchart LR
 | `World/web/` | Archie World and the Workshop's pages, with the libraries and map data they use |
 | `World/workshop/` | Courses, building blocks, whole-app recipes, the VSCodium add-on |
 | `fonts/` | Geist, JetBrains Mono, Micro 5, Atkinson Hyperlegible, Young Serif (all SIL OFL) |
+| `phone/` | The phone app (served by the PC; `scan.js` is the handout scanner) |
+| `ArchieLite/` | The laptop app and its installer |
+| `archie_sync.py`, `archie_phone.py` | Encrypted sync with laptops and the phone |
+| `archie_inbox.py`, `archie_dates.py`, `archie_mail.py`, `archie_review.py` | The inbox card, dates reader, mail watcher and lecture review |
+| `Tools/` | The download and setup helpers |
 | `tests/` | Automatic checks, run by GitHub on every push |
 
 ## Privacy
 
 - Chats, notes, recordings, your calendar and your **About me** file stay on your PC. They're not part of this repository, and Archie never uploads them.
 - The models run locally. Nothing you type is sent to an AI company.
+- Your phone and laptops talk only to your own PC, encrypted, over your network or Tailscale.
+- The mail watcher only reads (it never marks, moves, deletes or sends), and your Gmail app password is encrypted with Windows and never leaves the PC.
 - Archie World fetches news, maps and public records when you open it, and the lawmaking screens can use free API keys you paste in yourself. Those keys are saved on your PC, never here.
 
 ## Tests

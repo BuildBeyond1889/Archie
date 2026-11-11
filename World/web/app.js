@@ -38,7 +38,7 @@
   var TYPEMAP = { clash: 1, shelling: 1, drone: 1, missile: 1, blast: 1, fire: 1, alert: 1, aid: 1, protest: 1, politics: 1, economy: 1, ship: 1, police: 1, defense: 1 };
   var KIND = { telegram: "TELEGRAM", gnews: "LOCAL PRESS", rss: "OUTLET" };
 
-  var PAGE_VERSION = "3.23.0";
+  var PAGE_VERSION = "3.26.0";
   function ingest(d) {
     S = d; NOW = d.now;
     if (d.version !== PAGE_VERSION) {
@@ -1878,10 +1878,11 @@
         '<p class="note" style="margin:0">"Matched by others" = how often a second, separate outlet reported the same event within two days (last 30 days, after 8+ reports). It matches on shared words in the headline and summary, shared names and the same place, not exact wording. Low numbers don\'t mean false: big outlets publish many stories nobody else covers, and some channels are simply first. It\'s most useful for small or unknown sources.</p>' +
         '<table class="bt"><thead><tr><th>source</th><th>kind</th><th>status</th><th class="num">items</th><th class="num">matched by others</th><th>last check</th></tr></thead><tbody>' +
         r.sources.map(function (s) { return "<tr><td>" + esc(s.name) + '</td><td class="mut">' + esc(s.kind) + "</td><td>" + (s.ok ? '<span class="up">● ok</span>' : '<span class="dn" title="' + esc(s.error) + '">● ' + esc((s.error || "failed").slice(0, 40)) + "</span>") + '</td><td class="num">' + (s.count || 0) + '</td><td class="num">' + (s.trust ? '<span style="color:' + (s.trust.rate >= 60 ? "var(--up)" : s.trust.rate >= 35 ? "var(--quake)" : "var(--down)") + '">' + s.trust.rate + "%</span> <span class=\"mut\">of " + s.trust.n + "</span>" : '<span class="mut">—</span>') + '</td><td class="mut">' + clock(s.last) + "</td></tr>"; }).join("") +
-        '</tbody></table><div class="row"><button class="btn primary" id="src-refresh">check everything now</button></div></div>';
+        '</tbody></table><div class="row"><button class="btn primary" id="src-refresh">check everything now</button> <button class="btn" id="src-doctor">archie doctor ↗</button></div></div>';
       document.body.appendChild(o);
       o.addEventListener("click", function (e) { if (e.target === o) o.remove(); });
       $("src-refresh").onclick = function () { api("/api/refresh", {}); this.textContent = "checking in the background…"; };
+      $("src-doctor").onclick = function () { window.open("/web/doctor.html", "_blank"); };
       var rulesBox = document.createElement("div"); var tbl = o.querySelector(".bt"); tbl.parentNode.insertBefore(rulesBox, tbl);
       function drawRules(rr) {
         var list = (rr && rr.rules) || [];

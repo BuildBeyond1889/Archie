@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Archie Doctor</title>
+<style>
+@font-face{font-family:"Geist";src:url(/fonts/Geist-Regular.ttf);font-weight:400}
+@font-face{font-family:"Geist";src:url(/fonts/Geist-SemiBold.ttf);font-weight:500 600}
+@font-face{font-family:"Geist";src:url(/fonts/Geist-Bold.ttf);font-weight:700 800}
+@font-face{font-family:"JetBrains Mono";src:url(/fonts/JetBrainsMono-Regular.ttf);font-weight:400 500}
+@font-face{font-family:"JetBrains Mono";src:url(/fonts/JetBrainsMono-Bold.ttf);font-weight:700}
+:root{color-scheme:dark;--bg:#04060a;--panel:#0b0d0b;--line:#22261f;--fg:#e8e8e3;--muted:#8f918a;--dim:#5d5f59;
+--lime:#c6f432;--down:#ff6b5e;--amber:#f5b942;--blue:#60a5fa;--mono:"JetBrains Mono",Consolas,monospace;--sans:Geist,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans)}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 28px 80px}
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px}
+.brand{font:700 15px var(--mono);letter-spacing:.14em}.brand b{color:var(--lime)}
+.stamp{font:12px var(--mono);color:var(--muted)}
+.btn{background:#151812;border:1px solid var(--line);border-radius:6px;padding:6px 11px;font:11px var(--mono);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--lime);color:#0a0a0a;border-color:var(--lime);font-weight:700}
+.verdict{font:600 24px var(--sans);margin:22px 0 4px}
+.verdict.good b{color:var(--lime)}.verdict.warn b{color:var(--amber)}.verdict.bad b{color:var(--down)}
+.sub{color:var(--muted);margin:0 0 18px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 26px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tile .k{font:11px var(--mono);letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.tile .v{font:700 26px var(--mono);margin-top:4px}
+.tile .d{font-size:12.5px;color:var(--muted)}
+h2{font:11px var(--mono);letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin:26px 0 8px;display:flex;gap:10px;align-items:center}
+h2 .n{color:var(--fg)}
+.list{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{display:grid;grid-template-columns:16px minmax(0,1.1fr) minmax(0,2fr) 110px;gap:12px;padding:10px 14px;border-top:1px solid var(--line);align-items:start}
+.row:first-child{border-top:0}
+.dot{width:8px;height:8px;border-radius:50%;margin-top:7px}
+.name{font-weight:600}.kind{font:11px var(--mono);color:var(--dim)}
+.what{color:var(--muted);font-size:13.5px}.what b{color:var(--fg);font-weight:500}
+.when{font:12px var(--mono);color:var(--dim);text-align:right}
+.empty{padding:14px;color:var(--muted);font-size:13.5px}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font:11px var(--mono);color:var(--muted);letter-spacing:.08em;padding:8px 10px;border-bottom:1px solid var(--line);text-transform:uppercase}
+td{padding:7px 10px;border-bottom:1px solid var(--line)}
+td.m{font-family:var(--mono);color:var(--muted)}
+.ok{color:var(--lime)}.st{color:var(--down)}
+details summary{cursor:pointer;color:var(--muted);font:12px var(--mono);margin:8px 0}
+@media(max-width:800px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.cols{grid-template-columns:1fr}.row{grid-template-columns:16px 1fr}.row .what,.row .when{grid-column:2;text-align:left}}
+</style></head>
+<body><div class="wrap">
+<div class="top"><span class="brand">ARCHIE <b>DOCTOR</b></span><span class="stamp" id="stamp">checking…</span>
+<span><button class="btn primary" id="check">check everything now</button></span></div>
+<div id="out"><p class="sub" style="margin-top:20px">Reading Archie's health…</p></div>
+</div>
+<script>
+(function(){
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function ago(t,now){if(!t)return"never";var s=Math.max(0,now-t);if(s<90)return"just now";if(s<5400)return Math.round(s/60)+" min ago";if(s<172800)return Math.round(s/3600)+" h ago";return Math.round(s/86400)+" days ago";}
+  function span(sec){if(sec<3600)return Math.round(sec/60)+" min";if(sec<86400)return Math.round(sec/3600)+" h";return Math.round(sec/86400)+" d";}
+  function plain(err){var e=(err||"").toLowerCase();
+    if(e.indexOf("certificate")>=0)return"Its secure connection doesn't check out (certificate problem). Archie reads it another way when it can.";
+    if(/\b404\b/.test(e))return"The address isn't there any more (404). The site probably moved its feed.";
+    if(/\b40[13]\b/.test(e))return"The site is refusing Archie (403/401).";
+    if(/\b429\b/.test(e))return"Asked too often (429). It will try again later.";
+    if(/http( error)? 5\d\d/.test(e))return"The site's server is having trouble right now.";
+    if(e.indexOf("timed out")>=0||e.indexOf("timeout")>=0||e.indexOf("10060")>=0)return"The site didn't answer in time.";
+    if(/no rows|moved/.test(e))return"The service answered with nothing. It may have moved.";
+    if(e.indexOf("not well-formed")>=0||e.indexOf("not readable")>=0)return"The site sent broken data, even after Archie tried to repair it.";
+    if(e.indexOf("not json")>=0)return"The site answered with something other than data.";
+    if(e.indexOf("getaddrinfo")>=0||e.indexOf("name or service")>=0)return"Couldn't find the site (no internet, or the name changed).";
+    return err||"failed";}
+  function healedText(r){var e=r.error||"";if(/catch-up|filled in/i.test(e))return esc(e);
+    if(/google news/i.test(e))return"Its own feed is down, so Archie is <b>reading the site through Google News</b> until it's back.";
+    if(/backup feed/i.test(e))return"The main feed didn't answer, so Archie <b>used the backup feed</b>.";return esc(e);}
+  function row(color,name,kind,what,when){return'<div class="row"><span class="dot" style="background:'+color+'"></span><div><div class="name">'+esc(name)+'</div><div class="kind">'+esc(kind)+'</div></div><div class="what">'+what+'</div><div class="when">'+when+'</div></div>';}
+  function draw(d){
+    var now=d.now,stalled=d.jobs.filter(function(j){return j.stalled;});
+    var old=d.failing.filter(function(r){return r.last&&now-r.last>7*86400;});
+    d.failing=d.failing.filter(function(r){return!(r.last&&now-r.last>7*86400);});
+    var issues=d.failing.length+stalled.length,b=d.brief;
+    var cls=!d.online?"bad":issues===0?"good":issues<=3?"warn":"bad";
+    var verdict=!d.online?"<b>Offline.</b> Archie can't reach the internet right now.":issues===0?"<b>All good.</b> Everything is running.":"<b>"+issues+" thing"+(issues===1?"":"s")+" need"+(issues===1?"s":"")+" a look</b>, the rest is running.";
+    document.getElementById("stamp").textContent="v"+d.version+" · last round "+ago(d.last_cycle,now)+(d.busy?" · now: "+d.busy:"")+" · refreshes every 30 s";
+    var briefTxt=!b.day?"no edition yet":b.today?(b.stories?b.stories+" stories, "+(b.summary?"summary written":b.pending?"summary being written":"no summary"):"<b style='color:var(--down)'>empty</b> (rebuilds itself)"):"yesterday's (next at "+(b.next_hour%12||12)+(b.next_hour<12?" am":" pm")+")";
+    var h='<p class="verdict '+cls+'">'+verdict+'</p><p class="sub">What Archie does in the background, what it fixed on its own, and what it couldn\'t.</p>'+
+      '<div class="tiles">'+
+      '<div class="tile"><div class="k">Sources working</div><div class="v">'+d.feeds_ok+'<span style="color:var(--dim);font-size:16px"> / '+d.feeds+'</span></div><div class="d">feeds, searches, data</div></div>'+
+      '<div class="tile"><div class="k">Fixed itself</div><div class="v" style="color:var(--lime)">'+d.healed.length+'</div><div class="d">running on a backup</div></div>'+
+      '<div class="tile"><div class="k">Stories, 24 h</div><div class="v">'+d.news.items+'</div><div class="d">from '+d.news.sources+' outlets · newest '+ago(d.news.last,now)+'</div></div>'+
+      '<div class="tile"><div class="k">News brief</div><div class="v" style="font-size:16px;margin-top:10px">'+(b.kind||"–")+(b.at?" · "+new Date(b.at*1000).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}):"")+'</div><div class="d">'+briefTxt+'</div></div></div>';
+    h+='<h2>Needs a look <span class="n">'+issues+'</span></h2><div class="list">'+
+      (issues?d.failing.map(function(r){return row("var(--down)",r.name,r.kind,esc(plain(r.error)),ago(r.last,now));}).join("")+
+        stalled.map(function(j){return row("var(--down)",j.key,"background job","Hasn't run in "+span(j.ago)+" (it should run every "+span(j.every)+"). Restarting Archie usually clears it."+(j.error?" Last error: "+esc(j.error):""),ago(now-j.ago,now));}).join("")
+        :'<div class="empty">Nothing. Every source answered and every job is on schedule.</div>')+'</div>';
+    h+='<h2>Fixed itself <span class="n">'+d.healed.length+'</span></h2><div class="list">'+
+      (d.healed.length?d.healed.map(function(r){return row("var(--lime)",r.name,r.kind,healedText(r),ago(r.last,now));}).join(""):'<div class="empty">No repairs needed right now.</div>')+'</div>';
+    if(old.length)h+='<details><summary>'+old.length+' old entr'+(old.length===1?'y':'ies')+' not checked in 7+ days (removed or renamed sources and jobs, not current problems)</summary><div class="list">'+old.map(function(r){return row("var(--dim)",r.name,r.kind,esc(plain(r.error)),ago(r.last,now));}).join("")+'</div></details>';
+    if(d.quiet.length)h+='<h2>Quiet for 6+ hours <span class="n">'+d.quiet.length+'</span></h2><div class="list">'+d.quiet.map(function(r){return row("var(--amber)",r.name,r.kind,"Working, but hasn't been checked lately. Normal if Archie was just started.",ago(r.last,now));}).join("")+'</div>';
+    h+='<h2>Background jobs <span class="n">'+d.jobs.length+'</span></h2><div class="list" style="padding:4px 4px"><table><thead><tr><th>job</th><th>every</th><th>last ran</th><th>status</th></tr></thead><tbody>'+
+      d.jobs.map(function(j){return"<tr><td>"+esc(j.key)+'</td><td class="m">'+span(j.every)+'</td><td class="m">'+(j.ago==null?"not yet":ago(now-j.ago,now))+"</td><td>"+(j.stalled?'<span class="st">● stalled</span>':j.error?'<span class="st" title="'+esc(j.error)+'">● last run failed</span>':'<span class="ok">● ok</span>')+"</td></tr>";}).join("")+'</tbody></table></div>';
+    var L=d.lite;
+    if(L){var lh="",list=(L.clients&&L.clients.length)?L.clients:(L.client?[L.client]:[]);
+      if(L.error)lh=row("var(--down)","Archie Lite","devices","Couldn't read their status: "+esc(L.error),"");
+      else if(!list.length)lh=row("var(--dim)","Archie Lite","devices","Paired, but no device has synced since this was added.","");
+      list.forEach(function(c){var away=now-c.seen>3600,bits=[];
+        bits.push("v"+esc(c.version||"?")+(c.up_to_date===false?" · <b>update on its way</b>":c.up_to_date?" · up to date":""));
+        if(c.pending)bits.push(c.pending+" change"+(c.pending===1?"":"s")+" waiting");
+        if(c.files_waiting)bits.push(c.files_waiting+" file"+(c.files_waiting===1?"":"s")+" still sending");
+        if(c.chat_waiting)bits.push(c.chat_waiting+" question"+(c.chat_waiting===1?"":"s")+" waiting");
+        if(c.battery)bits.push("on battery");
+        if(c.update_error)bits.push("<span style='color:var(--down)'>last update failed: "+esc(c.update_error)+"</span>");
+        bits.push("from "+esc(c.ip||"?"));
+        lh+=row(away?"var(--amber)":"var(--lime)",(c.host||"device"),c.host==="Phone"?"phone app":"Archie Lite",(away?"Not seen for "+span(now-c.seen)+". Normal if it's closed. ":"")+bits.join(" · "),ago(c.seen,now));});
+      var P=L.phone;
+      if(P)lh+=row(P.error&&!P.subs?"var(--amber)":"var(--lime)","Phone server","this PC",
+        (P.subs?P.subs+" phone"+(P.subs===1?"":"s")+" get notifications":"no phone has turned on notifications yet")+
+        (P.last_push?" · last sent "+ago(P.last_push[0],now)+": "+esc(P.last_push[1]):"")+(P.error?" · <span style='color:var(--down)'>"+esc(P.error)+"</span>":""),P.seen?ago(P.seen,now):"");
+      if(L.server_error)lh+=row("var(--down)","Sync server","on this PC","Last error: "+esc(L.server_error),"");
+      h+='<h2>Devices</h2><div class="list">'+lh+'</div>';}
+    document.getElementById("out").innerHTML=h;
+  }
+  function load(){fetch("/api/doctor").then(function(r){if(r.status===404)throw new Error("the Archie running now is older than this page. Double-click Restart Archie.bat.");return r.json();}).then(draw)
+    .catch(function(e){document.getElementById("out").innerHTML='<p class="verdict bad"><b>Couldn\'t reach Archie.</b></p><p class="sub">'+esc(e.message||e)+'</p>';});}
+  document.getElementById("check").onclick=function(){var b=this;fetch("/api/refresh",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});b.textContent="checking in the background…";setTimeout(function(){b.textContent="check everything now";load();},20000);};
+  load();setInterval(load,30000);
+})();
+</script>
+</body></html>

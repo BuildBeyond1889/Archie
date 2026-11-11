@@ -205,6 +205,23 @@ class Calendar:
         self._save(events)
         return ev
 
+    def update(self, ev_id, **changes):
+        """Change an event's title/date/time/kind/notes/repeat/until. Returns the changed event (or None)."""
+        events, out = self.load(), None
+        for e in events:
+            if e["id"] == ev_id:
+                for k, v in changes.items():
+                    if k in ("title", "date", "time", "kind", "notes", "repeat", "until"):
+                        e[k] = v.isoformat() if isinstance(v, datetime.date) else v
+                out = e
+        if out:
+            self._save(events)
+        return out
+
+    def restore(self, ev):
+        """Put an event back exactly as it was (undo)."""
+        self._save([e for e in self.load() if e["id"] != ev["id"]] + [dict(ev)])
+
     def delete(self, ev_id):
         self._save([e for e in self.load() if e["id"] != ev_id])
 

@@ -2,6 +2,17 @@
 
 Every release of A.R.C.H.I.E., newest first. The same list is at the end of the [manual](Manual/Archie%20Manual.md).
 
+## 4.0 · Nov 10, 2026: Archie everywhere
+- **Archie Lite** on the laptops and the **Archie phone app**, synced privately with the PC (Tailscale). See [Archie everywhere](Manual/Archie%20Manual.md#archie-everywhere-phone-laptops-and-pc).
+- **Lecture recording** on phone and laptop (drafts, marks, board photos, stitching across devices), the **lecture review** against the professor's material, **flashcards** per lecture and **exam prep** notes.
+- **Archie Inbox:** one card to name, sort and file anything from any device, with a duplicate check and big-file check.
+- **Dates reader:** syllabus to calendar, weekly classes that skip breaks, nothing added until you tick it.
+- **Mail:** Gmail (and Outlook through it) watched read-only, with cards, Windows notifications, phone mail cards, laptop pop-ups and quiet hours.
+- **Calendar:** click to edit on the PC, tap to edit on the phone, or ask (`move dentist to friday 3pm`). Today's events on the phone are tappable.
+- **Phone:** Since you last opened, Scan a handout (straightened, cleaned PDF), More > Mail.
+- **Looks after itself:** nightly model and Ollama updates, Ollama self-heal, keep-warm around classes, daily backups and an Obsidian mirror, a tidier `D:\Archie` (Tools, Guides, Backups).
+- **Menu wheel** (click ARCHIE ▾), and month news notes named like "October 2026".
+
 ## 3.26 · Oct 9, 2026
 - **The Vault:** one screen to browse, search and read the whole offline library. A catalogue front page with subject shelves, a card for each pack, kids/teens/adults shelves, new and updated marks, and notes about older copies. Each pack opens on its own front page with related packs. Search covers titles and then full text across all packs, one shelf, or one pack. Also: random page, three picks for today, saved pages, and flashcards from any page into Study.
 

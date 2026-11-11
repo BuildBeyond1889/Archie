@@ -32,8 +32,44 @@ TASK_PREFIX = "Archie Lecture Wake"
 
 # ----- which class is it? ---------------------------------------------------------
 
+NICE_TIME = re.compile(r"\((?:Board |Photo )?(20\d{2})-(\d{2})-(\d{2}) (\d{1,2})\.(\d{2})(?:\.(\d{2}))? ?([AP]M)\)", re.I)
+
+
+def nice_time(name):
+    """'Test1243 (2026-11-09 3.22 PM).webm' -> datetime, or None."""
+    m = NICE_TIME.search(name or "")
+    if not m:
+        return None
+    y, mo, d, h, mi, s, ap = m.groups()
+    h = int(h) % 12 + (12 if ap.upper() == "PM" else 0)
+    try:
+        return datetime.datetime(int(y), int(mo), int(d), h, int(mi), int(s or 0))
+    except ValueError:
+        return None
+
+
+def recording_label(name):
+    """The name you gave a recording ('Test1243'), or '' for an unnamed one."""
+    base = os.path.splitext(os.path.basename(name or ""))[0]
+    m = NICE_TIME.search(base)
+    if m:
+        lab = base[:m.start()].strip()
+        return "" if lab.lower() in ("recording", "board", "photo", "") else lab
+    return base.split(" · ")[0].strip() if " · " in base else ""
+
+
 def recording_start(path, duration=0.0):
-    """When the recording started. Obsidian names them 'Recording 20260930141502.webm'."""
+    """When the recording started. Obsidian names them 'Recording 20260930141502.webm'; Archie's own
+    recorders name them 'Name (2026-11-09 3.22 PM).webm' (the exact second comes from the file's time)."""
+    nt = nice_time(os.path.basename(path))
+    if nt:
+        try:
+            exact = datetime.datetime.fromtimestamp(os.path.getmtime(path) - (duration or 0))
+            if abs((exact - nt).total_seconds()) <= 120:
+                return exact
+        except OSError:
+            pass
+        return nt
     m = re.search(r"(20\d{2})(\d{2})(\d{2})[ _-]?(\d{2})(\d{2})(\d{2})", os.path.basename(path))
     if m:
         try:

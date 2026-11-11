@@ -185,7 +185,7 @@ class Transcriber:
         raise VoiceError(f"Couldn't start the speech model ({self.name}): {last}. "
                          "Try running Get Voice.bat again.")
 
-    def transcribe(self, audio, progress=lambda frac: None, stop=None, pause=None, timed=None):
+    def transcribe(self, audio, progress=lambda frac: None, stop=None, pause=None, timed=None, prompt=None):
         """audio = a file path (any common format) or 16 kHz samples. Returns the text.
         progress(0..1) is called as it goes; pause() returning True makes it wait.
         Pass a list as `timed` to also get every piece as (start, end, text) in seconds."""
@@ -195,7 +195,7 @@ class Transcriber:
             segments, info = model.transcribe(
                 audio, language="en" if english_only else None, beam_size=5,
                 vad_filter=True, vad_parameters={"min_silence_duration_ms": 700},
-                condition_on_previous_text=True)
+                condition_on_previous_text=True, initial_prompt=prompt or None)
             total = float(getattr(info, "duration", 0) or 0)
             paras, cur, last_end = [], [], 0.0
             for seg in segments:

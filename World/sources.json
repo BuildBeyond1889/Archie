@@ -90,6 +90,57 @@
       "name": "ReliefWeb (UN OCHA)",
       "url": "https://reliefweb.int/updates/rss.xml",
       "side": "UN humanitarian"
+    },
+    {
+      "name": "South China Morning Post",
+      "url": "https://www.scmp.com/rss/91/feed",
+      "side": "Hong Kong"
+    },
+    {
+      "name": "Nikkei Asia",
+      "url": "https://asia.nikkei.com/rss/feed/nar"
+    },
+    {
+      "name": "The Hindu",
+      "url": "https://www.thehindu.com/news/international/feeder/default.rss",
+      "side": "Indian"
+    },
+    {
+      "name": "Japan Times",
+      "url": "https://www.japantimes.co.jp/feed/"
+    },
+    {
+      "name": "AllAfrica",
+      "url": "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf",
+      "side": "African press"
+    },
+    {
+      "name": "MercoPress",
+      "url": "https://en.mercopress.com/rss"
+    },
+    {
+      "name": "Ars Technica",
+      "url": "https://feeds.arstechnica.com/arstechnica/index"
+    },
+    {
+      "name": "The Verge",
+      "url": "https://www.theverge.com/rss/index.xml"
+    },
+    {
+      "name": "Nature News",
+      "url": "https://www.nature.com/nature.rss"
+    },
+    {
+      "name": "Polygon",
+      "url": "https://www.polygon.com/rss/index.xml"
+    },
+    {
+      "name": "Game Developer",
+      "url": "https://www.gamedeveloper.com/rss.xml"
+    },
+    {
+      "name": "Cartoon Brew",
+      "url": "https://www.cartoonbrew.com/feed"
     }
   ],
   "gnews": [
@@ -161,6 +212,24 @@
       "hl": "en-US",
       "gl": "US",
       "side": ""
+    },
+    {
+      "name": "Latin America (Spanish press)",
+      "q": "Venezuela OR Colombia OR México OR Argentina OR Perú",
+      "hl": "es-419",
+      "gl": "MX"
+    },
+    {
+      "name": "Brazil (Portuguese press)",
+      "q": "Brasil governo OR Lula OR Congresso",
+      "hl": "pt-BR",
+      "gl": "BR"
+    },
+    {
+      "name": "Asia-Pacific",
+      "q": "China OR Taiwan OR Korea OR Japan OR India OR Pakistan OR Philippines",
+      "hl": "en-US",
+      "gl": "US"
     }
   ],
   "telegram": [
@@ -197,7 +266,11 @@
   "tiles": true,
   "local": [
     {
-      "name": "Close to home",
+      "name": "Western New York",
+      "q": "Buffalo OR Jamestown OR \"Chautauqua County\" OR Erie PA"
+    },
+    {
+      "name": "North Country",
       "q": "\"Your County\" OR \"Your Town\""
     }
   ],
@@ -253,5 +326,6 @@
     }
   ],
   "acled_email": "",
-  "acled_password": ""
+  "acled_password": "",
+  "_news_boost_2026_11_08": true
 }

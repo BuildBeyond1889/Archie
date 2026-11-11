@@ -1,5 +1,5 @@
 # ARCHIE Manual
-<!-- version: 3.23.0 · updated: Oct 2, 2026 -->
+<!-- version: 4.0.0 · updated: Nov 10, 2026 -->
 
 **A**rtificial **R**easoning **C**ore, **H**ome **I**ntelligence **E**ngine. Your private AI that runs entirely on your own PC. This manual works offline. It lives at `D:\Archie\Archie Manual.html` and opens in any browser, with no internet needed.
 
@@ -30,23 +30,142 @@ That's it. Everything else in this manual is optional extras.
 | See today's plan | The **sun** icon at the top |
 | Find an old chat | The **clock** icon at the top |
 | See everything Archie can do | Click **help** at the bottom (or type `help`) |
-| More options | **Right-click the owl** |
+| File anything (slides, photos, PDFs) | Drag it on, {{Ctrl+V}}, or right-click > **Send to > Archie**: see [Archie Inbox](#archie-inbox-file-anything) |
+| Put a syllabus on the calendar | Drop it on Archie, choose **syllabus**: see [Dates reader](#dates-reader-syllabus-to-calendar) |
+| Change an event | Click it in the calendar, or say `move dentist to friday 3pm` |
+| Use Archie on your phone or laptop | See [Archie everywhere](#archie-everywhere-phone-laptops-and-pc) |
+| More options | Click **ARCHIE ▾** at the top (the menu wheel), or **right-click the owl** |
 
 ### A school day with Archie
 
-Type `school day` to see this in the chat.
+Type `school day` to see the short version in the chat.
 
-1. **Morning.** Open Archie and read the [morning brief](#morning-brief-and-to-dos): your countdowns, today's classes, to-dos from yesterday's lectures with their due dates, and last night's recap. Then put the PC to **sleep** (not shut down).
-2. **In class.** When the lecture starts, tap the **microphone** in Obsidian on your phone. Put the phone face-down, listen, take normal notes, and tap it again when class ends. That's all you do.
-3. **While you're out.** About 20 minutes after class, the PC wakes itself (with [wake after class](#lectures-class-capture) on). The recording syncs, and Archie types it out and writes the lecture note: summary, key points with times, notes, terms, to-dos, review questions and a mind map. Homework goes on your to-do list. Then the PC goes back to sleep.
-4. **Home.** Every lecture is waiting in Obsidian under `Lectures`. Skim the summary and key points. If something didn't click, the time next to it tells you where to jump in the recording. With the note open, type `make flashcards from this note`, or ask about **this note**.
-5. **Homework.** `focus: bouncing ball assignment` starts the [owl timer](#focus-timer-the-owl); it goes in your daily note.
-6. **Drawing.** `gym` for 15 minutes of timed references in the [drawing gym](#drawing-gym). The class ladder makes a good warm-up, and it keeps your streak going.
-7. **Night.** Click the **moon** for the [evening recap](#evening-recap) and talk for a minute. Tomorrow's brief picks it up.
+1. **Morning.** Your phone's **Today** shows what's on, what's due, and anything that came in overnight (**Since you last opened**). On the PC, the [morning brief](#morning-brief-and-to-dos) has the same plus exam countdowns.
+2. **In class.** Open the Archie app on your phone (**Class** tab) or the owl on your laptop (**Notes > Record**) and hit **Record**. Tap **Mark** when something sounds like it'll be on the exam, **Board** to photograph the board, **Note** to jot something. **Stop** at the end, then **Send** (or send later; it waits on the device). Got a paper handout? **Add > Scan a handout**.
+3. **While you're out.** The PC types up the lecture, lines it up with the professor's slides and your photos and notes, and writes a **review** of that lecture. Homework goes on your to-do list; flashcards go into your deck. School emails get a [card](#mail-gmail-and-outlook) and a notification.
+4. **Home.** Every lecture is in Obsidian under `Lectures/<class>`. Read the **(review)** note first: it shows what was said, which slide it goes with, what you marked, and what wasn't in the slides. File any new slides or handouts with the [inbox card](#archie-inbox-file-anything) so the next review includes them.
+5. **Before exams.** From three weeks out, **exam prep** notes build themselves for any exam on the calendar (like `BIO 101 Midterm`), and `study` drills the flashcards.
+6. **Homework, drawing, night.** `focus: bouncing ball assignment` for the [owl timer](#focus-timer-the-owl), `gym` for the [drawing gym](#drawing-gym), the **moon** for the [evening recap](#evening-recap).
 
-**Before you rely on it:** do one long test recording with the phone locked (to be sure it keeps recording for a whole class), start the day with a charged phone, and check each syllabus about recording.
+**Before you rely on it:** do one long test recording with the phone locked, start the day charged, and check each syllabus about recording.
 
-**Pin Archie to the taskbar:** run **Create Shortcut.bat**. Then open the Start menu, right-click **Archie**, and choose **Pin to taskbar**. Clicking the taskbar owl starts Archie, or opens the chat if Archie is already running.
+**Pin Archie to the taskbar:** run **Tools\Create Shortcut.bat**. Then open the Start menu, right-click **Archie**, and choose **Pin to taskbar**. Clicking the taskbar owl starts Archie, or opens the chat if Archie is already running.
+
+## Archie everywhere: phone, laptops and PC
+
+Archie has three parts. The **PC** is the brain: the models, your notes, the calendar, the lecture pipeline and the mail watcher all live there. Your **phone** and your **laptops** are remote controls and recorders that work even when the PC can't be reached, and catch up the moment it can.
+
+| | PC (`D:\Archie`) | Laptops (Archie Lite) | Phone (Archie app) |
+|---|---|---|---|
+| Ask Archie | yes | yes (answered by the PC; waits if it's off) | yes (same) |
+| Record a lecture | no | yes (Notes tab) | yes (Class tab) |
+| Calendar, to-dos, deadlines | view, add, edit | view, add, quick-add | view, add, **edit**, delete |
+| File anything (the [inbox card](#archie-inbox-file-anything)) | yes | yes | yes |
+| Read dates from a syllabus | yes ([dates reader](#dates-reader-syllabus-to-calendar)) | sends it to the PC | sends it to the PC |
+| Mail cards | yes | a pop-up | **More > Mail** |
+| News brief | yes (World) | News tab | News tab |
+| Works offline | yes | yes; changes wait and sync later | yes; changes wait and sync later |
+
+**How they talk:** privately, encrypted, over your own network and Tailscale (your phone reaches the PC at its Tailscale address). Nothing goes through anyone else's server. When a device can't reach the PC, everything you do waits on that device and is sent later in order, and nothing is lost.
+
+**What syncing changes:**
+- Anything you record, drop, scan or file on a phone or laptop ends up in the **same Obsidian folders** as if you'd done it on the PC, so the lecture review, flashcards and exam prep see all of it.
+- A calendar change from any device shows up everywhere on the next sync (usually within a minute). If the same event was changed on two devices at once, Archie keeps both and marks the second one.
+- The PC must be **on (or asleep with wake timers) and running Archie** for answers, filing, typing up lectures, the dates reader and mail. The phone and laptops still record and save in the meantime.
+
+### Archie Lite (your laptops)
+
+A little lime owl in the corner of each laptop. **Click it** for the panel (Today, Notes, News, Chat).
+- **Record a lecture:** Notes tab > **Record**. It saves every 10 seconds, so nothing is lost if the battery dies. A red bubble under the owl shows the timer, with a red bar across every tab. **Stop** makes it a **draft**: name it, pick the class, add a photo or note, then **Send**.
+- **Drop anything on the owl or the panel** and you get the [inbox card](#archie-inbox-file-anything). Files over 50 MB ask first.
+- **Mail pop-ups:** when the PC makes a [mail card](#mail-gmail-and-outlook), the laptop shows a pop-up too.
+- **Updates itself:** when the PC has a new version, the laptop downloads it and installs it the next time the panel is **closed** (never mid-recording). To get it now: close the panel with **–** and wait about 30 seconds.
+- **Notes tab:** your laptop notes stay listed after they reach Obsidian. Opening one and going back without changes doesn't send it again. **×** takes a note off the laptop's list; Obsidian keeps it.
+- Install or repair from an Archie Lite USB stick (Make Archie Lite stick.bat). On the PC, **Allow Archie Lite.bat** lets laptops through the firewall.
+
+### The Archie phone app
+
+Open it from your home screen (set it up once with **Set up phone.bat** on the PC, then "Add to Home screen").
+- **Today:** a **Since you last opened** box (new school mail, files that got filed, lectures typed up, calendar changes from other devices), the next deadline, today and this week. **Tap any event** to jump to it on the calendar; tap **Due** or **To-do** for your list.
+- **Class:** record a lecture (Mark, Board photo, Note while recording). **Stop** makes a draft you send when you're ready. Switch to **Ideas** to talk through an idea; it becomes a tidy note in `Ideas`.
+- **Add:** quick-add (`dentist fri 3pm`), **Scan a handout** (see below), photo, file, paste, note. From any app: **Share > Archie**.
+- **More > Calendar:** tap an event to **edit** it (name, day, time, kind, repeat, note) or delete it.
+- **More > Mail:** the [mail cards](#mail-gmail-and-outlook). Tap an attachment to file it.
+- **Notifications:** class starting, lecture notes ready, mail that matters. Tapping one opens Archie.
+- To update the app: close it fully and open it again.
+
+**Scan a handout (Add > Scan a handout):**
+1. Lay the page on something darker than the paper, point the camera, and tap the big round button.
+2. Archie finds the page's corners. Drag any that are off, then **Use page**. It straightens the page and whitens the paper.
+3. Add more pages the same way (✕ removes one).
+4. Name it, pick what it is and the class, then **Save PDF**. It's filed like any other file, for example `Lectures/BIO 101/Materials/Lab 3 handout (2026-11-10 2.14 PM).pdf`.
+
+The date in the name lets the lecture review match the handout to the right lecture. *For now a scan is pictures of pages, so the review can't quote its text yet.*
+
+## Archie Inbox: file anything
+
+One card for everything you give Archie, from any device: **drag** a file onto the chat, **{{Ctrl+V}}** a picture, **snip** the screen, right-click a file > **Send to > Archie** (run `Tools\Add Send to Archie.bat` once), drop it on a laptop owl, or share/scan it on the phone.
+
+The card asks three things and shows where it will go:
+- **Name:** rename it if you like. The date stamp in the name, like `(2026-11-10 2.14 PM)`, is kept, because the lecture review uses it.
+- **What is it:** slides / handout · reading · syllabus · assignment · board photo · my notes · recording · idea · other.
+- **Class:** guessed from your calendar (during class or within an hour after) or from the file name. Tap another, or **no class**.
+
+**Where things go** (your Obsidian vault):
+
+| What | Goes to |
+|---|---|
+| slides / handout, reading, syllabus | `Lectures/<class>/Materials` (the lecture review reads these) |
+| assignment | `Lectures/<class>/Assignments` |
+| recording, my notes | `Lectures/<class>` (recordings get typed up) |
+| board photo, other | `Lectures/<class>/Files` |
+| idea | `Ideas` |
+| anything with **no class** | `Archie Inbox` (recordings: `Archie Lite/Voice inbox`) |
+
+Each file also gets a small note beside it. If you send the **same file twice**, Archie says when and where it was already saved instead of copying it again. **Undo** stays for 10 seconds after saving. **Ask Archie about it** sends it into the chat instead.
+
+## Dates reader: syllabus to calendar
+
+Drop a syllabus, course schedule, assignment sheet, work schedule, flyer or portal screenshot on Archie (PC), then click **Find dates** on its card. Saving a file as **syllabus** reads it automatically, including one sent from the phone or a laptop: its dates wait on the PC.
+
+Archie reads it (about a minute; keep working) and lists what it found, grouped as **classes (weekly), exams, due, other, needs a date**. **Hover** a line to see the sentence and page it came from.
+- **Nothing is added until you press Add.** Untick anything that's wrong first.
+- Exams and quizzes are named like **BIO 101 Midterm** and **BIO 101 Quiz 2**, so [exam prep](#lectures-class-capture) finds them. Use the **class** chips if the syllabus names the class differently from your folders.
+- Weekly classes and labs repeat from the first to the last day of term and **skip breaks** (spring break, etc.).
+- Fuzzy dates ("week 6", "TBA") are never guessed: they show under **needs a date**.
+- Things already on your calendar, and office hours, start unticked.
+- **Undo** for 10 seconds; **open calendar** jumps to the first new event.
+
+## Mail (Gmail and Outlook)
+
+Your Outlook forwards to your Gmail, and Archie watches the Gmail inbox (on the PC, every 3 minutes, new mail only). It **only reads**: nothing is marked read, moved, deleted or sent.
+
+**Set up or change it:** run `Tools\Connect Gmail.bat`.
+1. Turn on **2-Step Verification** in your Google account, then make an **app password** at myaccount.google.com/apppasswords (name it Archie).
+2. In the window, type your Gmail address and the 16-letter app password, then **Connect**. It's encrypted with your Windows account and never leaves the PC.
+3. Run it again any time to add **professors** who email from non-.edu addresses or a school domain. Leave the password empty and press **Save changes**. Any `.edu` address (like `yourschool.edu`) already counts as school. **Disconnect** deletes the saved password.
+
+**What gets a card:**
+- mail from school or your professors,
+- mail with real attachments (not signature logos),
+- mail that mentions a date with a word like due, exam, deadline, interview or shift.
+
+Newsletters and Gmail's Promotions/Social/Updates tabs are skipped unless they're from school.
+
+**When one arrives:**
+- **PC:** a Windows notification from **Archie** that stays until you deal with it (**Open in Gmail** opens that exact email). The card waits in Archie's chat: click an attachment to file it with the [inbox card](#archie-inbox-file-anything), **Find dates**, **Open in Gmail**, **Done**.
+- **Phone:** a notification that opens Archie; the card is in **More > Mail**. (The Gmail app keeps its own notifications.)
+- **Laptops:** a pop-up.
+- **Quiet hours, 11 PM to 7 AM:** everything waits until morning, except mail from professors.
+
+Attachments and the email text are kept in `D:\Archie\Mail\<date> <subject>`, and attachments keep the email's date.
+
+## Archie looks after itself
+
+- **Nightly update** at the first quiet stretch (15 minutes without keyboard or mouse, Archie not busy, online): installs a waiting Ollama update, refreshes every model with `ollama pull`, checks the main model still answers, and once a month mentions good new models. One line in the morning brief says what happened.
+- **Ollama self-heal:** every 45 seconds Archie checks that Ollama is answering. If it stopped (for example after Ollama updated itself), Archie waits for any update to finish, starts it again, and says so in the status line. If three tries fail, it tells you to open Ollama from the Start menu.
+- **Keep-warm:** the main model stays loaded from 15 minutes before a class, lab or exam until 30 minutes after, and for 30 minutes after you use Archie, so the first answer is instant. Otherwise the graphics card is left free.
+- **Daily backup:** your settings, calendar, to-dos, chats, memory, flashcards, modes and notes go to `D:\Archie Backups\Daily\<date>.zip` (last 7 days kept), and your Obsidian vault is mirrored to `D:\Archie Backups\Obsidian` (nothing is ever deleted from the mirror). Old `.bak` copies in `D:\Archie\Backups` are cleared after 30 days, keeping the newest of each.
 
 ## The chat window
 
@@ -321,6 +440,8 @@ New files go to `Documents\Archie Files` until you pick another folder. Archie r
 
 ## Walk-and-talk voice notes from your phone
 
+> **Easier now:** in the Archie phone app, **Class > Ideas** records an idea and turns it into a tidy note in `Ideas`, and **Class > Lecture** records lectures. The Obsidian way below still works.
+
 Record on your phone (headphone mic is fine) while you walk, and it turns up in Obsidian typed out and tidied.
 
 **With Obsidian on your phone (recommended):**
@@ -341,7 +462,11 @@ Record on your phone (headphone mic is fine) while you walk, and it turns up in 
 
 Record a class on your phone, and by the time you're home it's a full set of notes in Obsidian, laid out like a Plaud summary.
 
-**Record it:** in Obsidian on your phone, tap the **microphone** (the Audio recorder) at the start of class and again at the end. That's all. It syncs to the PC like any voice note.
+**Record it:** in the **Archie phone app** (Class tab) or **Archie Lite** on a laptop (Notes > Record). Both save every 10 seconds, let you **Mark** moments, take board photos and notes, and keep the recording as a draft until you **Send**. If the phone dies mid-class and you carry on with the laptop, Archie **stitches** both into one lecture with no repeated sentences. (Recording with Obsidian's microphone still works too.)
+
+**The lecture review:** put the professor's material in `Lectures/<class>/Materials` (the [inbox card](#archie-inbox-file-anything) does this for you): slides, PDFs, Word files, handouts, readings, photos of pages. Archie matches each file to its lecture by the date in its name, what's in it, and when it arrived. Then it writes `<lecture> (review).md` next to the lecture note: the lecture piece by piece with the slide it goes with, what you marked or flagged, what was said that isn't in the material, and gaps. It rebuilds when new material arrives, and keeps your own edits.
+
+**Flashcards and exam prep:** each lecture adds about 10 cards to a deck named after the class (`study`, `decks`). For an exam, test or quiz on the calendar whose title has the class name (`BIO 101 Midterm`), Archie writes `Exam prep · <title>` notes from 21, 14 and 7 days out, with a countdown, what to study first, your flagged moments and a mock exam (`exams`).
 
 **Archie treats a recording as a lecture when:**
 - it was made during a **class on your calendar** (add classes once, like `class: intro to animation mondays 6pm`), or
@@ -478,6 +603,7 @@ Click the **date** at the top of Archie (or type `calendar`, or right-click the 
 
 - **Month view.** Today has a lime ring. Short colored bars show what's on each day, and each day **glows lime** by how much you focused (focus timer and drawing gym). Use **‹ ›** or the mouse wheel to change month, and **today** to jump back.
 - **Click a day** to see its events, plus that day's recorded lectures (click one to open the note), focus sessions and drawing gym. Remove an event with **✕**.
+- **Change an event:** click its name. Its words go into the box at the bottom and the button says **save**: change the text or time, click another day to move it, then **save** ({{Esc}} cancels). On the phone: More > Calendar, tap the event.
 - **Week view** (the **week** button at the top; Archie remembers which you like): the week hour by hour, 8 am to 11 pm.
   - Classes are blocks. After class they say **■ recorded · ✓ note** with a violet edge when the lecture note is there, **record it** before class, and **no recording** if one never came in.
   - Focus sessions you did are solid lime blocks and drawing gym rounds white pills.
@@ -496,6 +622,10 @@ Click the **date** at the top of Archie (or type `calendar`, or right-click the 
 | `due: history essay 11/3` | a due date |
 | `class: intro to animation mondays 6pm` | a class **every** Monday |
 | `add dentist appointment on oct 3 at 3:15pm to my calendar` | an event |
+| `move checking out apartment to 6` | changes its time (a bare 6 means 6 PM unless you say am or morning); **undo** link after |
+| `push the dentist to friday 3pm` · `cancel bio lab` | moves it · removes it |
+
+Asking to change an event works from the PC chat, the phone and the laptops. Archie says exactly what it changed, or that it couldn't find the event: it never pretends.
 
 Dates Archie understands: `oct 12`, `12th of october`, `10/12`, `2026-10-12`, `today`, `tomorrow`, `friday`, `next tuesday`, `in 3 days`.
 
@@ -705,7 +835,7 @@ A live globe of what's happening in the world, when you're online: conflict repo
 
 **Ask the map:** type in the box at the top, or `world what's happening near Hormuz` in the chat. Archie answers only from the reports it has stored, cites them like [1], and lights them up on the globe.
 
-**News brief:** `news` (or the **news brief** button). An edition written at **6 am** (or when the PC wakes up after that) from the last 24 hours, and then kept as it was so it reads like a paper. When a story gets as big as the morning's top story after that, a lime bar at the top lists it with **refresh the brief**, and the **news brief** button gets a number. **Refresh now** in the header rebuilds it any time; the summary is rewritten in the background. Before 6 am you see yesterday's edition. The hour is `brief_hour` in `watch.json`; `big_story_outlets` sets how many outlets make a story "big" (0 = as big as the morning's top story). The brief has a few sentences on **the world** and **at home**, then the biggest stories **around the world**, **at home** (United States) and **close to home** (the local searches you set in `sources.json`), each with how many outlets covered it, the left / center / right mix, a one-line summary, and **save** / **follow** / **less like this**. The **Following** column shows the topics you follow (from the last 3 days); add one by typing it, or **follow** on any story; × removes it. **Muted** topics never show up. Topics can be several words separated by commas, and any of them counts. The local searches are in `sources.json` under `local`.
+**News brief:** `news` (or the **news brief** button). An edition written at **6 am** (or when the PC wakes up after that) from the last 24 hours, and then kept as it was so it reads like a paper. When a story gets as big as the morning's top story after that, a lime bar at the top lists it with **refresh the brief**, and the **news brief** button gets a number. **Refresh now** in the header rebuilds it any time; the summary is rewritten in the background. Before 6 am you see yesterday's edition. The hour is `brief_hour` in `watch.json`; `big_story_outlets` sets how many outlets make a story "big" (0 = as big as the morning's top story). The brief has a few sentences on **the world** and **at home**, then the biggest stories **around the world**, **at home** (United States) and **close to home** (western New York and the North Country), each with how many outlets covered it, the left / center / right mix, a one-line summary, and **save** / **follow** / **less like this**. The **Following** column shows the topics you follow (from the last 3 days); add one by typing it, or **follow** on any story; × removes it. **Muted** topics never show up. Topics can be several words separated by commas, and any of them counts. The local searches are in `sources.json` under `local`.
 
 **Morning note:** `morning note` (or the button). Written after 6 am from real numbers: the take, a cross-asset board (futures, Europe, Asia, currencies, commodities, crypto, VIX, Treasury yields) with today, 1 week, year to date and a 5-day line, the S&P 500 sector heatmap, the yield curve against a month ago, rates and credit spreads, today's economic calendar, earnings and prediction-market odds. Prices are about 15 minutes delayed. Archie never makes up a figure.
 
@@ -1011,6 +1141,8 @@ Every chat saves itself automatically in `D:\Archie\Chats`, as a readable `.md` 
 
 ## The owl menu
 
+**The menu wheel:** click **ARCHIE ▾** at the top of the chat. A wheel rolls out of the corner with an icon for each area; click one to roll it to the front, click the green one to open it. Scroll or ↑↓ also turn it; click outside or {{Esc}} folds it away. **Everything** opens the full list below.
+
 Right-click the owl for:
 
 | Item | What it does |
@@ -1175,17 +1307,15 @@ In the study window: {{Space}} shows the answer. Type an answer and press {{Ente
 | File or folder | What it is |
 |---|---|
 | **Start Archie.bat** | Starts Archie with no black window |
-| **Create Shortcut.bat** | Puts the owl shortcut on the Desktop and in the Start menu |
-| **Get Models.bat** | Downloads the AI models (internet) |
-| **Install Extras.bat** | PDF/Word reading, drag-and-drop, Wikipedia reader, notes-search model (internet) |
-| **Get Wikipedia.bat** | Downloads offline Wikipedia (internet) |
-| **Get Handwriting Model.bat** | The better handwriting reader + iPhone photo support (internet) |
-| **Install LocalSend.bat** | Phone-to-PC photo sending over Wi-Fi |
-| **Get Image Maker.bat** | The offline image maker: PyTorch + Stable Diffusion XL (internet, ~10 GB) |
-| **Get Sketch Model.bat** | The sketch reader for sketch to image (internet, a few hundred MB) |
-| **Get Voice.bat** | Voice notes: the recording add-on + the Whisper speech model (internet) |
-| **Update Archie.bat** | The yearly checkup: re-downloads your models (internet). See [Updating Archie](#updating-archie) |
-| **Setup Archie.bat** | First-time setup |
+| **Restart Archie.bat** | Closes and reopens Archie (needed after an update to its files) |
+| **Update Archie.bat** | Refresh all models now (Archie also does it nightly; see [Archie looks after itself](#archie-looks-after-itself)) |
+| **Set up phone.bat** · **Allow Archie Lite.bat** | Phone app setup (Tailscale) · let the laptops through the firewall |
+| **Tools** | Every other helper: **Connect Gmail**, **Add Send to Archie**, Create Shortcut, Get Models, Get Voice, Get Wikipedia, Get Image Maker, Get Sketch Model, Get Handwriting Model, Get Code Editor, Install Extras, Install LocalSend, Setup Archie, Tidy Archie, Vault Check, Fix Brief, Fix/Test Image Maker, Update Archie Coach |
+| **Guides** | The Obsidian guide and other how-tos |
+| **Backups** | Copies of files from before each change (`.bak-...`), tidied after 30 days |
+| **Old Downloads** | Installers and downloads Archie no longer needs (safe to delete) |
+| **Mail** | Attachments and text of emails that got a card |
+| **phone** | The phone app (served to your phone by the PC) |
 | **Archie Manual.html** | This manual |
 | `Manual\Archie Manual.md` | The manual's source text (see [Updating this manual](#updating-this-manual)) |
 | **Notes** | Your files for Archie to search, including books. `Notes\Handwritten` is where photos of notes go |
@@ -1196,6 +1326,11 @@ In the study window: {{Space}} shows the answer. Type an answer and press {{Ente
 | **Study** | Flashcard decks |
 | **Images** | Pictures you've made, and the image model |
 | `calendar.json` | Your calendar |
+| `inbox_index.json` | What the inbox card has filed (the duplicate check) |
+| `mail_state.json` · `mail_secret.bin` | Mail watcher state · the encrypted app password |
+| `lite_sync.json` | Your laptops and phone, and what they last sent |
+| `autoupdate.json` · `housekeep.json` | Nightly update and backup records |
+| `D:\Archie Backups` | Daily zips (7 days) and the Obsidian mirror |
 | **Banners** | Pictures for the strip in the top bar (drop your own in) |
 | `focus_state.json`, `Study\focus_log.jsonl` | The focus timer: today's count, and every session you finished |
 | **Drawing Gym** | Reference pictures for the drawing gym (drop your own in; `gym.json` remembers how Archie sorted them) |
@@ -1246,7 +1381,19 @@ In the study window: {{Space}} shows the answer. Type an answer and press {{Ente
 ## Troubleshooting
 
 **"Ollama not reachable" or "I can't find Ollama"**
-Open the Ollama app from the Start menu (a llama icon appears by the clock), then click **+** for a new chat.
+Archie restarts Ollama by itself within a minute (it usually stopped after updating itself). If it says it couldn't, open the Ollama app from the Start menu (a llama icon appears by the clock), then click **+** for a new chat.
+
+**A laptop doesn't have the new feature**
+Archie Lite installs updates only while its panel is closed. Close the panel with **–** and wait about 30 seconds; the owl restarts on the new version. Still old? Right-click the owl > Quit, and open Archie Lite again.
+
+**The phone app doesn't have the new feature**
+Close the app fully (swipe it away) and open it again. Sometimes it takes twice.
+
+**Something from the phone or laptop didn't show up on the PC**
+It waits on that device until it can reach the PC. Check the PC is on and Archie is running; it sends as soon as it can. On the laptop the file list says where each file went.
+
+**No mail cards**
+Run `Tools\Connect Gmail.bat` and check it says connected. Only mail that arrives after connecting, from school, with attachments, or with dates gets a card. Between 11 PM and 7 AM cards wait until morning (except professors).
 
 **"No models are installed"**
 Run **Get Models.bat** (needs internet once).
@@ -1326,12 +1473,13 @@ Archie's models are files on your drive. They **never change by themselves**, an
 
 About a year after the last update, the brief shows a **yearly checkup** reminder. (The date is kept in `last_update.txt`.)
 
-On purpose, the update does **not** touch the image maker, voice, or Python add-ons, because updating those can break things (like the NumPy problem). Your offline Wikipedia also stays as it is; run **Get Wikipedia.bat** for a newer copy. Ollama itself updates on its own: when an update is ready, its tray icon says **Restart to update**.
+On purpose, the update does **not** touch the image maker, voice, or Python add-ons, because updating those can break things (like the NumPy problem). Your offline Wikipedia also stays as it is; run **Get Wikipedia.bat** for a newer copy.
 
-**Back up** by copying these to another drive now and then:
-- the `Notes` and `Chats` folders,
-- `about_me.txt`, `tasks.txt` and `deadlines.txt`,
-- the `Modes` folder.
+**Most of this is automatic now:** every night at the first quiet stretch Archie installs a waiting Ollama update and refreshes every model, and restarts Ollama if it ever stops. See [Archie looks after itself](#archie-looks-after-itself). **Update Archie.bat** is still there if you want it right now.
+
+**Backups are automatic too:** a daily zip in `D:\Archie Backups\Daily` (7 days) and a mirror of your Obsidian vault in `D:\Archie Backups\Obsidian`. Copying `D:\Archie Backups` to another drive now and then covers you if that drive fails.
+
+**Laptops and phone:** after new files on the PC, run **Restart Archie.bat**. The laptops update themselves (close the panel to finish), and the phone updates when you reopen the app.
 
 ## Updating this manual
 
@@ -1343,6 +1491,17 @@ The manual has two copies:
 When the `.md` is newer, Archie rebuilds the pretty version automatically the next time you open the manual (owl menu > **Open the manual**, or type `manual`). To add your own notes, write them in the `.md` under a `## ` heading.
 
 ## Changelog
+
+**4.0 · Nov 10, 2026: Archie everywhere**
+- **Archie Lite** on the laptops and the **Archie phone app**, synced privately with the PC (Tailscale). See [Archie everywhere](#archie-everywhere-phone-laptops-and-pc).
+- **Lecture recording** on phone and laptop (drafts, marks, board photos, stitching across devices), the **lecture review** against the professor's material, **flashcards** per lecture and **exam prep** notes.
+- **Archie Inbox:** one card to name, sort and file anything from any device, with a duplicate check and big-file check.
+- **Dates reader:** syllabus to calendar, weekly classes that skip breaks, nothing added until you tick it.
+- **Mail:** Gmail (and Outlook through it) watched read-only, with cards, Windows notifications, phone mail cards, laptop pop-ups and quiet hours.
+- **Calendar:** click to edit on the PC, tap to edit on the phone, or ask (`move dentist to friday 3pm`). Today's events on the phone are tappable.
+- **Phone:** Since you last opened, Scan a handout (straightened, cleaned PDF), More > Mail.
+- **Looks after itself:** nightly model and Ollama updates, Ollama self-heal, keep-warm around classes, daily backups and an Obsidian mirror, a tidier `D:\Archie` (Tools, Guides, Backups).
+- **Menu wheel** (click ARCHIE ▾), and month news notes named like "October 2026".
 
 **3.26 · Oct 9, 2026**
 - **The Vault:** one screen to browse, search and read the whole offline library. A catalogue front page with subject shelves, a card for each pack, kids/teens/adults shelves, new and updated marks, and notes about older copies. Each pack opens on its own front page with related packs. Search covers titles and then full text across all packs, one shelf, or one pack. Also: random page, three picks for today, saved pages, and flashcards from any page into Study.
@@ -1541,6 +1700,6 @@ When the `.md` is newer, Archie rebuilds the pretty version automatically the ne
 
 ## Coming later (saved ideas)
 
-- **Animatic builder:** storyboard panels cleaned up with sketch to image, timed out with a scratch voice track into a rough video.
+- **Animatic builder** for The Potentiality of Dust: storyboard panels cleaned up with sketch to image, timed out with a scratch voice track into a rough video.
 - **Election night for every election:** live results for US races and national elections abroad, showing which sides are winning seats.
 - Someday: a physical Archie on a Raspberry Pi.

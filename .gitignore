@@ -55,3 +55,21 @@ __pycache__/
 *.pyc
 .pytest_cache/
 tests/_user_blocks_unused/
+
+# 4.0: inbox, mail, sync, phone, upkeep (personal, never commit)
+inbox_index.json
+inbox_queue.txt
+dates_queue.txt
+mail_state.json
+mail_secret.bin
+Mail/
+lite_sync.json
+lite_inbox/
+phone_state.json
+lecture_sources.json
+autoupdate.json
+housekeep.json
+Backups/
+Old Downloads/
+ArchieLite/data/
+*.bak-*
