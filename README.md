@@ -28,7 +28,8 @@ It started as one chat window and grew, over more than forty releases, into the 
 - **Modes:** General, Tutor (hints, one step at a time), Professor (first principles, a worked example, the usual mistakes), Code, Robotics (pin-by-pin wiring and safety) and Writing. Add your own as a text file.
 - **Reads what you give it:** PDF, Word, EPUB, code, notebooks and photos. Snip any part of the screen with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd> and ask about it.
 - **Sources on every answer:** your notes, past chats, Obsidian and offline Wikipedia.
-- **Voice:** ask out loud and hear the answer in one of four offline voices (Whisper and Piper).
+- **Talk mode:** a real spoken conversation (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>). Archie answers out loud, stops when you cut in, knows your calendar and to-dos exactly, and adds reminders by voice after reading them back. Offline voices (Kokoro), natural online voices (Sonia and friends) and accent voices for book chapters.
+- **Runs all day:** one model loaded once, game mode that steps off the graphics card, talk first, cool-down while you're away and a fresh start each morning.
 
 ### Your day
 - A **morning brief**: countdowns, today's classes and tasks, last night's recap, where you left off.
@@ -113,7 +114,9 @@ Windows 10 or 11, an NVIDIA graphics card (8 GB is plenty), Python 3.10 or newer
 | `Tools\Get Models.bat` | The full set of models: main, coder, vision (about 13 GB) |
 | `Tools\Install Extras.bat` | PDF and Word reading, drag and drop, the offline library reader, notes search |
 | `Tools\Get Wikipedia.bat` | All of English Wikipedia, text only (about 53 GB) |
-| `Tools\Get Voice.bat` | Voice notes and talking (Whisper and Piper) |
+| `Tools\Get Voice.bat` | Voice notes and the speech model that hears you (Whisper) |
+| `Tools\Get Archie Voice.bat`, `Get Sonia Voice.bat` | Archie's offline voices, and the natural online voices |
+| `Tools\Get Fast Talk.bat`, `Get Accent Voices.bat` | A quicker speech model for talk mode; accent voices for book chapters |
 | `Tools\Get Handwriting Model.bat` | A better reader for handwriting and scans |
 | `Tools\Get Image Maker.bat`, `Get Sketch Model.bat` | Image making and sketch to image (about 10 GB) |
 | `Tools\Get Code Editor.bat` | VSCodium with offline AI and the Archie Coach add-on |

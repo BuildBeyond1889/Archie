@@ -12,6 +12,7 @@ Nothing here talks to the internet.
 """
 
 import base64
+import time
 import json
 import math
 import os
@@ -124,10 +125,12 @@ def embed(texts):
         raise ArchieError("I can't reach Ollama. Is it running?")
 
 
-def stream_chat(model, messages, out_q, stop_evt, num_ctx=16384):
+def stream_chat(model, messages, out_q, stop_evt, num_ctx=16384, keep_alive=None):
     """Stream an answer. Pushes ("token", text) pieces; raises ArchieError on failure."""
     body = {"model": model, "messages": messages, "stream": True,
             "options": {"num_ctx": num_ctx}}
+    if keep_alive:
+        body["keep_alive"] = keep_alive          # talk mode: keep the model loaded between turns
     try:
         with _post("/api/chat", body, timeout=900) as resp:
             for raw in resp:
@@ -154,16 +157,21 @@ def stream_chat(model, messages, out_q, stop_evt, num_ctx=16384):
                           "or run  ollama serve  in a terminal, then try again.")
 
 
+# Every request to the same model must ask for the same context size, or Ollama throws the model out and loads it
+# again (about 5 GB onto the graphics card each time). Archie sets this from its settings when it starts.
+DEFAULT_CTX = 16384
+
+
 def quick_chat(model, prompt, max_tokens=120, timeout=120, json_mode=False,
-               num_ctx=None, temperature=0.4, system=None):
+               num_ctx=None, temperature=0.4, system=None, keep_alive=None):
     """One non-streamed answer (morning brief, vault builder). json_mode makes
     Ollama return valid JSON."""
     messages = ([{"role": "system", "content": system}] if system else []) + \
                [{"role": "user", "content": prompt}]
-    options = {"num_predict": max_tokens, "temperature": temperature}
-    if num_ctx:
-        options["num_ctx"] = num_ctx
+    options = {"num_predict": max_tokens, "temperature": temperature, "num_ctx": max(num_ctx or 0, DEFAULT_CTX)}
     body = {"model": model, "stream": False, "messages": messages, "options": options}
+    if keep_alive:
+        body["keep_alive"] = keep_alive
     if json_mode:
         body["format"] = "json"
     try:
@@ -368,7 +376,8 @@ class NotesIndex:
                 for fn in files:
                     path = os.path.join(root, fn)
                     if (file_kind(path) != "text" or fn.endswith(".json")
-                            or fn.endswith(".excalidraw.md")):   # drawings, not notes
+                            or fn.endswith(".excalidraw.md")      # drawings, not notes
+                            or fn.lower().endswith(".epub")):     # whole books (Feather's Reading): far too big to search on every question
                         continue
                     if fn.lower().endswith(".pdf") and os.path.exists(
                             os.path.splitext(path)[0] + " (transcribed).md"):
@@ -388,8 +397,10 @@ class NotesIndex:
             removed = [r for r in files if r not in found]
             for r in removed:
                 del files[r]
+            fresh = time.time() - 300   # a chat still being written: indexed once it has sat for 5 minutes
             todo = [r for r, (m, _) in found.items()
-                    if r not in files or files[r].get("mtime") != m]
+                    if (r not in files or files[r].get("mtime") != m)
+                    and not (r.replace("\\", "/").startswith("Chats/") and m > fresh)]
             problems = []
             for i, rel in enumerate(todo, 1):
                 if progress:
@@ -438,6 +449,11 @@ class NotesIndex:
         for rel, f in self.data["files"].items():
             for c in f["chunks"]:
                 rows.append((rel, c["text"], c["vec"]))
+        try:
+            import numpy as np                     # built once, not on every question
+            self._np = np.array([r[2] for r in rows], dtype="float32") if rows else None
+        except ImportError:
+            self._np = None
         self._matrix = rows
 
     def search(self, query, k=4, min_score=0.3):
@@ -445,13 +461,14 @@ class NotesIndex:
         with self.lock:
             if self._matrix is None:
                 self._build_matrix()
-            rows = self._matrix
+            rows, m = self._matrix, getattr(self, "_np", None)
         if not rows:
             return []
         q = _normalize(embed([f"search_query: {query}"])[0])
         try:
             import numpy as np
-            m = np.array([r[2] for r in rows], dtype="float32")
+            if m is None or len(m) != len(rows):
+                m = np.array([r[2] for r in rows], dtype="float32")
             scores = (m @ np.array(q, dtype="float32")).tolist()
         except ImportError:
             scores = [sum(a * b for a, b in zip(q, r[2])) for r in rows]

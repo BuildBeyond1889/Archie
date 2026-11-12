@@ -165,7 +165,19 @@ Attachments and the email text are kept in `D:\Archie\Mail\<date> <subject>`, an
 - **Nightly update** at the first quiet stretch (15 minutes without keyboard or mouse, Archie not busy, online): installs a waiting Ollama update, refreshes every model with `ollama pull`, checks the main model still answers, and once a month mentions good new models. One line in the morning brief says what happened.
 - **Ollama self-heal:** every 45 seconds Archie checks that Ollama is answering. If it stopped (for example after Ollama updated itself), Archie waits for any update to finish, starts it again, and says so in the status line. If three tries fail, it tells you to open Ollama from the Start menu.
 - **Keep-warm:** the main model stays loaded from 15 minutes before a class, lab or exam until 30 minutes after, and for 30 minutes after you use Archie, so the first answer is instant. Otherwise the graphics card is left free.
-- **Daily backup:** your settings, calendar, to-dos, chats, memory, flashcards, modes and notes go to `D:\Archie Backups\Daily\<date>.zip` (last 7 days kept), and your Obsidian vault is mirrored to `D:\Archie Backups\Obsidian` (nothing is ever deleted from the mirror). Old `.bak` copies in `D:\Archie\Backups` are cleared after 30 days, keeping the newest of each.
+- **Daily backup:** your settings, calendar, to-dos, chats, memory, flashcards, modes and notes go to `D:\Archie Backups\Daily\<date>.zip` (last 7 days kept), and your Obsidian vault is mirrored to `D:\Archie Backups\Obsidian` (nothing is ever deleted from the mirror). Old `.bak` copies in `D:\Archie\Backups` are cleared after 30 days, keeping the newest of each. Feather's old `pre-…` backups go after 30 days (the newest 10 are always kept), and any `.log` file over 5 MB is cut down to its last 2 MB.
+
+### Running all day
+Archie is built to sit open on a PC that's on from morning to night without cooking it.
+
+- **One model at a time:** every request to the main model asks for the same amount of memory, so Ollama loads it once and keeps it, instead of reloading it (about 5 GB onto the graphics card each time). World's news translation uses the main model too, rather than loading a second one beside it.
+- **Game mode:** when a game (any full-screen app that isn't Archie, a browser or the desktop) has been in front for 30 seconds, Archie takes its model off the graphics card, and World's translation, exam prep, the keep-warm and accent chapters wait. Everything picks up again about a minute after you close the game.
+- **Talk comes first:** while talk is open or Archie is answering, World and exam prep pause, and an accent chapter being made stops (it starts again from that chapter once talk is closed).
+- **Away:** after 20 minutes without the keyboard or mouse (and no class coming up) the model is unloaded so the card cools down. The next answer takes a few seconds longer while it loads.
+- **Big jobs at night:** World's large lawmaking downloads run between 1 and 7am or while you're away.
+- **A fresh start each morning:** between 7 and 10am, once you've been away 20 minutes and Archie has run for 6 hours, it restarts itself (it never does this while you're talking, chatting or recording).
+- **Light on the processor:** the offline voice uses half the cores and rests between sentences; book audio is made at lower priority.
+- `Tools\Make Ollama Cooler.bat` turns on Ollama's flash attention and a smaller context cache (less graphics memory). It helps on some cards and makes others slower: if talk gets laggy afterwards, run `Tools\Undo Ollama Cooler.bat`.
 
 ## The chat window
 
@@ -339,23 +351,39 @@ In the Voice note window:
 
 ## Talking with Archie
 
-Archie can talk back, offline, with a natural-sounding voice (Piper).
+Archie talks back in a natural voice and can hold a real back-and-forth conversation.
 
-**Ask by voice:** press {{Ctrl+Alt+T}} anywhere, or right-click the owl > **Talk to Archie**. The **mic** button turns red (`● 0:03 send`). Say your question, then press {{Ctrl+Alt+T}} again (or click the red button). Archie types out what you said and sends it. The answer is **written** as usual. To hear it spoken too, turn on **speak ●**, or set `talk_speaks` to `true` in the settings file so voice questions always get spoken answers.
+### Talk mode
+Press {{Ctrl+Alt+T}} (or right-click the owl > **Talk to Archie**) and just talk. Archie listens, answers out loud, and stops the moment you cut in. No button to press between turns.
 
-**Hear every answer:** turn on **speak ●** at the bottom. Archie reads all its answers out loud until you turn it off.
+- **Fast:** Archie starts thinking while you pause and drops that start if you keep going, so the first words usually come within a second or two. The time to the first words shows under the captions.
+- **Your schedule, exactly:** ask "what do I have on Saturday?", "the day after that?" or "is the dentist on my calendar?" and Archie answers straight from its calendar, deadlines and to-dos, with no guessing.
+- **Reminders and events by voice:** "remind me tomorrow at 9am to call the bank". Archie reads it back ("Add it?") and only adds it when you say yes. Spoken times like "half past three" and "9 o'clock a.m." work.
+- **On screen:** the right-hand panel shows each answer written out (first sentence on top, the rest as points) so you can read exact dates, numbers and names. Turn it on in **Voice & quiet settings** ("Keep the exact written version on screen").
+- **Mic off:** {{Alt+M}} stops Archie hearing you until you press it again. Archie can keep talking. Also in the owl menu.
+- **Mute Archie:** {{Ctrl+Alt+Q}}. The rest of the answer shows as captions instead.
+- **Mic sensitivity:** a slider in **Voice & quiet settings**. Around 1.0–1.5 suits most rooms; very high settings make Archie react to background noise.
+- When you end talk ({{Esc}} or **end talk**), the conversation is saved to your chats. **save to Obsidian** writes it as a note with a short summary, and **make flashcards from this** turns it into cards.
+- {{Space}} cuts in, **say it again** repeats the last answer, **slower** slows the voice down.
 
-**Hear one answer:** click **read aloud** under any answer.
+### Voices
+Right-click the owl > **Archie's voice**, or **Voice & quiet settings**.
 
-- **Stop talking:** click **STOP**, send a new message, turn **speak** off, or right-click the owl > **Stop talking**.
+- **Offline voices** (Kokoro): Archie (British man, the default), British woman, deeper and younger British men, American man and American woman.
+- **Natural online voices** (Microsoft's read-aloud service, needs the internet): Sonia, Libby, Ryan, Thomas (British), Emily, Connor (Irish), Natasha, William (Australian). If one sentence doesn't come back, Archie asks again and, if needed, reads just that sentence offline. When the internet is really down it uses the offline American woman (`offline_voice`) until it's back.
+- **Accent voices** (Irish woman, Irish man, older Londoner): made from open, licensed recordings (the VCTK corpus). **Get Accent Voices.bat** downloads them and lets you audition a few speakers for each. They use the graphics card, so they're used for book chapters, not live talk (`accent_live` turns live use on if you want it).
+
+### Hearing answers in the chat window
+- **speak ●** at the bottom reads every answer out loud; **read aloud** under any answer reads just that one.
 - Code isn't read out. Archie says "I've put the code on screen" instead. Headings, bullets and links are cleaned up so they sound natural.
-- **Change the voice:** right-click the owl > **Archie's voice**:
-  - Alan, British man (the default)
-  - Ryan, American man
-  - Lessac, American woman
-  - Jenny, British woman
-  The same menu has **Slower / Normal / Faster**.
-- **Set up once:** **Get Voice.bat** (it installs voice notes and talking together).
+- **Stop talking:** click **STOP**, send a new message, turn **speak** off, or right-click the owl > **Stop talking**.
+
+### Set up once
+- **Get Voice.bat**: the speech model that hears you (Whisper).
+- **Get Archie Voice.bat**: Archie's offline voices (Kokoro).
+- **Get Sonia Voice.bat**: the online voices. Run it again if Sonia ever stops answering; it updates the add-on that talks to Microsoft.
+- **Get Fast Talk.bat** (optional): a quicker speech model just for talk mode. It can also add a small chat model for talk, but on an 8 GB graphics card leave **Quick talk model** off: two models don't fit at once and everything slows down.
+- **Get Accent Voices.bat** (optional): the accent voices.
 
 ## Study: flashcards and spaced review
 
@@ -1298,7 +1326,9 @@ In the study window: {{Space}} shows the answer. Type an answer and press {{Ente
 - {{Ctrl+Alt+A}}: open or hide Archie from anywhere
 - {{Ctrl+Alt+S}}: snip the screen (drag a box)
 - {{Ctrl+Alt+V}}: start or stop a voice note
-- {{Ctrl+Alt+T}}: talk to Archie (press again to send)
+- {{Ctrl+Alt+T}}: talk mode (Esc ends it)
+- {{Alt+M}}: your mic off / on in talk mode
+- {{Ctrl+Alt+Q}}: mute / unmute Archie (captions instead of the voice)
 - {{Ctrl+Alt+R}}: evening recap (press again to wrap it up)
 - {{Enter}}: send · {{Shift+Enter}}: new line · {{Esc}}: hide or close
 
@@ -1358,11 +1388,20 @@ In the study window: {{Space}} shows the answer. Type an answer and press {{Ente
 |---|---|---|
 | `hotkey_chat` | `"ctrl+alt+a"` | Show/hide hotkey |
 | `hotkey_snip` | `"ctrl+alt+s"` | Snip hotkey |
-| `hotkey_talk` | `"ctrl+alt+t"` | Talk to Archie hotkey |
+| `hotkey_talk` | `"ctrl+alt+t"` | Talk mode hotkey |
+| `hotkey_mic` | `"alt+m"` | Your mic off / on in talk mode |
+| `hotkey_quiet` | `"ctrl+alt+q"` | Mute / unmute Archie |
+| `voice_id`, `voice_speed` | `"archie"`, `0.95` | Archie's voice and speed (owl menu) |
+| `offline_voice` | `"american_woman"` | The voice used when an online voice can't be reached |
+| `accent_live` | `false` | `true` = accent voices in live talk too (they share the graphics card and slow Archie down) |
+| `talk_handsfree` | `true` | Talk mode listens on its own (no button between turns) |
+| `talk_mic` | `1.0` | Mic sensitivity in talk mode (the slider) |
+| `talk_notes` | `true` | The written version of each answer on screen in talk mode |
+| `talk_fast_model` | `false` | A second, smaller chat model for talk mode (leave off on 8 GB cards) |
 | `hotkey_recap` | `"ctrl+alt+r"` | Evening recap hotkey |
 | `speak_answers` | `false` | The **speak** switch |
 | `talk_speaks` | `false` | `true` = {{Ctrl+Alt+T}} questions are always answered out loud |
-| `speech_voice`, `speech_speed` | `"en_GB-alan-medium"`, `1.0` | Archie's voice (owl menu) |
+| `speech_voice`, `speech_speed` | `"en_GB-alan-medium"`, `1.0` | The older Piper voice (used only if the new voices aren't set up) |
 | `daily_note` | `true` | To-dos and brief in the daily note |
 | `files_dir` | `null` | Where new files are saved (`null` = Documents\\Archie Files) |
 | `phone_tidy` | `true` | Tidy voice notes from the phone into notes |
@@ -1491,6 +1530,12 @@ The manual has two copies:
 When the `.md` is newer, Archie rebuilds the pretty version automatically the next time you open the manual (owl menu > **Open the manual**, or type `manual`). To add your own notes, write them in the `.md` under a `## ` heading.
 
 ## Changelog
+
+**4.1 · Nov 12, 2026: Talk mode and running all day**
+- Talk mode: a real back-and-forth conversation, with fast first words, exact answers about your calendar, deadlines and to-dos, reminders by voice with a read-back, the answer written out on screen, {{Alt+M}} for your mic and a mic sensitivity slider.
+- New voices: Archie and five more offline voices, eight natural online voices (Sonia and friends) with an offline fallback, and accent voices for book chapters.
+- Running all day: one model loaded once, game mode, talk first, cool-down while you're away, big jobs at night, a fresh start each morning, and tidier backups and logs.
+- Feather: chapters read by Sonia on the phone and laptops, made on the PC.
 
 **4.0 · Nov 10, 2026: Archie everywhere**
 - **Archie Lite** on the laptops and the **Archie phone app**, synced privately with the PC (Tailscale). See [Archie everywhere](#archie-everywhere-phone-laptops-and-pc).

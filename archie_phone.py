@@ -29,7 +29,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 WEB = os.path.join(HERE, "phone")
 STATE = os.path.join(HERE, "phone_state.json")
 PORT = 47330
-SYNC_OPS = ("sync", "chat", "articles", "world", "flag", "file_chunk", "ping")
+FEATHER_PORT = 47331   # Feather's phone app on its own address (https://<pc>.<tailnet>.ts.net:8443), so it installs as its own app
+SYNC_OPS = ("sync", "chat", "articles", "world", "flag", "file_chunk", "ping", "feather", "shelf", "shelf_do")
+FEATHER_WEB = os.path.join(os.path.dirname(HERE), "Feather", "phone")          # Feather on the phone: /feather/
+FEATHER_FONTS = os.path.join(os.path.dirname(HERE), "Feather", "app", "web", "fonts")
 LEAD = {"class": 15, "lab": 15, "exam": 15, "test": 15, "quiz": 15}
 
 
@@ -111,6 +114,29 @@ class PhoneService:
                 if not self._allowed():
                     return self._send(403, b"Archie: not allowed", "text/plain")
                 path = urllib.parse.urlparse(self.path).path
+                if path == "/feather":
+                    self.send_response(301)
+                    self.send_header("Location", "/feather/")
+                    self.end_headers()
+                    return
+                if path.startswith("/feather/"):  # Feather's own app: its files, its fonts, its index for its pages
+                    rel = path[len("/feather/"):]
+                    base = FEATHER_FONTS if rel.startswith("fonts/") else FEATHER_WEB
+                    if rel.startswith("fonts/"):
+                        rel = rel[len("fonts/"):]
+                    full = os.path.normpath(os.path.join(base, urllib.parse.unquote(rel or "index.html")))
+                    if not full.startswith(os.path.normpath(base) + os.sep) or not os.path.isfile(full):
+                        if os.path.splitext(rel)[1]:
+                            return self._send(404, b"not found", "text/plain")
+                        full = os.path.join(FEATHER_WEB, "index.html")
+                    with open(full, "rb") as f:
+                        body = f.read()
+                    ctype = {".webmanifest": "application/manifest+json", ".js": "text/javascript", ".woff2": "font/woff2", ".ttf": "font/ttf",
+                             ".svg": "image/svg+xml"}.get(os.path.splitext(full)[1]) or mimetypes.guess_type(full)[0] or "application/octet-stream"
+                    if ctype.startswith("text/") or ctype.endswith(("javascript", "json")):
+                        ctype += "; charset=utf-8"
+                    cache = "public, max-age=604800" if "/fonts/" in path or path.endswith(".png") else "no-cache"
+                    return self._send(200, body, ctype, cache)
                 if path.startswith("/fonts/"):
                     base = os.path.join(os.path.dirname(HERE), "ArchieLite", "web", "fonts")
                     rel = path[len("/fonts/"):]
@@ -146,6 +172,43 @@ class PhoneService:
                     svc.error = f"{type(e).__name__}: {e}"
                     return self._send(500, {"ok": False, "error": svc.error})
 
+        class FH(H):
+            """Feather's own address: only Feather's app and Feather's sync, nothing of Archie's."""
+            def do_GET(self):
+                path = urllib.parse.urlparse(self.path).path
+                if not (path == "/feather" or path.startswith("/feather/")):
+                    if not self._allowed():
+                        return self._send(403, b"Feather: not allowed", "text/plain")
+                    self.send_response(302)
+                    self.send_header("Location", "/feather/")
+                    self.end_headers()
+                    return
+                return H.do_GET(self)
+
+            def do_POST(self):
+                n = int(self.headers.get("Content-Length") or 0)
+                if not self._allowed():
+                    return self._send(403, {"ok": False, "error": "not allowed"})
+                if n <= 0 or n > 12 * 1024 * 1024:
+                    return self._send(400, {"ok": False, "error": "bad size"})
+                try:
+                    msg = json.loads(self.rfile.read(n))
+                except ValueError:
+                    return self._send(400, {"ok": False, "error": "bad json"})
+                if msg.get("op") != "feather":
+                    return self._send(403, {"ok": False, "error": "not here"})
+                try:
+                    return self._send(200, svc.handle(msg, self._who()))
+                except Exception as e:
+                    svc.error = f"{type(e).__name__}: {e}"
+                    return self._send(500, {"ok": False, "error": svc.error})
+
+        try:
+            self.fhttpd = ThreadingHTTPServer(("127.0.0.1", FEATHER_PORT), FH)
+            self.fhttpd.daemon_threads = True
+            threading.Thread(target=self.fhttpd.serve_forever, daemon=True, name="feather-phone-web").start()
+        except OSError as e:
+            self.error = f"feather phone address: {e}"
         self.httpd = ThreadingHTTPServer(("127.0.0.1", PORT), H)
         self.httpd.daemon_threads = True
         threading.Thread(target=self.httpd.serve_forever, daemon=True, name="phone-web").start()

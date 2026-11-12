@@ -185,7 +185,7 @@ class Transcriber:
         raise VoiceError(f"Couldn't start the speech model ({self.name}): {last}. "
                          "Try running Get Voice.bat again.")
 
-    def transcribe(self, audio, progress=lambda frac: None, stop=None, pause=None, timed=None, prompt=None):
+    def transcribe(self, audio, progress=lambda frac: None, stop=None, pause=None, timed=None, prompt=None, fast=False):
         """audio = a file path (any common format) or 16 kHz samples. Returns the text.
         progress(0..1) is called as it goes; pause() returning True makes it wait.
         Pass a list as `timed` to also get every piece as (start, end, text) in seconds."""
@@ -193,9 +193,9 @@ class Transcriber:
             model = self._load()
             english_only = self.name.endswith(".en")
             segments, info = model.transcribe(
-                audio, language="en" if english_only else None, beam_size=5,
+                audio, language="en" if english_only else "en" if fast else None, beam_size=1 if fast else 5,
                 vad_filter=True, vad_parameters={"min_silence_duration_ms": 700},
-                condition_on_previous_text=True, initial_prompt=prompt or None)
+                condition_on_previous_text=not fast, initial_prompt=prompt or None)
             total = float(getattr(info, "duration", 0) or 0)
             paras, cur, last_end = [], [], 0.0
             for seg in segments:
@@ -279,7 +279,7 @@ TIDY_PROMPT = """Below is a transcript of something the user said out loud (a vo
 lecture, or brainstorm). Turn it into clean, well-organized notes in Markdown:
 - short headings for the main topics, bullet points under them
 - fix obvious speech-to-text mistakes and remove filler ("um", repeats)
-- keep ALL the information and their own wording and ideas; do NOT add facts
+- keep ALL the information and his own wording and ideas; do NOT add facts
 - output only the notes, no introduction
 
 Transcript:

@@ -7,6 +7,8 @@
    mistake is still there. (Your vault is on C:, so this also covers the C: drive failing.)
 3. Archie\\Backups (the .bak- copies made before every change): keeps the newest copy of each file plus
    anything from the last 30 days; older ones are cleared.
+4. Feather\\backups: the pre-change copies (pre-...) older than 30 days go, always keeping the newest 10.
+5. Logs: any .log file over 5 MB in Archie, Archie\\World and Feather is cut down to its last 2 MB.
 Not backed up (big, and can be downloaded again): models, Wikipedia, the voice and image models, notes_index.json.
 """
 import datetime
@@ -131,6 +133,45 @@ class Housekeep:
                         pass
         return gone
 
+    def prune_feather(self, now=None):
+        folder = os.path.join(os.path.dirname(os.path.abspath(self.app_dir)), "Feather", "backups")
+        if not os.path.isdir(folder):
+            return 0
+        now = now or time.time()
+        pre = sorted(((os.path.getmtime(os.path.join(folder, n)), os.path.join(folder, n)) for n in os.listdir(folder)
+                      if n.startswith("pre-") and os.path.isdir(os.path.join(folder, n))), reverse=True)
+        gone = 0
+        for mt, p in pre[10:]:
+            if now - mt > KEEP_DAYS_BAK * 86400:
+                shutil.rmtree(p, ignore_errors=True)
+                gone += 1
+        return gone
+
+    def cap_logs(self, big=5 * 1024 * 1024, keep=2 * 1024 * 1024):
+        root = os.path.dirname(os.path.abspath(self.app_dir))
+        cut = 0
+        for d in (self.app_dir, os.path.join(self.app_dir, "World"), os.path.join(root, "Feather"),
+                  os.path.join(root, "Feather", "sync"), os.path.join(root, "Feather", "app")):
+            if not os.path.isdir(d):
+                continue
+            for n in os.listdir(d):
+                p = os.path.join(d, n)
+                if not n.lower().endswith(".log") or not os.path.isfile(p):
+                    continue
+                try:
+                    if os.path.getsize(p) <= big:
+                        continue
+                    with open(p, "rb") as f:
+                        f.seek(-keep, 2)
+                        tail = f.read()
+                    tail = tail[tail.find(b"\n") + 1:]
+                    with open(p, "wb") as f:
+                        f.write(tail)
+                    cut += 1
+                except OSError:
+                    pass                  # in use right now: next time
+        return cut
+
     def run_once(self):
         self.working = True
         try:
@@ -147,6 +188,11 @@ class Housekeep:
                 done["baks_cleared"] = self.prune_baks()
             except Exception as e:
                 done["prune_error"] = str(e)[:200]
+            try:
+                done["feather_cleared"] = self.prune_feather()
+                done["logs_cut"] = self.cap_logs()
+            except Exception as e:
+                done["tidy_error"] = str(e)[:200]
             st = self._state()
             st["ran"] = datetime.date.today().isoformat()
             st["last"] = done

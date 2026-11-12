@@ -52,6 +52,7 @@ import archie_review as review
 import archie_newsroll as newsroll
 import archie_autoupdate as autoupdate
 import archie_warm as warm
+import archie_cool as cool
 import archie_housekeep as housekeep
 import archie_inbox as inboxm
 import archie_dates as datesm
@@ -73,6 +74,10 @@ import make_manual
 from archie_scan import HandwritingReader
 from archie_voice import Recorder, Transcriber, VoiceError, fmt_time, tidy as voice_tidy
 from archie_speak import Speaker, VOICES, DEFAULT_VOICE
+try:   # Archie's new voice, talk mode and Quiet
+    import archie_talk as talk
+except Exception:
+    talk = None
 from archie_listen import Listener
 import archie_vaultgen as vaultgen
 from archie_brief import (BriefState, Deadlines, Tasks, handle_command, new_notes,
@@ -161,6 +166,21 @@ DEFAULT_CONFIG = {
     "voice_device": "cpu",         # "cpu" leaves the graphics card to the chat models
     "hotkey_talk": "ctrl+alt+t",
     "hotkey_recap": "ctrl+alt+r",
+    "hotkey_quiet": "ctrl+alt+q",  # mute / unmute Archie (it shows captions instead)
+    "hotkey_mic": "alt+m",         # in talk: your mic off / on
+    "voice_id": "archie",          # the new voice (Voice\\kokoro); "voice_engine": "piper" goes back to the old one
+    "voice_speed": 0.95,
+    "voice_room": True,
+    "talk_spoken": True,           # talk mode answers like a person talks
+    "talk_notes": True,            # ...with the exact version on screen
+    "talk_handsfree": True,        # talk mode listens by itself and stops when you cut in
+    "talk_hmm": True,
+    "quiet": False,                # muted by hand
+    "quiet_headphones_only": False,
+    "quiet_wifi": [],
+    "quiet_classes": True,
+    "quiet_hours": None,
+    "notify_quiet": "silent",
     "banner": True,                # the picture strip in the header
     "banner_minutes": 15,          # how often it changes (0 = only when clicked, 1440 = once a day)
     "banner_pinned": None,         # a picture you pinned  # the evening recap: press to start, press again to wrap up   # talk to Archie: press, speak, press again
@@ -422,6 +442,13 @@ class ArchieApp:
 
     def __init__(self):
         self.cfg = load_config()
+        if self.cfg.get("hotkey_mic") == "ctrl+alt+m":   # the mic key moved to Alt+M
+            self.cfg["hotkey_mic"] = "alt+m"
+        try:                       # one context size for every request, so the model is never reloaded mid-use
+            import archie_brain as _ab
+            _ab.DEFAULT_CTX = int(self.cfg.get("context_tokens", 16384))
+        except Exception:
+            pass
         self.history = []          # [{"role", "content", optional "images"}]
         self.attachments = []      # file paths waiting to go with the next message
         self.keep = {}             # path -> True if it should also be saved to Notes
@@ -539,12 +566,29 @@ class ArchieApp:
         self.deadlines = Deadlines(DEADLINES_PATH)
         self.daily = DailyNote(self.vault, self.tasks, self.deadlines)
         self.calendar = cal.Calendar(CALENDAR_PATH)
+        self.quiet = talk.Quiet(lambda: self.cfg, self.calendar, int(self.cfg.get("lecture_minutes") or 75)) if talk else None
+        self.talk_win = None
+        self.handsfree = None
+        self.caption_pop = None
+        self.voice_settings_win = None
+        self._talk_mode_send = False
+        self._talk_last = None
+        self._spoke_at = 0.0
         try:                      # keep the main brain loaded around classes and while you're using Archie
             self.warm = warm.Warm(OLLAMA_URL, lambda: self.cfg["model"], self.calendar,
                                   lambda: bool(getattr(self, "busy", False) or
                                                getattr(getattr(self, "recorder", None), "recording", False))).start()
         except Exception:
             self.warm = None
+        try:                      # all-day running: game mode, cool down while you're away, a fresh start each morning
+            self.cool = cool.Cool(OLLAMA_URL,
+                                  in_class=lambda: bool(self.warm and self.warm.in_class_window()),
+                                  busy=lambda: bool(getattr(self, "busy", False)
+                                                    or getattr(getattr(self, "recorder", None), "recording", False)
+                                                    or cool.STATE.get("talk")),
+                                  report=lambda m: self.bg_q.put(("status", m))).start()
+        except Exception:
+            self.cool = None
         try:                      # Archie Inbox: drop, paste or "Send to Archie" -> a card that files it
             self.inbox = inboxm.Inbox(APP_DIR, lambda: self.vault(), self.calendar)
         except Exception:
@@ -633,7 +677,9 @@ class ArchieApp:
                                       "snip": self.cfg.get("hotkey_snip"),
                                       "voice": self.cfg.get("hotkey_voice"),
                                       "talk": self.cfg.get("hotkey_talk"),
-                                      "recap": self.cfg.get("hotkey_recap")}, self.bg_q.put)
+                                      "recap": self.cfg.get("hotkey_recap"),
+                                      "quiet": self.cfg.get("hotkey_quiet"),
+                                      "mic": self.cfg.get("hotkey_mic") or "alt+m"}, self.bg_q.put)
         self.hotkeys.start()
         if self.cfg.get("brief_daily", True) and not self.brief_state.shown_today():
             self.root.after(900, self._auto_brief)
@@ -642,6 +688,10 @@ class ArchieApp:
         self.root.after(8000, self._scan_tick)
         self.root.after(2500, self._daily_tick)
         self.root.after(600, self._focus_tick)
+        if talk:
+            self.root.after(4000, self._quiet_tick)
+            if self._new_voice_ok():      # load the voice early, so the first answer starts talking at once
+                self.root.after(6000, lambda: self._get_speaker(quiet=True))
         if getattr(self, "banner", None) is not None:
             self.root.after(1500, self._banner_schedule)
             self.root.after(3000, self._banner_watch)
@@ -711,6 +761,12 @@ class ArchieApp:
         self.voice_choice = tk.StringVar(value=self.cfg.get("speech_voice") or DEFAULT_VOICE)
         self.speed_choice = tk.StringVar(value=str(self.cfg.get("speech_speed") or 1.0))
         self.menu.add_cascade(label="Archie's voice", menu=self.voice_menu)
+        if talk:
+            self.menu.add_command(label=f"Mute / unmute  ({pretty_combo(self.cfg.get('hotkey_quiet') or '')})",
+                                  command=self.toggle_quiet)
+            self.menu.add_command(label=f"Mic off / on in talk  ({pretty_combo(self.cfg.get('hotkey_mic') or 'alt+m')})",
+                                  command=self.toggle_mic)
+            self.menu.add_command(label="Voice & quiet settings...", command=lambda: self.open_voice_settings())
         self.menu.add_command(label="Study flashcards", command=lambda: self.show_study(None))
         self._study_menu_index = self.menu.index("end")
         self.menu.configure(postcommand=self._refresh_menu_labels)
@@ -1852,9 +1908,12 @@ class ArchieApp:
                 m = self.mail_cards.pop(0)
                 self._mail_card(m)
 
-                def toast(m=m):
+                prof = bool(m.get("prof")) or any("prof" in str(w).lower() for w in (m.get("why") or []))
+                silent = bool(self.quiet) and not self.quiet.sound_ok("prof_mail" if prof else "mail")
+
+                def toast(m=m, silent=silent):
                     try:
-                        ok = mailm.windows_toast(m, os.path.join(APP_DIR, "archie.png"))
+                        ok = mailm.windows_toast(m, os.path.join(APP_DIR, "archie.png"), silent=silent)
                     except Exception:
                         ok = False
                     if not ok:
@@ -2039,6 +2098,8 @@ class ArchieApp:
         button("Save again anyway" if g.get("dup") else "Save", save, main=True)
         db = button("Find dates", dates) if file_kind(path) else None
         button("Ask Archie about it", ask)
+        if path.lower().endswith((".pdf", ".epub", ".txt", ".md")):
+            button("Send to Feather", lambda: finish(self.send_to_feather([path])))
         button("Not now", lambda: finish("left where it was"))
         redraw()
         name_var.trace_add("write", lambda *a: redraw())
@@ -7241,14 +7302,15 @@ Transcript:
             self.focus_win.focus_force()
         except tk.TclError:
             pass
-        try:
-            import winsound
-            winsound.PlaySound("SystemNotification", winsound.SND_ALIAS | winsound.SND_ASYNC)
-        except Exception:
+        if self.quiet is None or self.quiet.sound_ok("timer"):
             try:
-                self.root.bell()
+                import winsound
+                winsound.PlaySound("SystemNotification", winsound.SND_ALIAS | winsound.SND_ASYNC)
             except Exception:
-                pass
+                try:
+                    self.root.bell()
+                except Exception:
+                    pass
         self._draw_focus_chip()
 
     def show_calendar(self, select=None):
@@ -7544,16 +7606,19 @@ Transcript:
                 tk.Frame(row, bg=cal.KINDS.get(e["kind"], cal.KINDS["event"])[1], width=px(3)).pack(side="left", fill="y")
                 tk.Label(row, text=cal.fmt_time(e.get("time")) or "all day", bg=BG, fg=MUTED, font=(MONO, 8),
                          width=8, anchor="w").pack(side="left", padx=(px(8), 0))
-                tl_ = tk.Label(row, text=e["title"] + ("  ↻" if e.get("repeat") else ""), bg=BG,
+                x = tk.Label(row, text="✕", bg=BG, fg=MUTED, font=(MONO, 10), cursor="hand2", padx=px(4))
+                x.pack(side="right")                                      # always visible, however long the title is
+                x.bind("<ButtonRelease-1>", lambda ev, e=e: remove(e))
+                x.bind("<Enter>", lambda ev, w=x: w.configure(fg="#ff5f57"))
+                x.bind("<Leave>", lambda ev, w=x: w.configure(fg=MUTED))
+                tk.Label(row, text=cal.KINDS.get(e["kind"], cal.KINDS["event"])[0].lower(), bg=BG,
+                         fg=cal.KINDS.get(e["kind"], cal.KINDS["event"])[1], font=(MONO, 8)).pack(side="right", padx=px(6))
+                title_ = e["title"] + ("  ↻" if e.get("repeat") else "")
+                tl_ = tk.Label(row, text=title_ if len(title_) <= 44 else title_[:42].rstrip() + "…", bg=BG,
                                fg=ACCENT if (st.get("edit") or {}).get("id") == e["id"] else TEXT,
                                font=(FONT, 10), anchor="w", cursor="hand2")
                 tl_.pack(side="left", fill="x", expand=True)
                 tl_.bind("<ButtonRelease-1>", lambda ev, e=e: start_edit(e))
-                tk.Label(row, text=cal.KINDS.get(e["kind"], cal.KINDS["event"])[0].lower(), bg=BG,
-                         fg=cal.KINDS.get(e["kind"], cal.KINDS["event"])[1], font=(MONO, 8)).pack(side="left", padx=px(6))
-                x = tk.Label(row, text="✕", bg=BG, fg=MUTED, font=(MONO, 8), cursor="hand2")
-                x.pack(side="left")
-                x.bind("<ButtonRelease-1>", lambda ev, e=e: remove(e))
             if st.get("edit"):
                 hint.configure(text=f"editing \"{st['edit']['title']}\" · change it, click another day to move it, "
                                     f"then save ({sel.strftime('%a %b %d').replace(' 0', ' ')}) · Esc cancels", fg=ACCENT)
@@ -7854,6 +7919,8 @@ Transcript:
                 title = f"{name} ({label})"
                 ex = self.exams.new(title, req["kind"], qs, req["minutes"], what)
                 self.bg_q.put(("call", lambda: (self._update_status(), self._exam_ready(ex))))
+                if req.get("to_feather"):
+                    self.bg_q.put(("call", lambda: self.feather_xfer("a2f", ex["title"], kind="exam", eid=str(ex["id"]))))
             except obs.ApiError as e:
                 self.bg_q.put(("voice_error", e.friendly()))
             except Exception as e:
@@ -8207,13 +8274,32 @@ Transcript:
             self._write("No mock exams yet. Try: make a mock exam on PID control\n", "sys")
             return
         self._archie()
+        try:
+            with open(os.path.join(STUDY_DIR, ".feather_exams"), encoding="utf-8") as f:
+                fx = json.load(f).get("exams") or {}
+        except (OSError, ValueError, AttributeError):
+            fx = {}
         self._w("Your mock exams:\n", "abody")
         for ex in exs[:10]:
             best = max((a["score"] for a in ex.get("attempts", [])), default=None)
+            f = fx.get(str(ex.get("id")))
+            st = ("" if not f else "  ·  Feather has new attempts" if f.get("linked") and f.get("fnewer")
+                  else "  ·  in Feather" if f.get("linked") else "  ·  Feather has a copy")
             self._w(f"{ex['title']}  ·  {len(ex['questions'])} q"
-                    + (f"  ·  best {best}%" if best is not None else "  ·  not taken yet") + "   ", "abody")
+                    + (f"  ·  best {best}%" if best is not None else "  ·  not taken yet") + st + "   ", "abody")
             self._link("take it" if best is None else "retake", lambda ex=ex: self.show_exam(ex, retake=True), "abody")
+            self._w("   ", "abody")
+            self._link("send to Feather", lambda ex=ex: self.feather_xfer("a2f", ex["title"], kind="exam", eid=str(ex["id"])), "abody")
+            if f:
+                self._w("   ", "abody")
+                self._link("get Feather's", lambda ex=ex: self.feather_xfer("f2a", ex["title"], kind="exam", eid=str(ex["id"])), "abody")
             self._w("\n", "abody")
+        mine = {str(ex.get("id")) for ex in exs}
+        for eid, f in fx.items():
+            if eid not in mine:
+                self._w(f"{f.get('title')}  ·  only in Feather   ", "abody")
+                self._link("request", lambda eid=eid, f=f: self.feather_xfer("f2a", f.get("title") or eid, kind="exam", eid=eid), "abody")
+                self._w("\n", "abody")
         self._end_span()
         self._write("\n", "abody")
 
@@ -8335,6 +8421,15 @@ Transcript:
         prog = tk.Label(top, text="", bg=BG, fg=MUTED, font=(MONO, 9))
         prog.pack(side="left", padx=px(8))
         self._icon_btn(top, "close", w.destroy, "Close (Esc)").pack(side="right")
+        send_l = tk.Label(top, text="send set to Feather", bg=BG, fg=ACCENT, font=(MONO, 8), cursor="hand2")
+        send_l.pack(side="right", padx=(0, px(8)))
+
+        def send_set(_e=None):
+            c = current()
+            if c:
+                self.feather_xfer("a2f", c["deck"])
+                send_l.configure(text="sent at next sync", fg=MUTED)
+        send_l.bind("<ButtonRelease-1>", send_set)
         for wid in (top, prog):
             wid.bind("<ButtonPress-1>", lambda e: setattr(w, "_drag", (e.x_root, e.y_root, w.winfo_x(), w.winfo_y())))
             wid.bind("<B1-Motion>", lambda e: w.geometry(
@@ -8518,20 +8613,293 @@ Transcript:
         w.bind("<Escape>", lambda e: w.destroy())
         draw()
 
+    def _feather_sets(self):
+        """Feather's flashcard sets as your PC last saw them (written by Feather's hub at each sync)."""
+        try:
+            with open(os.path.join(STUDY_DIR, ".feather_decks"), encoding="utf-8") as f:
+                return json.load(f).get("decks") or {}
+        except (OSError, ValueError, AttributeError):
+            return {}
+
+    def send_to_feather(self, paths):
+        """A PDF, EPUB or text book into Feather's Reading on every device (your PC adds it at the next sync).
+        Other files stay here: Feather's Reading only takes books."""
+        import shutil
+        inc = os.path.join(os.path.dirname(APP_DIR), "Feather", "incoming")
+        sent, skipped = [], []
+        for p in paths:
+            if os.path.isfile(p) and p.lower().endswith(".md"):
+                try:
+                    with open(p, encoding="utf-8", errors="replace") as f:
+                        r = self.note_to_feather(f.read())
+                    sent.append(os.path.basename(p) + " (as a quick note)") if r else skipped.append(os.path.basename(p))
+                except OSError as e:
+                    skipped.append(f"{os.path.basename(p)} ({e})")
+                continue
+            if not (os.path.isfile(p) and p.lower().endswith((".pdf", ".epub", ".txt"))):
+                skipped.append(os.path.basename(p))
+                continue
+            try:
+                os.makedirs(inc, exist_ok=True)
+                stem, ext = os.path.splitext(os.path.basename(p))
+                to, n = os.path.join(inc, stem + ext), 2
+                while os.path.exists(to):
+                    to, n = os.path.join(inc, f"{stem} ({n}){ext}"), n + 1
+                shutil.copy2(p, to)
+                sent.append(os.path.basename(p))
+            except OSError as e:
+                skipped.append(f"{os.path.basename(p)} ({e})")
+        msg = (f"sent to Feather: {', '.join(sent)} · in Reading on your phone and laptops after their next sync" if sent else "")
+        if skipped:
+            msg += ("  ·  " if msg else "") + "not sent (Feather takes PDF, EPUB, text and .md notes): " + ", ".join(skipped)
+        return msg or "nothing to send"
+
+    # ----- Sonia audio for Feather: your PC reads chapters with Sonia, the phone and laptops play them offline -----
+    def _sonia_books(self):
+        try:
+            with open(os.path.join(APP_DIR, "feather_books.json"), encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return {}
+
+    def sonia_ask(self, rid=None, book=None, fr=0, to=None, devs=("phone", "laptops"), setting=None):
+        """A request for Feather's hub (it picks it up at the next sync with your phone or a laptop)."""
+        import uuid
+        q = os.path.join(os.path.dirname(APP_DIR), "Feather", "sonia_in")
+        rec = {"id": "p" + uuid.uuid4().hex[:11]}
+        if rid or book:
+            rec.update(rid=rid, book=book, **{"from": int(fr), "to": None if to is None else int(to), "for": list(devs)})
+        if setting:
+            rec["set"] = setting
+        try:
+            os.makedirs(q, exist_ok=True)
+            with open(os.path.join(q, rec["id"] + ".tmp"), "w", encoding="utf-8") as f:
+                json.dump(rec, f)
+            os.replace(os.path.join(q, rec["id"] + ".tmp"), os.path.join(q, rec["id"] + ".json"))
+            return True
+        except OSError:
+            return False
+
+    def sonia_window(self):
+        if getattr(self, "_sonia_w", None) is not None and self._sonia_w.winfo_exists():
+            self._sonia_w.lift()
+            return
+        px = self.px
+        info = self._sonia_books()
+        books = sorted((info.get("books") or {}).items(), key=lambda kv: str(kv[1].get("name")).lower())
+        st = info.get("set") or {}
+        w = self._sonia_w = tk.Toplevel(self.root)
+        w.title("Archie · Sonia audio")
+        w.configure(bg=BG)
+        w.attributes("-topmost", True)
+        w.geometry(f"{px(560)}x{px(560)}")
+        top = tk.Frame(w, bg=BG)
+        top.pack(fill="x", padx=px(14), pady=(px(12), px(4)))
+        tk.Label(top, text="SONIA AUDIO", bg=BG, fg=TEXT, font=(MONO, 10, "bold")).pack(side="left")
+        tk.Label(top, text="  your PC makes it (online), Feather plays it offline", bg=BG, fg=MUTED, font=(MONO, 8)).pack(side="left")
+        if not books:
+            tk.Label(w, text="No books from Feather's Reading yet. Open Feather on your phone or a laptop once\n(its sync tells Archie which books there are), then open this again.",
+                     bg=BG, fg=BODY, font=(MONO, 9), justify="left").pack(anchor="w", padx=px(14), pady=px(12))
+            return
+        tk.Label(w, text="BOOK", bg=BG, fg=MUTED, font=(MONO, 8)).pack(anchor="w", padx=px(14), pady=(px(8), 0))
+        lb = tk.Listbox(w, bg=SURFACE, fg=TEXT, selectbackground=ACCENT, selectforeground=TILE, bd=0, highlightthickness=1,
+                        highlightbackground=BORDER, font=(MONO, 10), height=7, exportselection=False)
+        for rid, b in books:
+            lb.insert("end", f"{b.get('name')}  ·  {b.get('pages')} ch.")
+        lb.selection_set(0)
+        lb.pack(fill="x", padx=px(14), pady=px(4))
+        row = tk.Frame(w, bg=BG)
+        row.pack(fill="x", padx=px(14), pady=px(6))
+        whole = tk.BooleanVar(value=False)
+        fr_v, to_v = tk.StringVar(value="1"), tk.StringVar(value="3")
+        tk.Label(row, text="chapters", bg=BG, fg=MUTED, font=(MONO, 9)).pack(side="left")
+        for var, lab in ((fr_v, None), (to_v, "to")):
+            if lab:
+                tk.Label(row, text=lab, bg=BG, fg=MUTED, font=(MONO, 9)).pack(side="left", padx=px(4))
+            tk.Entry(row, textvariable=var, width=5, bg=SURFACE, fg=TEXT, insertbackground=ACCENT, bd=0, font=(MONO, 10),
+                     highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT).pack(side="left", padx=px(4), ipady=px(2))
+        tk.Checkbutton(row, text="whole book", variable=whole, bg=BG, fg=BODY, selectcolor=SURFACE, activebackground=BG,
+                       activeforeground=TEXT, font=(MONO, 9)).pack(side="left", padx=px(12))
+        row2 = tk.Frame(w, bg=BG)
+        row2.pack(fill="x", padx=px(14), pady=px(2))
+        tk.Label(row2, text="send to", bg=BG, fg=MUTED, font=(MONO, 9)).pack(side="left")
+        ph, lp = tk.BooleanVar(value=True), tk.BooleanVar(value=True)
+        for var, t in ((ph, "phone"), (lp, "laptops")):
+            tk.Checkbutton(row2, text=t, variable=var, bg=BG, fg=BODY, selectcolor=SURFACE, activebackground=BG,
+                           activeforeground=TEXT, font=(MONO, 9)).pack(side="left", padx=px(6))
+        msg = tk.Label(w, text="", bg=BG, fg=ACCENT, font=(MONO, 9), justify="left", anchor="w")
+
+        def make():
+            sel = lb.curselection()
+            if not sel:
+                return
+            rid, b = books[sel[0]]
+            n = int(b.get("pages") or 1)
+            try:
+                fr, to = (0, n - 1) if whole.get() else (max(1, int(fr_v.get())) - 1, min(n, int(to_v.get())) - 1)
+            except ValueError:
+                msg.configure(text="Chapters are numbers, like 3 to 10.", fg=MUTED)
+                return
+            devs = [d for d, v in (("phone", ph), ("laptops", lp)) if v.get()]
+            if not devs:
+                msg.configure(text="Tick the phone or the laptops.", fg=MUTED)
+                return
+            ok = self.sonia_ask(rid=rid, fr=fr, to=max(fr, to), devs=devs)
+            msg.configure(text=(f"Asked for {b.get('name')}, ch. {fr + 1}–{max(fr, to) + 1}. Your PC starts at the next sync with Feather\n"
+                                "and sends it to your " + " and ".join(devs) + ".") if ok else "Couldn't queue that.", fg=ACCENT if ok else MUTED)
+        tk.Button(w, text="Make it with Sonia", command=make, bg=ACCENT, fg=TILE, activebackground=ACCENT_HI, bd=0,
+                  font=(MONO, 10, "bold"), cursor="hand2").pack(fill="x", padx=px(14), pady=(px(10), px(4)), ipady=px(6))
+        msg.pack(fill="x", padx=px(14))
+        tk.Label(w, text="PLAYBACK (SAVED IN FEATHER: THE SAME ON THE PHONE AND LAPTOPS)", bg=BG, fg=MUTED, font=(MONO, 8)).pack(anchor="w", padx=px(14), pady=(px(12), 0))
+        sp = tk.Scale(w, from_=0.6, to=2.0, resolution=0.05, orient="horizontal", label="speed", bg=BG, fg=BODY, troughcolor=SURFACE,
+                      highlightthickness=0, bd=0, activebackground=ACCENT, font=(MONO, 8))
+        sp.set(float(st.get("speed") or 1.0))
+        sp.pack(fill="x", padx=px(14))
+        vo = tk.Scale(w, from_=0, to=100, resolution=5, orient="horizontal", label="volume %", bg=BG, fg=BODY, troughcolor=SURFACE,
+                      highlightthickness=0, bd=0, activebackground=ACCENT, font=(MONO, 8))
+        vo.set(int(round(100 * float(1.0 if st.get("vol") is None else st["vol"]))))
+        vo.pack(fill="x", padx=px(14))
+        sp.bind("<ButtonRelease-1>", lambda e: self.sonia_ask(setting={"speed": float(sp.get())}))
+        vo.bind("<ButtonRelease-1>", lambda e: self.sonia_ask(setting={"vol": int(vo.get()) / 100.0}))
+        voices = [("en-GB-SoniaNeural", "Sonia · British woman"), ("en-GB-LibbyNeural", "Libby · British woman"), 
+                  ("en-GB-RyanNeural", "Ryan · British man"), ("en-GB-ThomasNeural", "Thomas · British man"), ("en-IE-EmilyNeural", "Emily · Irish woman"),
+                  ("en-IE-ConnorNeural", "Connor · Irish man"), ("en-AU-NatashaNeural", "Natasha · Australian woman"), ("en-AU-WilliamNeural", "William · Australian man")]
+        vrow = tk.Frame(w, bg=BG)
+        vrow.pack(fill="x", padx=px(14), pady=(px(4), 0))
+        tk.Label(vrow, text="voice for new chapters", bg=BG, fg=MUTED, font=(MONO, 9)).pack(side="left")
+        voices += [(a["v"], a["name"]) for a in info.get("accents") or []]
+        vv = tk.StringVar(value=dict(voices).get(st.get("voice") or "en-GB-SoniaNeural", voices[0][1]))
+        om = tk.OptionMenu(vrow, vv, *[n for _, n in voices], command=lambda n: self.sonia_ask(setting={"voice": next(v for v, x in voices if x == n)}))
+        om.configure(bg=SURFACE, fg=TEXT, activebackground=INPUT_BG, activeforeground=TEXT, bd=0, highlightthickness=0, font=(MONO, 9))
+        om["menu"].configure(bg=SURFACE, fg=TEXT, font=(MONO, 9))
+        om.pack(side="left", padx=px(8))
+        nv = tk.BooleanVar(value=st.get("night") is not False)
+        tk.Checkbutton(w, text="overnight: record my next 3 chapters of what I'm reading, each night (accent voices are made overnight)",
+                       variable=nv, command=lambda: self.sonia_ask(setting={"night": bool(nv.get())}), bg=BG, fg=BODY, selectcolor=SURFACE,
+                       activebackground=BG, activeforeground=TEXT, font=(MONO, 8), anchor="w", wraplength=px(520), justify="left").pack(fill="x", padx=px(14))
+        stat = tk.Label(w, text="", bg=BG, fg=MUTED, font=(MONO, 8), justify="left", anchor="w")
+        stat.pack(fill="x", padx=px(14), pady=px(8))
+
+        def tick():
+            if not w.winfo_exists():
+                return
+            i2 = self._sonia_books()
+            names = {k: v.get("name") for k, v in (i2.get("books") or {}).items()}
+            made = "  ·  ".join(f"{names.get(k, k)}: {len(v)} ch." for k, v in (i2.get("made") or {}).items() if v) or "nothing made yet"
+            stat.configure(text=(f"Making {i2['left']} chapter(s) now.\n" if i2.get("left") else "")
+                           + (f"{i2['night_left']} chapter(s) waiting for tonight (accent voice).\n" if i2.get("night_left") else "")
+                           + ("Making a chapter in an accent voice now: Archie will be slower until it's done.\n" if i2.get("accent_now") else "") + (f"{i2['err']}\n" if i2.get("err") else "") + "Made: " + made)
+            w.after(5000, tick)
+        tick()
+
+    def note_to_feather(self, text):
+        """A note into Feather's quick notes on every device (your PC adds it at the next sync). Each note goes once."""
+        import uuid
+        text = (text or "").strip()
+        if not text:
+            return None
+        q = os.path.join(os.path.dirname(APP_DIR), "Feather", "notes_in")
+        try:
+            os.makedirs(q, exist_ok=True)
+            rid = "an" + uuid.uuid4().hex[:12]
+            tmp = os.path.join(q, rid + ".tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"id": rid, "t": time.time(), "text": text[:20000]}, f)
+            os.replace(tmp, os.path.join(q, rid + ".json"))
+            return rid
+        except OSError:
+            return None
+
+    def feather_xfer(self, op, deck, **extra):
+        """Move a set between Archie and Feather, only when asked. a2f: this set replaces Feather's copy.
+        f2a: Feather's set replaces this one. Your PC does it at the next sync with a Feather device; the old copy is kept."""
+        import uuid
+        ob = os.path.join(STUDY_DIR, ".feather_outbox")
+        try:
+            os.makedirs(ob, exist_ok=True)
+            rid = "a" + uuid.uuid4().hex[:12]
+            tmp = os.path.join(ob, rid + ".tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(dict(extra, id=rid, op=op, deck=deck, t=time.time()), f)
+            os.replace(tmp, os.path.join(ob, rid + ".json"))
+        except OSError as e:
+            self._write(f"Couldn't queue that: {e}\n", "sys")
+            return
+        if op == "restore":
+            self._write(f"Putting back that version of “{deck}” at the next sync with your phone or a laptop "
+                        "(what it replaces goes into the history too).\n", "sys")
+        elif op == "a2f":
+            self._write(f"Sending “{deck}”{' (a clean copy)' if extra.get('clean') else ''} to Feather. It replaces Feather's copy at the next sync with your phone or a "
+                        "laptop (the old one is kept as a backup).\n", "sys")
+        elif extra.get("kind") == "exam":
+            self._write(f"Asking Feather for the exam “{deck}”. It lands here at the next sync with your phone or a laptop "
+                        "(Archie's old copy is kept; type  shelf history  to put it back).\n", "sys")
+        elif self.study.load(deck) or self.study.find_deck(deck):
+            self._write(f"Asking Feather for “{deck}”. It replaces Archie's copy at the next sync with your phone or a "
+                        "laptop (the old one goes to Study\\Backups).\n", "sys")
+        else:
+            self._write(f"Asking Feather for “{deck}”. It shows up here at the next sync with your phone or a laptop.\n", "sys")
+
     def list_decks(self):
         decks = self.study.decks()
-        if not decks:
+        fd = self._feather_sets()
+        if not decks and not fd:
             self._write("No flashcard decks yet. Try: make flashcards about photosynthesis, or "
                         "make flashcards from this note.\n", "sys")
             return
         today = datetime.date.today().isoformat()
-        lines = []
+        key = lambda n: " ".join(str(n).split()).lower()
+        fk = {key(n): (n, x) for n, x in fd.items()}
+        self._w("Your decks:\n", "sys")
         for d in decks:
-            due = sum(1 for c in d["cards"] if c["last"] and c["due"] <= today)
-            new = sum(1 for c in d["cards"] if not c["last"])
-            lines.append(f"{d['name']}: {len(d['cards'])} cards ({due} due, {new} new)")
-        self._write("Your decks:\n" + "\n".join(lines) + "\nType  study  for everything due, or  study "
-                    "<deck name>.\n", "sys")
+            due = sum(1 for c in d["cards"] if c.get("last") and c.get("due", "") <= today)
+            new = sum(1 for c in d["cards"] if not c.get("last"))
+            f = fk.get(key(d["name"]))
+            if not f:
+                st = "not in Feather yet"
+            elif not f[1].get("linked"):
+                st = "Feather has a set with this name"
+            elif f[1].get("fnewer"):
+                st = "Feather has a newer version"
+            else:
+                st = "in Feather"
+            self._w(f"{d['name']}: {len(d['cards'])} cards ({due} due, {new} new) · {st}   ", "sys")
+            self._link("send to Feather", lambda n=d["name"]: self.feather_xfer("a2f", n), "sys")
+            self._w("  ", "sys")
+            self._link("clean copy", lambda n=d["name"]: self.feather_xfer("a2f", n, clean=True), "sys")
+            if f:
+                self._w("   ", "sys")
+                self._link("get Feather's", lambda n=f[0]: self.feather_xfer("f2a", n), "sys")
+            self._w("\n", "sys")
+        mine = {key(d["name"]) for d in decks}
+        only = sorted(n for k, (n, x) in fk.items() if k not in mine)
+        if only:
+            self._w("Only in Feather:\n", "sys")
+            for n in only:
+                self._w(f"{n}: {fd[n].get('n', 0)} cards   ", "sys")
+                self._link("request", lambda n=n: self.feather_xfer("f2a", n), "sys")
+                self._w("\n", "sys")
+        self._write("Type  study  for everything due, or  study <deck name>.  Or:  send <deck> to feather  ·  "
+                    "get <deck> from feather  ·  shelf history  ·  note to feather: <text>.\n", "sys")
+
+    def shelf_history(self):
+        """Every version a send or get replaced, with put it back."""
+        try:
+            with open(os.path.join(STUDY_DIR, ".feather_history"), encoding="utf-8") as f:
+                hist = list(reversed(json.load(f)))
+        except (OSError, ValueError):
+            hist = []
+        if not hist:
+            self._write("Nothing replaced yet. When a send or get replaces a set, the old version shows up here.\n", "sys")
+            return
+        self._w("History (newest first):\n", "sys")
+        for h in hist[:30]:
+            when = datetime.datetime.fromtimestamp(h.get("t", 0)).strftime("%b %d %H:%M")
+            side = "Archie's" if h.get("side") == "archie" else "Feather's"
+            what = f"mock exam · {h.get('n', 0)} questions" if h.get("kind") == "exam" else f"{h.get('n', 0)} cards"
+            self._w(f"{h.get('name')} · {side} copy · {what} · {when}   ", "sys")
+            self._link("put it back", lambda h=h: self.feather_xfer("restore", h.get("name"), hid=h.get("id")), "sys")
+            self._w("\n", "sys")
 
     # ----- Obsidian daily note + the note you have open ---------------------------
 
@@ -8623,8 +8991,14 @@ Transcript:
 
     def _get_speaker(self, quiet=False):
         if self.speaker is None:
-            self.speaker = Speaker(PIPER_DIR, self.cfg.get("speech_voice"), self.cfg.get("speech_speed"),
-                                   on_error=lambda m: self.bg_q.put(("voice_error", m)))
+            if self._new_voice_ok():
+                self.speaker = talk.KokoroSpeaker(lambda: self.cfg, quiet=self._quiet_now, on_caption=self._on_caption,
+                                                  on_error=lambda m: self.bg_q.put(("voice_error", m)),
+                                                  on_idle=lambda: self.bg_q.put(("call", self._voice_idle)), app_dir=APP_DIR)
+                self.speaker.warm()
+            else:
+                self.speaker = Speaker(PIPER_DIR, self.cfg.get("speech_voice"), self.cfg.get("speech_speed"),
+                                       on_error=lambda m: self.bg_q.put(("voice_error", m)))
         why = self.speaker.ready()
         if why:
             if not quiet:
@@ -8654,11 +9028,15 @@ Transcript:
     def _style_speak_btn(self):
         on = bool(self.cfg.get("speak_answers"))
         self.speak_btn._on = on
-        self.speak_btn.configure(text=f"speak {'●' if on else '○'}", fg=ACCENT if on else DIM,
+        muted = self._quiet_now() if talk else False
+        self.speak_btn.configure(text=f"speak {'●' if on else '○'}" + (" · muted" if muted else ""), fg=ACCENT if on else DIM,
                                  highlightbackground=ACCENT if on else BORDER,
                                  highlightcolor=ACCENT if on else BORDER)
 
     def speak_text(self, text):
+        if self._quiet_now() and not (talk and self._new_voice_ok()):
+            self._update_status("muted: Ctrl+Alt+Q to unmute")
+            return
         sp = self._get_speaker()
         if sp:
             sp.say(text)
@@ -8687,6 +9065,16 @@ Transcript:
     def _fill_voice_menu(self):
         m = self.voice_menu
         m.delete(0, "end")
+        if self._new_voice_ok():
+            self.voice_choice.set(self.cfg.get("voice_id") or talk.DEFAULT_VOICE_ID)
+            for v in talk.VOICES:
+                if v.get("accent"):
+                    continue
+                m.add_radiobutton(label=v["name"], variable=self.voice_choice, value=v["id"],
+                                  command=lambda n=v["id"]: self._pick_new_voice(n))
+            m.add_separator()
+            m.add_command(label="Voice & quiet settings...", command=lambda: self.open_voice_settings())
+            return
         found = [v for v in VOICES if os.path.exists(os.path.join(PIPER_DIR, v + ".onnx"))]
         for v in found:
             m.add_radiobutton(label=VOICES[v], variable=self.voice_choice, value=v,
@@ -8699,7 +9087,20 @@ Transcript:
                               command=lambda s=sp: self.set_speech_speed(s))
 
     def toggle_talk(self):
-        """Ctrl+Alt+T: talk to Archie. Press to start listening, press again to send."""
+        """Ctrl+Alt+T: talk mode (hands-free). Falls back to press-to-talk if talk mode can't start."""
+        if self.talk_win is not None and self.talk_win.alive():
+            if self.recorder.recording and self._rec_kind == "talk":
+                self.recorder.stop()
+                self._style_mic()
+            return self.talk_end()
+        if self.recorder.recording and self._rec_kind in ("talk", "recap", "note"):
+            return self._toggle_talk_ptt()
+        if talk and self.cfg.get("talk_handsfree", True) and self.talk_start():
+            return
+        return self._toggle_talk_ptt()
+
+    def _toggle_talk_ptt(self):
+        """Press to start listening, press again to send (the old way; also talk mode's fallback)."""
         if self.recorder.recording and self._rec_kind == "recap":
             self.show_recap()
             return
@@ -8760,6 +9161,1093 @@ Transcript:
         self._talk_pending = True
         self._send()
         self._entry_changed()
+
+    # ----- the new voice, talk mode and Quiet (archie_talk.py) ----------------
+
+    def save_cfg(self):
+        save_config(self.cfg)
+
+    def _new_voice_ok(self):
+        return (talk is not None and self.cfg.get("voice_engine", "kokoro") != "piper"
+                and talk.kokoro_ready(APP_DIR) is None)
+
+    def _quiet_now(self):
+        return bool(self.quiet and self.quiet.is_quiet())
+
+    def _prompt_for_send(self):
+        p = self.build_system_prompt()
+        if self._talk_mode_send and talk and self.cfg.get("talk_spoken", True):
+            p += "\n\n" + talk.SPOKEN_STYLE
+        return p
+
+    def _on_caption(self, text, secs, audible):        # from the voice's thread
+        self.bg_q.put(("call", lambda: self._show_caption(text, secs, audible)))
+
+    def _show_caption(self, text, secs, audible):
+        tw = self.talk_win
+        if tw is not None and tw.alive():
+            tw.caption(text)
+            tw.set_state("speaking")
+            return
+        if self.panel_visible():
+            return                                    # the chat already shows it
+        try:
+            if self.caption_pop is None:
+                self.caption_pop = talk.CaptionPop(self)
+            self.caption_pop.show(text, secs, audible)
+        except Exception as e:
+            print("caption:", e)
+
+    def _voice_idle(self):
+        self._spoke_at = time.time()
+        if self.caption_pop is not None:
+            self.caption_pop.done()
+        tw = self.talk_win
+        if tw is not None and tw.alive() and not self.busy:
+            tw.set_state("listening")
+
+    def _pick_new_voice(self, vid):
+        self.cfg["voice_id"] = vid
+        save_config(self.cfg)
+        self.voice_preview(vid)
+
+    def voice_preview(self, vid=None):
+        sp = self._get_speaker()
+        if sp and talk and isinstance(sp, talk.KokoroSpeaker):
+            sp.say("Hi, I'm Archie. This is how I sound. Shall we get started?", audible=True, voice_id=vid)
+
+    def voice_say(self, text):
+        sp = self._get_speaker()
+        if sp and talk and isinstance(sp, talk.KokoroSpeaker):
+            sp.say(text, audible=True)
+
+    def voice_brief(self):
+        now = datetime.datetime.now()
+        part = "morning" if now.hour < 12 else "afternoon" if now.hour < 18 else "evening"
+        line = f"Good {part}. It's {now:%A, %B} {now.day}."
+        try:
+            up = self.calendar.upcoming(days=7)
+            if up:
+                line += " Coming up: " + cal.describe(up[0]) + "."
+        except Exception:
+            pass
+        try:
+            due = self.study.due_count() if hasattr(self.study, "due_count") else 0
+            if due:
+                line += f" You've got {due} flashcards due."
+        except Exception:
+            pass
+        self.voice_say(line + " What would you like to start with?")
+
+    def open_voice_settings(self, tab="voice"):
+        if not talk:
+            return
+        if self.quiet:
+            self.quiet.refresh(force=True)
+        w = self.voice_settings_win
+        if w is not None and w.alive():
+            w.lift(tab)
+            return
+        self.voice_settings_win = talk.VoiceSettings(self, tab)
+        if self._new_voice_ok() is False and talk.kokoro_ready(APP_DIR):
+            self._write(talk.kokoro_ready(APP_DIR) + "\n", "sys")
+
+    def toggle_mic(self):
+        """The mic key: in talk, Archie stops hearing you until it's pressed again (your headphones' mute, but faster)."""
+        key = pretty_combo(self.cfg.get("hotkey_mic") or "alt+m")
+        hf, tw = self.handsfree, self.talk_win
+        if hf is None or tw is None or not tw.alive():
+            self.bg_q.put(("status", f"{key} turns your mic off while talk is open."))
+            return
+        hf.mic_off = not getattr(hf, "mic_off", False)
+        msg = f"Mic off: I'm not listening. {key} turns it back on." if hf.mic_off else "Mic on: I'm listening."
+        try:
+            tw.hint.configure(text=msg)
+        except Exception:
+            pass
+        self.bg_q.put(("status", msg))
+
+    def toggle_quiet(self):
+        if not talk:
+            return
+        self.cfg["quiet"] = not self.cfg.get("quiet")
+        save_config(self.cfg)
+        muted = self._quiet_now()
+        if muted and self.speaker is not None and isinstance(self.speaker, talk.KokoroSpeaker):
+            self.speaker.mute_now()              # silence now; the rest of the answer carries on as captions
+        elif muted and self.speaker is not None:
+            self.speaker.stop()                  # silence now, including sentences already handed to the voice
+            if not isinstance(self.speaker, talk.KokoroSpeaker):
+                self._speak_now = False          # the old voice can't do captions: the rest of this answer stays silent
+        self._style_speak_btn()
+        q, why = self.quiet.state()
+        self._update_status("muted: captions instead of sound (Ctrl+Alt+Q to unmute)" if q else "sound back on")
+        if self.talk_win is not None and self.talk_win.alive():
+            self.talk_win.set_muted(q, why)
+        if self.voice_settings_win is not None and self.voice_settings_win.alive() and self.voice_settings_win.tab == "quiet":
+            self.voice_settings_win.show("quiet")
+        if not self.panel_visible():
+            try:
+                if self.caption_pop is None:
+                    self.caption_pop = talk.CaptionPop(self)
+                self.caption_pop.show("Muted. I'll show my words here instead." if q else "Sound's back on.", 1.5, not q)
+                self.caption_pop.done()
+            except Exception:
+                pass
+
+    def _quiet_tick(self):
+        """Every few seconds: if Quiet just came on by itself (headphones out, library Wi-Fi), go silent now."""
+        try:
+            if self.quiet:
+                sp = self.speaker
+                speaking = sp is not None and getattr(sp, "speaking", None) is not None \
+                    and (sp.speaking.is_set() or getattr(sp, "_pending", 0) > 0)
+                self.quiet.refresh(every=4 if speaking and self.cfg.get("quiet_headphones_only") else 20)
+                q, why = self.quiet.state()
+                if q != getattr(self, "_was_quiet", None):
+                    self._was_quiet = q
+                    self._style_speak_btn()
+                    if self.talk_win is not None and self.talk_win.alive():
+                        self.talk_win.set_muted(q, why)
+                if q and speaking and not getattr(sp, "force_audible", False):
+                    if not isinstance(sp, talk.KokoroSpeaker):
+                        sp.stop()
+                        self._speak_now = False
+                        raise StopIteration
+                    if getattr(sp, "_pending", 0) > 0:     # sound still going out: the rest carries on as captions
+                        sp.mute_now()
+        except StopIteration:
+            pass
+        except Exception as e:
+            print("quiet tick:", e)
+        self.root.after(3000, self._quiet_tick)
+
+    # talk mode -----------------------------------------------------------------
+
+    def talk_start(self):
+        sp = self._get_speaker(quiet=True)
+        if sp is None:
+            return False
+        try:
+            self._get_transcriber()
+        except Exception:
+            return False
+        if self.recorder.recording:
+            return False
+        self.talk_win = talk.TalkWindow(self)
+        cool.STATE["talk"] = True          # background AI (World, exam prep) waits while you talk
+        voice = (talk.VOICE_BY_ID.get(self.cfg.get("voice_id") or "") or {}).get("name", "Archie") \
+            if isinstance(sp, talk.KokoroSpeaker) else "the old voice"
+        self.talk_win.set_head(f"{self.cfg.get('mode') or 'General'}  ·  voice: {voice}")
+        q, why = self.quiet.state() if self.quiet else (False, "")
+        if q:
+            self.talk_win.set_muted(True, why)
+        self.handsfree = None
+        self.qt_hist, self._qt_job, self._qt_spec = [], None, None
+        self._qt_started = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p").replace(" 0", " ")
+        self._qt_warm()
+        if isinstance(sp, talk.KokoroSpeaker):
+            sp.warm()
+        if self.cfg.get("talk_handsfree", True):
+            try:
+                hf = talk.HandsFree(self._qt_utterance, lambda: self.bg_q.put(("call", self._talk_barge)),
+                                    on_level=self._talk_level, is_speaking=self._archie_talking,
+                                    folder=os.path.join(APP_DIR, "Recordings"), on_pause=self._qt_pause, on_resume=self._qt_resume,
+                                    sens=lambda: self.cfg.get("talk_mic", 1.0))
+                hf.start()
+                self.handsfree = hf
+            except Exception as e:
+                self.talk_win.hint.configure(text=f"The mic couldn't start ({e}). Press space to talk instead.")
+        if self.handsfree is None:
+            self.talk_win.set_paused(True)
+        self.talk_win.w.focus_force()
+        return True
+
+    # ----- quick talk: talk mode's own fast path (no chat panel, no lookups unless asked, model kept loaded) -----
+    QT_LOOK = re.compile(r"\b(?:check|search|look in|in) (?:my )?notes\b|\blook (?:it|that|this) up\b|\bwikipedia\b|\bsearch (?:for|the wiki)\b", re.I)
+
+    QT_SCHED = re.compile(r"\b(calendar|schedule|today|tonight|tomorrow|this week|next week|weekend|monday|tuesday|wednesday|thursday|"
+                          r"friday|saturday|sunday|plans?|planned|coming up|what do i have|what have i got|class(es)?|exams?|due|deadlines?|"
+                          r"homework|appointments?|meetings?|events?|tasks?|to-?do|busy|free)\b", re.I)
+    QT_FILES = re.compile(r"\b(file|files|pdf|document|doc|picture|photo|image|scan|screenshot|snip|added|uploaded|dropped|inbox|"
+                          r"lecture|recording|notes?|that thing i|the one i)\b", re.I)
+    QT_CMD = re.compile(r"^\W*(?:please\s+)?(?:add|put|schedule|move|cancel|delete|remove|reschedule|remind me|set a reminder|"
+                        r"deadline:|make (?:me )?(?:some |a )?(?:flashcards|cards|a mock exam|an exam|a quiz)|note to feather|send .+ to feather|"
+                        r"make sonia audio|save (?:this|that) to obsidian)\b", re.I)
+    QT_STOP = set("the and for with that this what when where which about have your from they them then there their just like "
+                  "know does dont want tell show give make could would should will into were been being also some more much".split())
+
+    QT_OPEN = re.compile(r"\b(how should|help me|should i|plan(?:ning)? (?:my|the|out)|why|advice|ideas?|prioriti[sz]e|organi[sz]e|"
+                         r"what's the best|balance|stress|overwhelm)\b", re.I)
+    QT_ASK = re.compile(r"\b(what(?:'s| is| do i have| have i got| am i doing)|anything|do i have|have i got|am i (?:busy|free)|"
+                        r"is there|what's on|whats on|what is on|coming up|due|to-?dos?|tasks?|deadlines?|schedule|calendar|plans?)\b", re.I)
+
+    def _qt_clean(self, t):
+        t = re.sub(r"\(\s*\)", "", str(t))
+        return " ".join(t.replace(" ,", ",").split()).strip(" ,;")
+
+    def _qt_say_day(self, d):
+        n = d.day
+        suf = "th" if 11 <= n % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        today = datetime.date.today()
+        if d == today:
+            return "Today"
+        if d == today + datetime.timedelta(days=1):
+            return "Tomorrow"
+        return f"{d:%A}, {d:%B} {n}{suf}" + (f" {d.year}" if d.year != today.year and (d - today).days > 300 else "")
+
+    def _qt_entries(self, d, dl, tasks):
+        got = []
+        try:
+            for e in self.calendar.between(d, d):
+                tm = f" at {cal.fmt_time(e['time'])}" if e.get("time") else ""
+                got.append(self._qt_clean(e["title"]) + tm)
+        except Exception:
+            pass
+        got += [self._qt_clean(x) + " (deadline)" for x in dl.get(d.isoformat(), [])]
+        got += [self._qt_clean(t) + " (to-do)" for t, due in tasks if due == d.isoformat()]
+        return got
+
+    def _qt_sched_answer(self, text):
+        """Plain schedule questions answered straight from Archie's calendar, deadlines and to-dos: exact, and instant."""
+        if self.QT_OPEN.search(text):
+            return None
+        follow = bool(re.search(r"\b(what about|and|how about)\b.*\b(day after|next day|day before|that day|following day)\b|^\W*(the )?(day after|next day|day before)\b", text, re.I))
+        if re.search(r"\b(phone|number|email|address|website|who|where is|how much|cost|price)\b", text, re.I) \
+                and not re.search(r"\b(calendar|schedule|due|to-?do|tasks?|deadlines?)\b", text, re.I):
+            return None                                  # a question about something else that happens to mention a day
+        found = self._qt_find_entry(text)
+        if found is not None:
+            return found
+        if not (self.QT_SCHED.search(text) or follow):
+            return None
+        days = self._qt_dates(text)
+        low, today = text.lower(), datetime.date.today()
+        dl = {}
+        for line in read_small_text(DEADLINES_PATH).splitlines():
+            m = re.match(r"\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)", line)
+            if m:
+                dl.setdefault(m.group(1), []).append(m.group(2).strip())
+        tasks = self._qt_tasks()
+        if days:
+            self._qt_lastdays = days
+            busy = [(d, self._qt_entries(d, dl, tasks)) for d in days]
+            withs = [(d, g) for d, g in busy if g]
+            if not withs:
+                if len(days) > 1:
+                    return f"Nothing on the {days[0].day}{'th' if 11 <= days[0].day % 100 <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(days[0].day % 10, 'th')} for the next few months: those days are clear."
+                return f"{self._qt_say_day(days[0])} is clear: nothing on your calendar, no deadlines, no to-dos."
+            parts = [f"{self._qt_say_day(d)}: " + "; ".join(g) + "." for d, g in withs]
+            clear = [d for d, g in busy if not g]
+            if clear and len(days) == len(clear) + len(withs) and len(withs) < len(days) and len(days) <= 2:
+                parts.append(f"{self._qt_say_day(clear[0])} is clear.")
+            return " ".join(parts)
+        if re.search(r"\b(to-?dos?|tasks?|due)\b", low) and not re.search(r"\b(calendar|schedule|week|coming up)\b", low):
+            open_ = [(t, d) for t, d in tasks]
+            if not open_:
+                return "Your to-do list is clear."
+            over = [t for t, d in open_ if d and d <= today.isoformat()]
+            rest = [t for t, d in open_ if not d or d > today.isoformat()]
+            out = []
+            if over:
+                out.append(f"Due today{' or overdue' if len(over) > 1 else ''}: " + "; ".join(self._qt_clean(t) for t in over) + ".")
+            if rest:
+                out.append("Also on your list: " + "; ".join(self._qt_clean(t) for t in rest[:6]) + ".")
+            return " ".join(out)
+        if not re.search(r"\b(calendar|schedule|week|coming up|soon|plans?|planned|busy|free|what do i have|what have i got|deadlines?)\b", low):
+            return None                                  # not an overview question: let Archie answer normally
+        span = 7
+        lines = []
+        for i in range(span + 1):
+            d = today + datetime.timedelta(days=i)
+            g = [x for x in self._qt_entries(d, dl, tasks) if not x.endswith("(to-do)") or i == 0]
+            if g:
+                lines.append(f"{self._qt_say_day(d)}: " + "; ".join(g) + ".")
+        later = sorted((k, v) for k, v in dl.items() if (today + datetime.timedelta(days=span)).isoformat() < k <= (today + datetime.timedelta(days=90)).isoformat())
+        if later:
+            k, v = later[0]
+            lines.append(f"Next deadline after that: {self._qt_clean(v[0])}, {self._qt_say_day(datetime.date.fromisoformat(k))}.")
+        return " ".join(lines) if lines else "Your next week is clear: nothing on the calendar and no deadlines."
+
+    def _qt_find_entry(self, text):
+        """'Is the reminder about Sean on my calendar?' / 'When is the apartment visit?': look it up by its words."""
+        low = text.lower()
+        if not re.search(r"\b(is (?:the|my|a|there)|when(?:'s| is)|do i have (?:a|the|my)|did i (?:add|put|set)|on my (?:calendar|list|to-?do))\b", low):
+            return None
+        skip = self.QT_STOP | {"calendar", "reminder", "reminders", "schedule", "list", "todo", "to-do", "tasks", "task", "event", "events",
+                               "today", "tomorrow", "week", "check", "there", "anything", "something", "deadline", "deadlines", "not", "set", "added",
+                               "what's", "whats", "what", "this", "next", "coming", "have", "has", "got", "going", "any", "time", "date", "day"}
+        words = [w for w in re.findall(r"[a-z0-9][a-z0-9'-]{2,}", low) if w not in skip]
+        if not words:
+            return None
+        today = datetime.date.today()
+        hits = []
+        try:
+            for e in self.calendar.between(today - datetime.timedelta(days=7), today + datetime.timedelta(days=365)):
+                if any(w in e["title"].lower() for w in words):
+                    d = datetime.date.fromisoformat(e["date"]) if isinstance(e["date"], str) else e["date"]
+                    hits.append(f"{self._qt_clean(e['title'])}, {self._qt_say_day(d)}" + (f" at {cal.fmt_time(e['time'])}" if e.get("time") else ""))
+        except Exception:
+            pass
+        for line in read_small_text(DEADLINES_PATH).splitlines():
+            m = re.match(r"\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)", line)
+            if m and any(w in m.group(2).lower() for w in words):
+                hits.append(f"{self._qt_clean(m.group(2))} (deadline), {self._qt_say_day(datetime.date.fromisoformat(m.group(1)))}")
+        for t, due in self._qt_tasks():
+            if any(w in t.lower() for w in words):
+                hits.append(f"{self._qt_clean(t)} (to-do" + (f", due {self._qt_say_day(datetime.date.fromisoformat(due))}" if due else "") + ")")
+        if hits:
+            return "Yes: " + "; ".join(hits[:4]) + "."
+        return f"No, I don't see anything about {' '.join(words[:3])} on your calendar, deadlines or to-do list."
+
+    NUMW = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+            "eleven": 11, "twelve": 12}
+
+    def _qt_norm_time(self, text):
+        """Spoken times into what the calendar reads: '9 o'clock a.m.' / 'nine a.m.' / 'half past three p.m.' -> 9am, 3:30pm;
+        'noon' -> 12pm; 'from 9am' / 'at 9am' kept with the date, not the title."""
+        t = text
+        t = re.sub(r"\b(" + "|".join(self.NUMW) + r")\b(?=\s*(?:o'?\s*clock|[ap]\.?\s*m\b|thirty|fifteen|forty))",
+                   lambda m: str(self.NUMW[m.group(1).lower()]), t, flags=re.I)
+        t = re.sub(r"\bhalf past (\d{1,2})", r"\1:30", t, flags=re.I)
+        t = re.sub(r"\bquarter past (\d{1,2})", r"\1:15", t, flags=re.I)
+        t = re.sub(r"\b(\d{1,2})\s+(thirty|fifteen|forty[- ]?five)\b", lambda m: f"{m.group(1)}:{ {'thirty': '30', 'fifteen': '15'}.get(m.group(2).lower(), '45') }", t, flags=re.I)
+        t = re.sub(r"\b(\d{1,2}(?::\d{2})?)\s*o'?\s*clock\b", r"\1", t, flags=re.I)
+        t = re.sub(r"\b(\d{1,2}(?::\d{2})?)\s*([ap])\.?\s*m\b\.?", lambda m: m.group(1) + m.group(2).lower() + "m", t, flags=re.I)
+        t = re.sub(r"\bnoon\b", "12pm", t, flags=re.I)
+        t = re.sub(r"\bmidnight\b", "12am", t, flags=re.I)
+        t = re.sub(r"\b(?:from|starting at|starting)\s+(\d{1,2}(?::\d{2})?[ap]m)\b", r"at \1", t, flags=re.I)
+        return t
+
+    def _qt_check_dates(self, answer, facts):
+        """An open answer that names a date not in the user's entries gets the exact entries instead."""
+        months = "january|february|march|april|may|june|july|august|september|october|november|december"
+        said = re.findall(rf"\b({months})\s+(\d{{1,2}})", answer.lower())
+        if not said or not facts:
+            return answer
+        ok = {(m, int(dd)) for m, dd in re.findall(rf"\b({months})\s+(\d{{1,2}})", facts.lower())}
+        today = datetime.date.today()
+        for k in range(0, 3):
+            dd = today + datetime.timedelta(days=k)
+            ok.add((dd.strftime("%B").lower(), dd.day))
+        if all((m, int(dd)) in ok for m, dd in said):
+            return answer
+        exact = self._qt_sched_answer("what's on my calendar this week") or ""
+        return "Let me read it straight from your calendar: " + exact
+
+    def _qt_today(self):
+        """A small 'today' card for every talk answer: date, time, today's events and what's due."""
+        now = datetime.datetime.now()
+        today = now.date()
+        bits = [f"Right now it's {now:%A %B %d, %Y}, {now:%I:%M %p}".replace(" 0", " ") + "."]
+        try:
+            evs = self.calendar.between(today, today + datetime.timedelta(days=1))
+            if evs:
+                bits.append("Today/tomorrow on the user's Archie calendar: " + "; ".join(cal.describe(e, today) for e in evs[:6]) + ".")
+        except Exception:
+            pass
+        due = [t for t in self._qt_tasks() if t[1] and t[1] <= today.isoformat()]
+        if due:
+            bits.append("Tasks due today or overdue: " + "; ".join(t[0] for t in due[:6]) + ".")
+        return " ".join(bits)
+
+    def _qt_tasks(self):
+        out = []
+        for line in read_small_text(TASKS_PATH).splitlines():
+            m = re.match(r"\s*\[( |x)\]\s*(.+?)\s*(?:\|\s*(\d{4}-\d{2}-\d{2}))?\s*$", line)
+            if m and m.group(1) == " ":
+                out.append((m.group(2), m.group(3) or ""))
+        return out
+
+    ORD = {"first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10,
+           "eleventh": 11, "twelfth": 12, "thirteenth": 13, "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17,
+           "eighteenth": 18, "nineteenth": 19, "twentieth": 20, "twenty-first": 21, "twenty first": 21, "twenty-second": 22,
+           "twenty second": 22, "twenty-third": 23, "twenty third": 23, "twenty-fourth": 24, "twenty fourth": 24, "twenty-fifth": 25,
+           "twenty fifth": 25, "twenty-sixth": 26, "twenty sixth": 26, "twenty-seventh": 27, "twenty seventh": 27, "twenty-eighth": 28,
+           "twenty eighth": 28, "twenty-ninth": 29, "twenty ninth": 29, "thirtieth": 30, "thirty-first": 31, "thirty first": 31}
+    MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
+
+    def _qt_dates(self, text):
+        """The days a question is about (today, tomorrow, Friday, the 8th, January 8...), worked out here, not by the model."""
+        low, today = text.lower(), datetime.date.today()
+        out = []
+
+        def nxt_day(day, months=None):
+            d, found = today, []
+            for _ in range(400):
+                if d.day == day and (months is None or d.month in months):
+                    found.append(d)
+                    if len(found) >= (1 if months else 3):
+                        break
+                d += datetime.timedelta(days=1)
+            return found
+        if re.search(r"\btoday\b|\btonight\b", low):
+            out.append(today)
+        if "tomorrow" in low:
+            out.append(today + datetime.timedelta(days=1))
+        for i, wd in enumerate(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]):
+            if re.search(rf"\b{wd}\b", low):
+                ahead = (i - today.weekday()) % 7 or (7 if "next" in low else 0)
+                out.append(today + datetime.timedelta(days=ahead + (7 if "next" in low and ahead < 7 else 0)))
+        month = next((n for m, n in self.MONTHS.items() if re.search(rf"\b{m}[a-z]*\b", low)), None)
+        days = [int(x) for x in re.findall(r"\b(\d{1,2})(?:st|nd|rd|th)\b", low) if 1 <= int(x) <= 31]       # "the 8th", "8th"
+        if month:
+            days += [int(x) for x in re.findall(r"\b(\d{1,2})\b", low) if 1 <= int(x) <= 31]               # "January 8"
+        days = list(dict.fromkeys(days))
+        days += [n for w, n in self.ORD.items() if re.search(rf"\b{w}\b", low)]
+        for day in days[:2]:
+            out += nxt_day(day, {month} if month else None)
+        last = getattr(self, "_qt_lastdays", None)
+        if not out and last:                           # follow-ups: "the day after", "the day before", "that day"
+            if re.search(r"\b(day after|next day|following day)\b", low):
+                out = [last[-1] + datetime.timedelta(days=1)]
+            elif re.search(r"\bday before\b", low):
+                out = [last[0] - datetime.timedelta(days=1)]
+            elif re.search(r"\b(that day|same day|then)\b", low):
+                out = list(last)
+        if out:
+            self._qt_lastdays = sorted(set(out))[:6]
+        return sorted(set(out))[:6]
+
+    def _qt_day_facts(self, days):
+        """Exactly what's on those days: Archie's calendar, deadlines and to-dos (nothing guessed)."""
+        dl = {}
+        for line in read_small_text(DEADLINES_PATH).splitlines():
+            m = re.match(r"\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)", line)
+            if m:
+                dl.setdefault(m.group(1), []).append(m.group(2).strip())
+        tasks = self._qt_tasks()
+        lines = []
+        for d in days:
+            got = []
+            try:
+                got += [cal.describe(e, datetime.date.today()) for e in self.calendar.between(d, d)]
+            except Exception:
+                pass
+            got += ["Deadline: " + x for x in dl.get(d.isoformat(), [])]
+            got += ["To-do due: " + t for t, due in tasks if due == d.isoformat()]
+            lines.append(f"- {d:%A %B %d, %Y}: " + ("; ".join(got) if got else "nothing on the calendar, no deadlines, no to-dos"))
+        return ("EXACT entries for the day(s) the user asked about. Answer from these lines only, keep each entry with its own date, "
+                "and if a day says nothing, say it's clear:\n" + "\n".join(lines))
+
+    def _qt_schedule(self):
+        """Everything Archie keeps about the user's time: their Archie calendar, deadlines and to-do list."""
+        today = datetime.date.today()
+        lines = []
+        try:
+            for e in self.calendar.between(today, today + datetime.timedelta(days=120))[:25]:
+                lines.append("- " + cal.describe(e, today))
+        except Exception:
+            pass
+        dl = []
+        for line in read_small_text(DEADLINES_PATH).splitlines():
+            m = re.match(r"\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)", line)
+            if m and m.group(1) >= today.isoformat():
+                dl.append(f"- {m.group(2).strip()} ({datetime.date.fromisoformat(m.group(1)):%a %b %d, %Y})")
+        tasks = [f"- {t}" + (f" (due {d})" if d else "") for t, d in self._qt_tasks()]
+        out = f"The user's own schedule, from Archie's calendar and lists (today is {today:%A %B %d, %Y}). Use it to answer; don't ask them what they have planned.\n"
+        out += "Calendar, next 4 months (each line is one entry, with its own date):\n" + ("\n".join(lines) if lines else "- nothing on it") + "\n"
+        out += "Deadlines:\n" + ("\n".join(dl) if dl else "- none") + "\n"
+        out += "To-do list (not done yet):\n" + ("\n".join(tasks[:15]) if tasks else "- nothing")
+        return out
+
+    def _qt_files(self, text):
+        """Files the user gave Archie: the recent ones, and a quick word search of what Archie read from them and their notes."""
+        out = []
+        try:
+            idx = json.load(open(os.path.join(APP_DIR, "inbox_index.json"), encoding="utf-8"))
+            rec = sorted(idx.values(), key=lambda v: v.get("date", ""), reverse=True)[:8]
+            if rec:
+                out.append("Files the user recently added to Archie:\n" + "\n".join(
+                    f"- {os.path.basename(v.get('dest', ''))} ({v.get('kind') or 'file'}, {v.get('date', '')})" for v in rec))
+        except (OSError, ValueError):
+            pass
+        if self.attachments:
+            out.append("Attached in the current chat: " + ", ".join(os.path.basename(a) for a in self.attachments[:6]))
+        words = {w for w in re.findall(r"[a-z0-9][a-z0-9'-]{3,}", text.lower()) if w not in self.QT_STOP}
+        if words:
+            hits = []
+            try:
+                for rel, f in (self.notes.data.get("files") or {}).items():
+                    name = rel.lower()
+                    for c in f.get("chunks", []):
+                        low = c["text"].lower()
+                        score = sum(low.count(w) for w in words) + 3 * sum(w in name for w in words)
+                        if score >= 2:
+                            hits.append((score, rel, c["text"]))
+            except Exception:
+                hits = []
+            hits.sort(key=lambda h: -h[0])
+            seen, picked = set(), []
+            for sc, rel, txt in hits:
+                if rel in seen:
+                    continue
+                seen.add(rel)
+                picked.append(f"From {rel}:\n{txt[:900]}")
+                if len(picked) >= 3:
+                    break
+            if picked:
+                out.append("From the user's notes and the files Archie has read (a quick word search; use it if it fits):\n\n" + "\n\n".join(picked))
+        return "\n\n".join(out)
+
+    def _qt_is_cmd(self, text):
+        """Something to DO (add to the calendar, a reminder, flashcards...): full Archie handles those."""
+        try:
+            if calchat.looks_like_edit(text, self.calendar) or cal.parse_event(text) or exam.parse_request(text):
+                return True
+        except Exception:
+            pass
+        return bool(self.QT_CMD.search(text))
+
+    def _qt_model(self):
+        if self.cfg.get("talk_fast_model") and self.cfg.get("talk_model") and not getattr(self, "_qt_model_missing", False):
+            return self.cfg["talk_model"]
+        return self.cfg["model"]
+
+    def _qt_transcriber(self):
+        if getattr(self, "_qt_tr", None) is None:
+            dev = self.cfg.get("voice_device") or "cpu"
+            name = self.cfg.get("talk_voice_model") or ("small.en" if dev == "cuda" else "base.en")
+            have = os.path.isdir(os.path.join(VOICE_MODELS_DIR, "models--Systran--faster-whisper-" + name))
+            self._qt_tr = Transcriber(VOICE_MODELS_DIR, name, dev) if have else self._get_transcriber()
+        return self._qt_tr
+
+    def _qt_warm(self):
+        """Talk mode opened: load the speech model and the chat model now, so the first answer is quick."""
+        def work():
+            try:
+                self._qt_transcriber()._load()
+            except Exception:
+                pass
+            try:
+                quick_chat(self._qt_model(), "Hi", max_tokens=1, timeout=120, num_ctx=int(self.cfg.get("context_tokens", 16384)),
+                           system=self._qt_system(), keep_alive="30m")
+            except ArchieError as e:
+                if "not found" in str(e) and self._qt_model() != self.cfg["model"]:
+                    self._qt_model_missing = True
+                    self.bg_q.put(("call", lambda: self.talk_win and self.talk_win.alive() and self.talk_win.hint.configure(
+                        text=f"The quick talk model ({self.cfg.get('talk_model')}) isn't downloaded: run Tools\\Get Fast Talk.bat. Using {self.nice(self.cfg['model'])} for now.")))
+            except Exception:
+                pass
+        threading.Thread(target=work, daemon=True).start()
+
+    def _qt_system(self):
+        p = self.build_system_prompt()
+        if self.cfg.get("talk_spoken", True):
+            p += "\n\n" + talk.SPOKEN_STYLE
+        return p
+
+    def _qt_new_job(self, text, seq, commit):
+        """Start an answer. Until it's committed, it's made quietly (you might still be talking)."""
+        job = {"text": text, "seq": seq, "toks": [], "fed": 0, "done": False, "commit": False, "stop": threading.Event(),
+               "err": None, "first_at": None}
+        try:
+            canned = self._qt_sched_answer(text)
+        except Exception:
+            canned = None
+        if canned:                                        # straight from the calendar: exact, no model needed
+            job.update(toks=[canned], done=True, first_at=time.time(), canned=True, notes=canned)
+            if commit:
+                self.bg_q.put(("call", lambda j=job: self._qt_commit(j)))
+            return job
+        checking = bool(self.QT_SCHED.search(text))       # schedule-ish open answers: checked before they're spoken
+        hist = list(self.qt_hist[-16:])
+        model = self._qt_model()
+        system = [{"role": "system", "content": self._qt_system()}]
+        extra = [self._qt_today() + " Never make up phone numbers, emails, addresses, prices or dates: if they're not in what you were given, "
+                 "say you don't have it offline and suggest where to find it."]   # these go right next to the question
+        try:
+            days = self._qt_dates(text)
+            if self.QT_SCHED.search(text) or days:
+                extra.append(self._qt_schedule())
+            if days:
+                extra.append(self._qt_day_facts(days))
+            if self.QT_FILES.search(text) or not self.QT_SCHED.search(text):
+                f = self._qt_files(text)
+                if f:
+                    extra.append(f)
+        except Exception:
+            pass
+
+        def run():
+            q = queue.Queue()
+            try:
+                if self.QT_LOOK.search(text):          # asked for: one lookup, for this question only
+                    try:
+                        hits = self.notes.search(text, k=4) if "wiki" not in text.lower() else []
+                        if hits:
+                            system.append({"role": "system", "content": "Excerpts from the user's notes that may help:\n\n" +
+                                           "\n\n".join(f"From {rel}:\n{txt}" for _, rel, txt in hits)})
+                        if self.cfg.get("use_wiki") or "wiki" in text.lower() or "look" in text.lower():
+                            arts = self.wiki.search(text)
+                            if arts:
+                                system.append({"role": "system", "content": "Excerpts from the user's offline Wikipedia:\n\n" +
+                                               "\n\n".join(f"Wikipedia: {t}\n{x}" for t, x in arts)})
+                    except Exception:
+                        pass
+                ctx = [{"role": "system", "content": "\n\n".join(extra)}]
+                th = threading.Thread(target=lambda: self._qt_stream(model, system + hist + ctx + [{"role": "user", "content": text}], q, job), daemon=True)
+                th.start()
+                while True:
+                    kind, val = q.get()
+                    if kind == "token":
+                        if checking:
+                            job.setdefault("held", []).append(val)
+                            continue
+                        job["toks"].append(val)
+                        if job["first_at"] is None:
+                            job["first_at"] = time.time()
+                        if job["commit"]:
+                            self.bg_q.put(("call", lambda j=job: self._qt_flow(j)))
+                    else:
+                        if kind == "error":
+                            job["err"] = val
+                        break
+            finally:
+                if checking and job.get("held"):
+                    job["toks"] = [self._qt_check_dates("".join(job["held"]), "\n".join(extra))]
+                    job["first_at"] = job["first_at"] or time.time()
+                job["done"] = True
+                self.bg_q.put(("call", lambda j=job: self._qt_flow(j)))
+        threading.Thread(target=run, daemon=True).start()
+        if commit:
+            self.bg_q.put(("call", lambda j=job: self._qt_commit(j)))
+        return job
+
+    def _qt_stream(self, model, msgs, q, job):
+        """Like stream_chat, but a dropped early start is cut off at once (even while Ollama is still reading the
+        prompt), so it never holds up the real answer behind it."""
+        import urllib.request
+        import urllib.error
+
+        def run(m):
+            body = json.dumps({"model": m, "messages": msgs, "stream": True, "keep_alive": "30m",
+                               "options": {"num_ctx": int(self.cfg.get("context_tokens", 16384))}}).encode("utf-8")
+            req = urllib.request.Request(OLLAMA_URL + "/api/chat", data=body, headers={"Content-Type": "application/json"})
+            resp = urllib.request.urlopen(req, timeout=600)
+            job["resp"] = resp
+            if job["stop"].is_set():
+                resp.close()
+                return
+            def watch():
+                while not job["stop"].wait(0.2):
+                    if job["done"] or job.get("streamed"):
+                        return
+                self._qt_close(resp)
+            threading.Thread(target=watch, daemon=True).start()
+            try:
+                for raw in resp:
+                    if job["stop"].is_set():
+                        return
+                    raw = raw.strip()
+                    if not raw:
+                        continue
+                    data = json.loads(raw)
+                    if "error" in data:
+                        raise ArchieError(data["error"])
+                    piece = data.get("message", {}).get("content", "")
+                    if piece:
+                        q.put(("token", piece))
+                    if data.get("done"):
+                        break
+            finally:
+                job["streamed"] = True
+                self._qt_close(resp)
+        try:
+            try:
+                run(model)
+            except urllib.error.HTTPError as e:
+                if e.code == 404 and model != self.cfg["model"]:       # quick model not downloaded: use the usual one
+                    self._qt_model_missing = True
+                    run(self.cfg["model"])
+                else:
+                    raise ArchieError(f"Ollama said {e.code}")
+            q.put(("done", None))
+        except Exception as e:
+            q.put(("done", None) if job["stop"].is_set() else ("error", str(e)))
+
+    def _qt_close(self, resp):
+        try:
+            resp.close()
+        except Exception:
+            pass
+
+    def _qt_pause(self, seq, path):            # mic thread: a short pause, so start thinking quietly
+        spec = {"seq": seq, "path": path, "ready": threading.Event(), "job": None, "text": "", "dead": False}
+        self._qt_spec = spec
+        try:
+            spec["text"] = (self._qt_transcriber().transcribe(path, fast=True) or "").strip()
+        except Exception:
+            spec["text"] = ""
+        if not spec["dead"] and re.search(r"[A-Za-z0-9]", spec["text"]) and not self._qt_is_bye(spec["text"]):
+            old = getattr(self, "_qt_early", None)
+            if old is not None and not old["commit"]:
+                old["stop"].set()                    # only one early start at a time
+            spec["job"] = self._qt_early = self._qt_new_job(spec["text"], seq, commit=False)
+        spec["ready"].set()
+
+    def _qt_resume(self, seq, path):           # you kept talking: drop the early start
+        spec = getattr(self, "_qt_spec", None)
+        if spec and spec["seq"] == seq:
+            spec["dead"] = True
+            if spec["job"]:
+                spec["job"]["stop"].set()
+            self._qt_spec = None
+
+    def _qt_is_bye(self, text):
+        return bool(re.fullmatch(r"\W*(stop|end talk( mode)?|that's all|goodbye|bye( archie)?)\W*", text, re.I))
+
+    def _qt_utterance(self, path, seq):       # mic thread: you're done (0.8 s of quiet)
+        spec = getattr(self, "_qt_spec", None)
+        try:
+            if spec and spec["seq"] == seq and not spec["dead"]:
+                spec["ready"].wait(15)
+                text, job = spec["text"], spec["job"]
+            else:
+                text, job = (self._qt_transcriber().transcribe(path, fast=True) or "").strip(), None
+        except Exception as e:
+            self.bg_q.put(("voice_error", f"Couldn't catch that: {e}"))
+            return
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        if not re.search(r"[A-Za-z0-9]", text or ""):
+            return
+        if self._qt_is_bye(text):
+            self.bg_q.put(("call", self.talk_end))
+            return
+        pend = getattr(self, "_qt_pending", None)
+        if pend is not None:                 # answering "Add it?"
+            self._qt_pending = None
+            if re.match(r"\W*(yes|yeah|yep|yup|sure|do it|add it|go ahead|please|ok(ay)?|correct|right)\b", text, re.I):
+                self.bg_q.put(("call", lambda p=pend: self._qt_do_add(p)))
+                return
+            if re.match(r"\W*(no|nope|nah|cancel|don'?t|never ?mind|stop)\b", text, re.I):
+                self.bg_q.put(("call", lambda: self._qt_say("Okay, I won't add it.")))
+                return
+        try:
+            text_t = self._qt_norm_time(text)
+            ereq = cal.parse_event(text_t)
+            if not ereq and re.match(r"\W*(?:please\s+)?(?:add|put|schedule)\b", text_t, re.I) and "calendar" not in text_t.lower():
+                ereq = cal.parse_event(text_t.rstrip(" .!?") + " to my calendar")     # "add dentist Friday at 3:30"
+            if not ereq:
+                m = re.match(r"\W*(?:(?:please|can you|could you)\s+)?(?:set (?:a |me a )?reminder|remind me|add a reminder)\s*(?:for\s+|to\s+|that\s+)?(.+)", text_t, re.I)
+                if m:
+                    ereq = cal.parse_event("reminder: " + m.group(1))
+                    if ereq:
+                        ttl = re.sub(r"^(?:at\s+\d{1,2}(?::\d{2})?[ap]m\s+)?(?:to|that)\s+", "", ereq["title"], flags=re.I)
+                        ereq["title"] = "Reminder: " + ttl[:1].upper() + ttl[1:]
+        except Exception:
+            ereq = None
+        if ereq:                             # "add dentist Friday at 3": checked with you first
+            d = ereq["date"] if isinstance(ereq["date"], datetime.date) else datetime.date.fromisoformat(str(ereq["date"]))
+            tm = f" at {cal.fmt_time(ereq['time'])}" if ereq.get("time") else ""
+            self._qt_pending = (ereq, text)
+            dsay = self._qt_say_day(d)
+            dsay = dsay.lower() if dsay in ("Today", "Tomorrow") else dsay
+            self.bg_q.put(("call", lambda: self._qt_say(f"{self._qt_clean(ereq['title'])}, {dsay}{tm}"
+                                                      + (", every week" if ereq.get("repeat") else "") + ". Add it?", you=text)))
+            return
+        if self._qt_is_cmd(text):            # do it with full Archie (calendar, reminders, flashcards...), answered out loud
+            if job is not None:
+                job["stop"].set()
+            self.qt_hist += [{"role": "user", "content": text}, {"role": "assistant", "content": "(done in the chat)"}]
+            self.bg_q.put(("call", lambda t=text: self._talk_heard(t)))
+            return
+        if job is None:
+            job = self._qt_new_job(text, seq, commit=True)
+        else:
+            self.bg_q.put(("call", lambda j=job: self._qt_commit(j)))
+
+    def _qt_commit(self, job):                 # main thread: this is the answer, say it
+        tw = self.talk_win
+        if tw is None or not tw.alive() or job["stop"].is_set():
+            return
+        old = getattr(self, "_qt_job", None)
+        if old is not None and old is not job:
+            old["stop"].set()
+        self._qt_job = job
+        job["commit"], job["t0"] = True, time.time()
+        tw.set_you(job["text"])
+        tw.clear_captions()
+        tw.set_state("thinking")
+        sp = self.speaker
+        if sp is not None:
+            sp.stop()
+            if isinstance(sp, talk.KokoroSpeaker):
+                sp.start_turn()
+        if self.cfg.get("talk_hmm", True):
+            self.root.after(1400, lambda j=job: self._qt_hmm(j))
+        self._qt_flow(job)
+
+    def _qt_hmm(self, job):
+        if job is getattr(self, "_qt_job", None) and not job["fed"] and not job["done"] and self.speaker is not None \
+                and isinstance(self.speaker, talk.KokoroSpeaker) and not self.speaker.speaking.is_set():
+            self.speaker.feed(random.choice(["Mm. ", "Right. ", "Hmm. "]))
+
+    def _qt_flow(self, job):                   # main thread: hand new words to the voice
+        if job is not getattr(self, "_qt_job", None) or not job["commit"]:
+            return
+        sp = self.speaker
+        new = job["toks"][job["fed"]:]
+        job["fed"] = len(job["toks"])
+        if new and sp is not None:
+            sp.feed("".join(new))
+        if job["done"] and not job.get("closed"):
+            job["closed"] = True
+            if sp is not None:
+                sp.flush()
+            answer = "".join(job["toks"]).strip()
+            tw = self.talk_win
+            if job["err"] and not answer:
+                if tw is not None and tw.alive():
+                    tw.hint.configure(text="That didn't work: " + str(job["err"])[:120])
+                return
+            if not answer:
+                return
+            if job["stop"].is_set():
+                answer += " [cut off]"
+            self.qt_hist += [{"role": "user", "content": job["text"]}, {"role": "assistant", "content": answer}]
+            self._talk_last = (job["text"], answer)
+            if tw is not None and tw.alive() and self.cfg.get("talk_notes", True):
+                try:
+                    tw.set_notes(answer)
+                except Exception:
+                    pass
+            if tw is not None and tw.alive() and not self.panel_visible():
+                pass
+            if tw is not None and tw.alive():
+                took = (job["first_at"] or time.time()) - job.get("t0", time.time())
+                tw.hint.configure(text=f"{len(self.qt_hist) // 2} said so far · saved to your chats when you end talk"
+                                  + (f" · first words in {max(0.0, took):.1f}s" if job.get("first_at") else ""))
+
+    def _qt_say(self, line, you=None):
+        """Say one fixed line in talk mode (confirmations)."""
+        job = {"text": you or "", "seq": -1, "toks": [line], "fed": 0, "done": True, "commit": False, "stop": threading.Event(),
+               "err": None, "first_at": time.time(), "canned": True}
+        tw = self.talk_win
+        if tw is not None and tw.alive() and you:
+            tw.set_you(you)
+        self._qt_commit(job)
+
+    def _qt_do_add(self, pend):
+        ereq, text = pend
+        try:
+            self.add_event_from_text(ereq, text)
+            e_day = ereq["date"] if isinstance(ereq["date"], datetime.date) else datetime.date.fromisoformat(str(ereq["date"]))
+            self._qt_say(f"Added. {self._qt_clean(ereq['title'])} is on your calendar for {self._qt_say_day(e_day).lower() if self._qt_say_day(e_day) in ('Today', 'Tomorrow') else self._qt_say_day(e_day)}.", you="yes")
+        except Exception as e:
+            self._qt_say(f"I couldn't add it: {e}")
+
+    def _qt_save_chat(self):
+        """Talk ended: the whole conversation goes into Archie's chats (history, search, Obsidian, flashcards)."""
+        if not self.qt_hist:
+            return None
+        now = datetime.datetime.now()
+        first = " ".join(self.qt_hist[0]["content"].split())[:50]
+        meta = {"id": now.strftime("%Y-%m-%d_%H%M%S") + "_talk", "started": self._qt_started or now.strftime("%b %d, %Y %I:%M %p"),
+                "title": "Talk: " + first, "mode": self.cfg.get("mode"), "model": self._qt_model(),
+                "updated": now.isoformat(timespec="seconds"), "messages": list(self.qt_hist), "talk": True}
+        try:
+            save_chat(CHATS_DIR, meta)
+            return meta
+        except OSError as e:
+            self._write(f"(Couldn't save the talk: {e})\n", "sys")
+            return None
+
+    def _archie_talking(self):
+        sp = self.speaker
+        j = getattr(self, "_qt_job", None)
+        return bool((sp is not None and sp.speaking.is_set()) or self.busy or (j is not None and j["commit"] and not j["done"])
+                    or time.time() - self._spoke_at < 0.8)
+
+    def _talk_level(self, v):
+        tw = self.talk_win
+        if tw is not None:
+            tw.level = v
+
+    def _talk_utterance(self, path):          # background thread: you finished a sentence
+        try:
+            text = self._get_transcriber().transcribe(path)
+        except Exception as e:
+            text = ""
+            self.bg_q.put(("voice_error", f"Couldn't catch that: {e}"))
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        text = (text or "").strip()
+        if text and re.search(r"[A-Za-z0-9]", text):
+            self.bg_q.put(("call", lambda: self._talk_heard(text)))
+
+    def _talk_barge(self):
+        """You started talking over Archie: stop now and listen."""
+        if self.speaker is not None:
+            self.speaker.stop()
+        if self.busy:
+            self._stop()
+        j = getattr(self, "_qt_job", None)
+        if j is not None and not j["done"]:
+            j["stop"].set()
+        tw = self.talk_win
+        if tw is not None and tw.alive():
+            tw.set_state("listening")
+
+    def _talk_heard(self, text):
+        tw = self.talk_win
+        if tw is None or not tw.alive():
+            return
+        if re.fullmatch(r"\W*(stop|end talk( mode)?|that's all|goodbye|bye( archie)?)\W*", text, re.I):
+            return self.talk_end()
+        tw.set_you(text)
+        tw.clear_captions()
+        tw.set_state("thinking")
+        if self.busy:
+            self._stop()
+        self.stop_speaking()
+        if not self.panel_visible():
+            self.show_panel()
+        self.entry.delete("1.0", "end")
+        self.entry.insert("1.0", text)
+        self._talk_mode_send = True
+        self._talk_q = text
+        self._send()
+        self._entry_changed()
+
+    def _talk_hmm(self):
+        if self.busy and not self.reply_buf and self._talk_mode_send and self.speaker is not None \
+                and talk and isinstance(self.speaker, talk.KokoroSpeaker) and not self.speaker.speaking.is_set():
+            self.speaker.feed("Hmm. ")
+
+    def _talk_answered(self, answer):
+        q = getattr(self, "_talk_q", "") or ""
+        self._talk_last = (q, answer)
+        tw = self.talk_win
+        if tw is None or not tw.alive() or not self.cfg.get("talk_notes", True):
+            return
+        try:                      # the answer itself, laid out on screen: no second trip to the model (that made talk lag)
+            tw.set_notes(answer)
+        except Exception:
+            pass
+
+    def talk_end(self):
+        hf, self.handsfree = self.handsfree, None
+        if hf is not None:
+            hf.stop()
+        j = getattr(self, "_qt_job", None)
+        if j is not None:
+            j["stop"].set()
+        self.stop_speaking()
+        tw, self.talk_win = self.talk_win, None
+        cool.STATE["talk"] = False
+        if tw is not None:
+            tw.close()
+        meta = self._qt_save_chat()
+        if meta:
+            n = len(self.qt_hist) // 2
+            self._w(f"Talk saved to your chats: “{meta['title'][6:]}” · {n} exchange{'s' if n != 1 else ''}   ", "sys")
+            self._link("open it", lambda m=meta: self._qt_open(m), "sys")
+            self._w("\n", "sys")
+        self.qt_hist = []
+
+    def _qt_open(self, meta):
+        """Open a saved talk as a chat (so you can keep going by typing, make flashcards, save to Obsidian)."""
+        try:
+            self.open_chat(meta)
+        except Exception:
+            self.show_history()
+
+    def talk_cut_in(self):
+        """Space in talk mode: stop Archie and listen (or, with no hands-free, start / stop listening)."""
+        tw = self.talk_win
+        self._talk_barge()
+        if self.handsfree is not None:
+            self.handsfree.paused = False
+            if tw is not None:
+                tw.set_paused(False)
+            return
+        self._toggle_talk_ptt_for_talk_mode()
+
+    def _toggle_talk_ptt_for_talk_mode(self):
+        if self.recorder.recording and self._rec_kind == "talk":
+            path, secs = self.recorder.stop()
+            self._style_mic()
+            if path:
+                if self.talk_win is not None:
+                    self.talk_win.set_state("thinking")
+                threading.Thread(target=self._qt_utterance, args=(path, -1), daemon=True).start()
+            return
+        try:
+            self.recorder.start()
+        except VoiceError as e:
+            self._write(str(e) + "\n", "sys")
+            return
+        self._rec_kind = "talk"
+        if self.talk_win is not None:
+            self.talk_win.set_state("listening")
+            self.talk_win.hint.configure(text="Listening... press space again when you're done.")
+
+    def talk_toggle_listen(self):
+        hf = self.handsfree
+        if hf is None:
+            return self._toggle_talk_ptt_for_talk_mode()
+        hf.paused = not hf.paused
+        if self.talk_win is not None:
+            self.talk_win.set_paused(hf.paused)
+
+    def talk_again(self):
+        sp = self.speaker
+        if sp is not None and talk and isinstance(sp, talk.KokoroSpeaker):
+            if not sp.repeat(audible=False) and self._talk_last:
+                sp.say(self._talk_last[1])
+
+    def talk_slower(self):
+        self.cfg["voice_speed"] = round(max(0.7, float(self.cfg.get("voice_speed") or 0.95) - 0.05), 2)
+        save_config(self.cfg)
+        if self.talk_win is not None:
+            self.talk_win.hint.configure(text=f"A bit slower now ({self.cfg['voice_speed']:.2f}x). Change it any time in Voice & quiet settings.")
+
+    def talk_play_aloud(self):
+        sp = self.speaker
+        if sp is not None and talk and isinstance(sp, talk.KokoroSpeaker):
+            if not sp.repeat(audible=True) and self._talk_last:
+                sp.say(self._talk_last[1], audible=True)
+
+    def talk_save(self):
+        if not self._talk_last:
+            return
+        if not self.vault():
+            self._write("Set your Obsidian vault first: right-click the owl > Choose Obsidian vault...\n", "sys")
+            return
+        pairs = [(self.qt_hist[i]["content"], self.qt_hist[i + 1]["content"]) for i in range(0, len(self.qt_hist) - 1, 2)] \
+            if getattr(self, "qt_hist", None) else [self._talk_last]
+        title = "Talk - " + " ".join(pairs[0][0].split())[:70]
+        model = self.cfg["model"]
+
+        def work():           # a short summary on top, then the whole conversation
+            try:
+                convo = "\n".join(f"You: {q}\nArchie: {a}" for q, a in pairs)[:9000]
+                summ = quick_chat(model, "Summarize this spoken conversation as a title line and 3 to 8 tight bullet points "
+                                         "(the facts, decisions and things to remember). No intro.\n\n" + convo, max_tokens=320, timeout=120)
+            except Exception:
+                summ = ""
+            self.bg_q.put(("call", lambda: self.save_to_obsidian(title, ([("Summary", summ)] if summ else []) + pairs)))
+        threading.Thread(target=work, daemon=True).start()
+        if self.talk_win is not None:
+            self.talk_win.hint.configure(text=f"Saving the whole conversation ({len(pairs)} exchanges) to Obsidian, with a summary on top...")
+
+    def talk_cards(self):
+        if not self._talk_last:
+            return
+        convo = "\n".join(f"{'You' if m['role'] == 'user' else 'Archie'}: {m['content']}" for m in (getattr(self, "qt_hist", None) or []))
+        self.entry.delete("1.0", "end")
+        self.entry.insert("1.0", ("make flashcards from this conversation:\n" + convo[:8000]) if convo else "make flashcards from that")
+        self._send()
+        if self.talk_win is not None:
+            self.talk_win.hint.configure(text="Making flashcards from this conversation (they're in the chat).")
 
     # ----- voice notes --------------------------------------------------------
 
@@ -9481,9 +10969,79 @@ Transcript:
             self.entry.delete("1.0", "end")
             self.audiobook_report()
             return
-        if low in ("decks", "my decks", "list decks"):
+        if low in ("shelf history", "card history", "flashcard history", "deck history", "exam history"):
+            self.entry.delete("1.0", "end")
+            self.shelf_history()
+            return
+        if low in ("decks", "my decks", "list decks", "shelf", "my shelf", "open shelf"):
             self.entry.delete("1.0", "end")
             self.list_decks()
+            return
+        if low in ("sonia", "sonia audio", "sonia window", "open sonia", "make sonia audio"):
+            self.entry.delete("1.0", "end")
+            self.sonia_window()
+            return
+        m_sv = re.fullmatch(r"sonia\s+(speed|volume)\s+(?:to\s+)?([\d.]+)\s*(?:x|%)?", low)
+        if m_sv:
+            self.entry.delete("1.0", "end")
+            v = float(m_sv.group(2))
+            st = {"speed": max(0.6, min(2.0, v))} if m_sv.group(1) == "speed" else {"vol": max(0.0, min(1.0, v / 100 if v > 1 else v))}
+            self.sonia_ask(setting=st)
+            self._write(f"Sonia's {m_sv.group(1)} set for Feather (phone and laptops), at the next sync.\n", "sys")
+            return
+        m_sa = re.fullmatch(r"(?:please\s+)?(?:make|get|do|record)\s+sonia(?:\s+audio)?\s+(?:for|of)\s+(?:(?:chapters?\s+(\d+)(?:\s*(?:-|–|to|through)\s*(\d+))?|the\s+whole\s+book|all(?:\s+of)?)\s+(?:of|from|in)\s+)?(.+?)(?:\s+(?:on|for|to)\s+(?:my\s+|the\s+)?(phone|laptops?))?", low)
+        if m_sa:
+            self.entry.delete("1.0", "end")
+            info = self._sonia_books()
+            want = " ".join(m_sa.group(3).split())
+            hit = next(((k, b) for k, b in (info.get("books") or {}).items() if " ".join(str(b.get("name")).lower().split()) == want), None) \
+                or next(((k, b) for k, b in (info.get("books") or {}).items() if want in str(b.get("name")).lower()), None)
+            fr = int(m_sa.group(1)) - 1 if m_sa.group(1) else 0
+            to = (int(m_sa.group(2)) - 1 if m_sa.group(2) else fr) if m_sa.group(1) else None
+            devs = ["laptops"] if (m_sa.group(4) or "").startswith("laptop") else ["phone"] if m_sa.group(4) == "phone" else ["phone", "laptops"]
+            ok = self.sonia_ask(rid=hit[0] if hit else None, book=None if hit else m_sa.group(3), fr=max(0, fr), to=to, devs=devs)
+            what = f"chapters {fr + 1}–{to + 1}" if to is not None and to != fr else f"chapter {fr + 1}" if to is not None else "the whole book"
+            self._write((f"Sonia will read {what} of {hit[1].get('name') if hit else m_sa.group(3)} for your {' and '.join(devs)}. "
+                         "Your PC starts at the next sync with Feather (it needs the internet for Sonia); then it plays offline.\n") if ok
+                        else "Couldn't queue that.\n", "sys")
+            return
+        m_nf = re.match(r"^(?:note|jot)\s+(?:to|for|in)\s+feather\s*[:\-,]?\s*(.+)$", text.strip(), re.I | re.S)
+        if m_nf or (not self.attachments and re.fullmatch(r"(?:please\s+)?(?:send|save|put|copy)\s+(?:that|this|it|the last answer|your answer|that answer)\s+(?:to|in|into|on)\s+feather(?:\s+as\s+an?\s+(?:quick\s+)?note)?(?:\s+please)?", low)):
+            body = m_nf.group(1).strip() if m_nf else next((m.get("display") or m["content"] for m in reversed(self.history) if m["role"] == "assistant"), "")
+            self.entry.delete("1.0", "end")
+            if not body:
+                self._write("Nothing to send yet: ask me something first, or type  note to feather: <your note>.\n", "sys")
+            elif self.note_to_feather(body):
+                self._write("Sent to Feather as a quick note. It shows up on your phone and laptops after their next sync.\n", "sys")
+            else:
+                self._write("Couldn't queue that note for Feather.\n", "sys")
+            return
+        m_fx = re.match(r"^(?:send|move|push|copy)\s+(?:the\s+)?(.+?)\s+(?:deck\s+|set\s+|flashcards\s+)?to\s+feather$", low)
+        m_fg = re.match(r"^(?:get|pull|request|fetch)\s+(?:the\s+)?(.+?)\s+(?:deck\s+|set\s+|flashcards\s+)?from\s+feather$", low)
+        if self.attachments and re.fullmatch(r"(?:please\s+)?(?:send|put|move|copy)\s+(?:it|this|these|them|that|the files?)?\s*(?:to|on|onto|into)\s+(?:feather|my phone|the phone)(?:\s+please)?", low):
+            self.entry.delete("1.0", "end")
+            files_ = list(self.attachments)
+            self.attachments, self.keep = [], {}
+            self._render_chips()
+            self._write(self.send_to_feather(files_) + "\n", "sys")
+            return
+        if m_fx:
+            d = self.study.find_deck(m_fx.group(1))
+            self.entry.delete("1.0", "end")
+            if d:
+                self.feather_xfer("a2f", d)
+            else:
+                self._write(f"I don't have a set called “{m_fx.group(1)}”. Type  decks  to see them.\n", "sys")
+            return
+        if m_fg:
+            w = m_fg.group(1).strip()
+            names = list(self._feather_sets())
+            hit = next((n for n in names if n.lower() == w), None) or next((n for n in names if w in n.lower()), None)
+            self.entry.delete("1.0", "end")
+            if hit:
+                self.feather_xfer("f2a", hit)
+            else:
+                self._write(f"Feather has no set called “{w}” (as of its last sync). Type  decks  to see them.\n", "sys")
             return
         if low.startswith(("study ", "review ")) and len(low) > 6:
             d = self.study.find_deck(low.split(" ", 1)[1])
@@ -9573,7 +11131,11 @@ Transcript:
             self.entry.delete("1.0", "end")
             self.add_event_from_text(ereq, text)
             return
-        mreq = exam.parse_request(text)
+        # "... and send it to feather": make it, then send it to Feather (at the next sync)
+        m_tf = re.search(r"[\s,]*(?:and|then|&)?\s*(?:send|put|move|copy)\s+(?:it|that|this|them)?\s*(?:over\s+)?(?:to|on|onto|into|in)\s+(?:feather|my phone|the phone)\s*[.!]*\s*$", text, re.I)
+        mreq = exam.parse_request(text[:m_tf.start()] if m_tf else text)
+        if mreq and m_tf:
+            mreq["to_feather"] = True
         if mreq:
             self.entry.delete("1.0", "end")
             files_ = list(self.attachments)
@@ -9671,10 +11233,15 @@ Transcript:
         self._archie()
         self.stop_speaking()
         self._speak_now = bool(self.cfg.get("speak_answers")
-                               or (self._talk_pending and self.cfg.get("talk_speaks")))
+                               or (self._talk_pending and self.cfg.get("talk_speaks"))
+                               or self._talk_mode_send)
         self._talk_pending = False
         if self._speak_now and not self._get_speaker(quiet=not self.cfg.get("speak_answers")):
             self._speak_now = False
+        if self._speak_now and self._quiet_now() and not (talk and isinstance(self.speaker, talk.KokoroSpeaker)):
+            self._speak_now = False      # the old voice can't do captions: Quiet means silent
+        if self._talk_mode_send and self.cfg.get("talk_hmm", True):
+            self.root.after(1700, self._talk_hmm)
         self.reply_buf = ""
         self.sources = []
         self._set_busy(True)
@@ -9683,7 +11250,7 @@ Transcript:
         threading.Thread(target=self._answer,
                          args=(self.cfg["model"], list(self.history), msg, text, files,
                                (bool(self.cfg.get("use_notes")), bool(self.cfg.get("use_wiki"))),
-                               self.build_system_prompt(),
+                               self._prompt_for_send(),
                                (self.chat_meta or {}).get("id"), self.q, self.stop_evt),
                          daemon=True).start()
 
@@ -9842,6 +11409,8 @@ Transcript:
             if self._speak_now and self.speaker:
                 self.speaker.flush()
             self._speak_now = False
+            if self._talk_mode_send:
+                self._talk_answered(self.reply_buf)
             extras = []
             spoken = self.reply_buf
             if self.sources:
@@ -9861,6 +11430,7 @@ Transcript:
                     add()
         elif error and self.history and self.history[-1]["role"] == "user":
             self.history.pop()  # so a retry doesn't send the question twice
+        self._talk_mode_send = False
         self._end_span()
         self._write("\n", "abody")
         self.q = None
@@ -9917,7 +11487,12 @@ Transcript:
         try:
             while True:
                 kind, val = self.bg_q.get_nowait()
-                if kind == "status" and not self.busy:
+                if kind == "call":           # something a background thread wants done on screen
+                    try:
+                        val()
+                    except Exception as e:
+                        print("call failed:", e)
+                elif kind == "status" and not self.busy:
                     self.status.configure(text=val)
                 elif kind == "notes_done":
                     summary, problems, quiet = val
@@ -10008,12 +11583,18 @@ Transcript:
                         self.toggle_talk()
                     elif val == "recap":
                         self.hotkey_recap()
+                    elif val == "quiet":
+                        self.toggle_quiet()
+                    elif val == "mic":
+                        self.toggle_mic()
                 elif kind == "hotkey_failed":
                     for name, combo, why in val:
                         what = {"chat": "show/hide Archie", "snip": "snip the screen",
                                 "voice": "record a voice note",
                                 "talk": "talk to Archie",
-                                "recap": "start the evening recap"}.get(name, name)
+                                "recap": "start the evening recap",
+                                "quiet": "mute Archie",
+                                "mic": "turn your mic off in talk"}.get(name, name)
                         self._write(f"The hotkey {pretty_combo(combo)} (to {what}) didn't work: "
                                     f"{why}. You can pick another in archie_config.json "
                                     f"(\"hotkey_{name}\"), then restart Archie.\n", "sys")

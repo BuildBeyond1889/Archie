@@ -575,9 +575,10 @@
       if (page === "saved") return back() + savedView();
       if (page === "settings") return back() + settingsView();
       if (page === "mail") return back() + mailView();
+      if (page === "shelf") return back() + shelfView();
       var items = [["cal", "Calendar", "next 45 days · add events"], ["todo", "To-do & deadlines", (S.tasks || []).filter(function (t) { return !t.done; }).length + " open"],
         ["mail", "Mail", (S.mail_cards || []).length ? (S.mail_cards || []).length + " to look at" : "nothing new"],
-        ["notes", "Notes", Object.keys(notes).length + " on this phone"], ["saved", "Saved articles", "readable offline"], ["settings", "Settings & notifications", status.state === "home" ? "connected to " + (S.pc || "your PC") : "not connected"]];
+        ["notes", "Notes", Object.keys(notes).length + " on this phone"], ["shelf", "Shelf", "flashcards & exams with Feather"], ["saved", "Saved articles", "readable offline"], ["settings", "Settings & notifications", status.state === "home" ? "connected to " + (S.pc || "your PC") : "not connected"]];
       return '<h1>More</h1><div class="list">' + items.map(function (x) { return '<button class="li" data-more="' + x[0] + '"><span>' + x[1] + '</span><span class="m">' + esc(x[2]) + "</span></button>"; }).join("") + "</div>" +
         '<a class="card" href="#chat"><div class="h">Ask Archie</div><div>Answered by your PC. Questions wait here when it isn\'t reachable.</div></a>';
     },
@@ -590,6 +591,48 @@
     }
   };
   function back() { return '<button class="chip" data-more="">← more</button>'; }
+  // ----- Shelf: Archie's flashcards and mock exams next to Feather's; moves only when you tap ----------------
+  var shelfData = null, shelfBusy = false, shelfErr = "";
+  function shelfLoad() {
+    if (shelfBusy) return; shelfBusy = true; shelfErr = "";
+    op({ op: "shelf" }, 20000).then(function (r) { if (r.ok) shelfData = r; else shelfErr = r.error || "your PC couldn't read the shelf"; },
+      function (e) { shelfErr = e.message; }).then(function () { shelfBusy = false; if (tab === "more" && sub.more === "shelf") render(false); });
+  }
+  function shelfView() {
+    if (!shelfData && !shelfBusy && !shelfErr) shelfLoad();
+    var h = '<div class="row"><h1>Shelf</h1><button class="chip" data-act="shelfre">refresh</button></div>' +
+      '<div class="sub">Nothing moves on its own. A send or get happens at the next sync with your phone or a laptop; the old copy is kept in the history.</div>';
+    if (shelfErr) return h + '<div class="warn">' + esc(shelfErr) + "</div>";
+    if (!shelfData) return h + '<div class="sub">asking ' + esc(S.pc || "your PC") + "…</div>";
+    var D = shelfData, bt = function (label, a) { return '<button class="chip" ' + a + ">" + label + "</button>"; },
+      at = function (o) { return Object.keys(o).map(function (k) { return "data-" + k + '="' + esc(String(o[k])) + '"'; }).join(" "); };
+    h += '<div class="card"><div class="h">Flashcards in Archie</div>' + (D.decks.length ? D.decks.map(function (d) {
+      return '<div class="shr"><div><b>' + esc(d.name) + '</b><div class="sub">' + d.n + " cards · " + d.due + " due · " + esc(d.st) + "</div></div><div>" +
+        bt("send", at({ sh: "a2f", n: d.name })) + bt("clean copy", at({ sh: "a2f", n: d.name, clean: 1 })) + (d.inf ? bt("get Feather's", at({ sh: "f2a", n: d.fname })) : "") + "</div></div>"; }).join("")
+      : '<div class="sub">No decks yet.</div>') + "</div>";
+    if (D.fonly.length) h += '<div class="card"><div class="h">Only in Feather</div>' + D.fonly.map(function (d) {
+      return '<div class="shr"><div><b>' + esc(d.name) + '</b><div class="sub">' + d.n + " cards</div></div><div>" + bt("request", at({ sh: "f2a", n: d.name })) + "</div></div>"; }).join("") + "</div>";
+    h += '<div class="card"><div class="h">Mock exams</div>' + (D.exams.length ? D.exams.map(function (e) {
+      return '<div class="shr"><div><b>' + esc(e.title) + '</b><div class="sub">' + e.q + " questions · " + (e.best == null ? "not taken yet" : "best " + e.best + "%") + (e.st ? " · " + esc(e.st) : "") + "</div></div><div>" +
+        bt("send", at({ sh: "a2f", n: e.title, kind: "exam", eid: e.id })) + (e.inf ? bt("get Feather's", at({ sh: "f2a", n: e.title, kind: "exam", eid: e.id })) : "") + "</div></div>"; }).join("")
+      : '<div class="sub">No mock exams yet.</div>') + D.xonly.map(function (e) {
+      return '<div class="shr"><div><b>' + esc(e.title) + '</b><div class="sub">only in Feather</div></div><div>' + bt("request", at({ sh: "f2a", n: e.title, kind: "exam", eid: e.id })) + "</div></div>"; }).join("") + "</div>";
+    if (D.hist.length) h += '<div class="card"><div class="h">History</div>' + D.hist.map(function (x) {
+      return '<div class="shr"><div><b>' + esc(x.name) + '</b><div class="sub">' + (x.side === "archie" ? "Archie's" : "Feather's") + " copy · " + (x.kind === "exam" ? x.n + " questions" : x.n + " cards") + " · " + ago(x.t) + "</div></div><div>" +
+        bt("put it back", at({ sh: "restore", n: x.name, hid: x.id })) + "</div></div>"; }).join("") + "</div>";
+    return h;
+  }
+  function bindShelf(m) {
+    var re = m.querySelector('[data-act="shelfre"]'); if (re) re.onclick = function () { shelfData = null; shelfErr = ""; shelfLoad(); render(false); };
+    m.querySelectorAll("[data-sh]").forEach(function (x) { x.onclick = function () {
+      var d = x.dataset, words = { a2f: "Send “" + d.n + "” to Feather? It replaces Feather's copy", f2a: "Get Feather's “" + d.n + "”? It replaces Archie's copy", restore: "Put back this version of “" + d.n + "”?" };
+      if (!confirm(words[d.sh] + (d.sh === "restore" ? "" : " (the old one is kept).") )) return;
+      x.disabled = true;
+      op({ op: "shelf_do", act: d.sh, name: d.n, kind: d.kind || "", eid: d.eid || "", clean: !!d.clean, hid: d.hid || "" }, 20000).then(function (r) {
+        if (!r.ok) throw new Error(r.error || "didn't work"); x.textContent = "queued ✓"; toast("Queued · happens at the next sync with Feather");
+      }).catch(function (e) { x.disabled = false; toast(e.message); });
+    }; });
+  }
   function calView() {
     var list = occurrences(new Date(), 45), kinds = ["event", "class", "lab", "exam", "test", "quiz", "due"];
     return "<h1>Calendar</h1>" +
@@ -815,6 +858,7 @@
     m.querySelectorAll("[data-task]").forEach(function (x) { x.onchange = function () { change({ type: "task_done", text: x.dataset.task, done: x.checked }); }; });
     m.querySelectorAll("[data-del]").forEach(function (x) { x.onclick = function (ev) { ev.stopPropagation(); sub.calEdit = null; change({ type: "cal_del", id: x.dataset.del }); }; });
     bindMail(m);
+    bindShelf(m);
     bindScan(m);
     m.querySelectorAll("[data-edit]").forEach(function (x) { x.onclick = function (ev) {
       if (ev.target.closest("button")) return;

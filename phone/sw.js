@@ -1,6 +1,6 @@
 /* Archie phone app: works offline (the app itself is kept on the phone), receives things shared from
    other apps (Android share menu), and shows notifications sent by your PC. */
-const CACHE = "archie-shell-v1";
+const CACHE = "archie-shell-v2";
 const SHELL = ["/", "/app.js", "/scan.js", "/style.css", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/badge-96.png"];
 
 self.addEventListener("install", (e) => {
@@ -22,6 +22,8 @@ function idbShared(value) {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
+  if (url.pathname === "/feather" || url.pathname.startsWith("/feather/")) return;   // Feather's own app: never Archie's
+
   if (e.request.method === "POST" && url.pathname === "/share") {          // Android share menu
     e.respondWith((async () => {
       const f = await e.request.formData();

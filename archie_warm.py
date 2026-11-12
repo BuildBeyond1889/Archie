@@ -12,7 +12,16 @@ import json
 import re
 import threading
 import time
+import sys
 import urllib.request
+
+def _ctx():
+    try:                                  # the same context size as chat, so this ping never makes Ollama reload the model
+        import archie_brain
+        return archie_brain.DEFAULT_CTX
+    except Exception:
+        return 16384
+
 
 BEFORE, AFTER, RECENT = 15, 30, 30        # minutes
 PING_EVERY = 4 * 60                       # seconds; each ping keeps the model loaded for 10 more minutes
@@ -50,10 +59,19 @@ class Warm:
         return False
 
     def want(self):
+        c = sys.modules.get("archie_cool")
+        try:
+            if c and c.game():
+                return False                      # a game has the graphics card
+            if c and c.idle_s() >= c.IDLE_UNLOAD and not self.in_class_window():
+                return False                      # you're away: let the card cool down
+        except Exception:
+            pass
         return self.in_class_window() or (time.time() - self.last_used) < RECENT * 60
 
     def ping(self):
-        body = json.dumps({"model": self.main_model(), "prompt": "", "keep_alive": "10m", "stream": False}).encode()
+        body = json.dumps({"model": self.main_model(), "prompt": "", "keep_alive": "10m", "stream": False,
+                           "options": {"num_ctx": _ctx()}}).encode()
         req = urllib.request.Request(self.url + "/api/generate", data=body, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=300) as r:      # an empty prompt just loads the model
             r.read()

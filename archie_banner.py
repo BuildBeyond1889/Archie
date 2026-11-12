@@ -92,7 +92,7 @@ def _tint(img, tod, moon_left=False):
             x, y = rnd.random() * W, rnd.random() * H * 0.55
             r = 1 if rnd.random() < 0.7 else 1.5
             d.ellipse([x - r, y - r, x + r, y + r], fill=(255, 255, 255))
-        cx, cy, r = W * (0.22 if moon_left else 0.82), H * 0.26, max(4, H * 0.12)  # a small lime moon
+        cx, cy, r = W * (0.22 if moon_left else 0.875), H * 0.2, max(4, H * 0.12)  # a small lime moon, up in the top-right corner
         d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=LIME)
         d.ellipse([cx - r + r * 0.55, cy - r - r * 0.35, cx + r + r * 0.55, cy + r - r * 0.35], fill=(8, 16, 48))
         return out

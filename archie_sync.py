@@ -58,6 +58,23 @@ PAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}   # photos of ha
 TEXT_EXT = {".txt", ".md", ".csv", ".log"}
 EMBED_EXT = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".mp4", ".webm", ".mov", ".mp3", ".m4a",
              ".wav", ".ogg"}
+FEATHER_DIR = os.path.join(os.path.dirname(HERE), "Feather")   # Feather on your laptops syncs through here too
+_FEATHER = [None]
+
+
+def _feather_hub():
+    """D:\\Feather\\sync\\feather_hub.py, loaded the first time a laptop's Feather asks."""
+    if _FEATHER[0] is None:
+        import importlib.util
+        path = os.path.join(FEATHER_DIR, "sync", "feather_hub.py")
+        spec = importlib.util.spec_from_file_location("feather_hub", path)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["feather_hub"] = mod
+        spec.loader.exec_module(mod)
+        _FEATHER[0] = mod
+    return _FEATHER[0]
+
+
 UPDATE_DIRS = ("app", "web")
 UPDATE_EXT = (".py", ".png", ".html", ".css", ".js", ".ttf", ".txt", ".ico", ".svg", ".json")
 
@@ -286,6 +303,18 @@ class SyncService:
                     self.state.setdefault("clients", {})[str(cl.get("host") or "device")[:60]] = cl
                 self._save_state()
             return {"ok": True, "results": results, "snapshot": self.snapshot()}
+        if op == "feather":                   # Feather on a laptop: its own encrypted sync, kept in D:\Feather\hub
+            try:
+                hub = _feather_hub()
+                hub.ASK = self.chat           # Ask Archie from Feather on the phone: the same answers as Archie Lite's chat
+                return hub.handle(msg)
+            except Exception as e:
+                self.error = f"feather: {type(e).__name__}: {e}"
+                return {"ok": False, "why": "hub"}
+        if op == "shelf":
+            return self.shelf()
+        if op == "shelf_do":
+            return self.shelf_do(msg)
         if op == "chat":
             return self.chat(msg.get("q") or "", msg.get("history") or [])
         if op == "ping":
@@ -301,6 +330,71 @@ class SyncService:
         if op == "flag":
             return self.flag(str(msg.get("iso") or ""))
         return {"ok": False, "error": "unknown request"}
+
+    # ----- Shelf for Archie Lite: what's in Archie and Feather, moved only when asked ----------------------
+    def _study_dir(self):
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "Study")
+
+    def _sj(self, name, key=None):
+        try:
+            with open(os.path.join(self._study_dir(), name), encoding="utf-8") as f:
+                d = json.load(f)
+            return (d.get(key) or {}) if key else d
+        except (OSError, ValueError, AttributeError):
+            return {} if key else []
+
+    def shelf(self):
+        try:
+            today = datetime.date.today().isoformat()
+            fd, fx = self._sj(".feather_decks", "decks"), self._sj(".feather_exams", "exams")
+            k = lambda n: " ".join(str(n).split()).lower()
+            fk = {k(n): (n, x) for n, x in fd.items()}
+            decks = []
+            for d in self.app.study.decks():
+                f = fk.get(k(d["name"]))
+                st = ("not in Feather yet" if not f else "Feather has a set with this name" if not f[1].get("linked")
+                      else "Feather has a newer version" if f[1].get("fnewer") else "in Feather")
+                decks.append({"name": d["name"], "n": len(d["cards"]), "st": st, "inf": bool(f), "fname": f[0] if f else "",
+                              "due": sum(1 for c in d["cards"] if c.get("last") and c.get("due", "") <= today)})
+            mine = {k(d["name"]) for d in decks}
+            fonly = [{"name": n, "n": x.get("n", 0)} for kk, (n, x) in sorted(fk.items()) if kk not in mine]
+            exams = []
+            for ex in self.app.exams.all()[:20]:
+                f = fx.get(str(ex.get("id")))
+                best = max((a.get("score", 0) for a in ex.get("attempts", [])), default=None)
+                exams.append({"id": str(ex.get("id")), "title": ex.get("title"), "q": len(ex.get("questions", [])), "best": best, "inf": bool(f),
+                              "st": "" if not f else "Feather has new attempts" if f.get("linked") and f.get("fnewer") else "in Feather" if f.get("linked") else "Feather has a copy"})
+            emine = {e["id"] for e in exams}
+            xonly = [{"id": eid, "title": f.get("title") or eid} for eid, f in fx.items() if eid not in emine]
+            hist = list(reversed(self._sj(".feather_history") or []))[:20]
+            hist = [{"id": h.get("id"), "name": h.get("name"), "side": h.get("side"), "kind": h.get("kind"), "n": h.get("n", 0), "t": h.get("t", 0)} for h in hist]
+            return {"ok": True, "decks": decks, "fonly": fonly, "exams": exams, "xonly": xonly, "hist": hist}
+        except Exception as e:
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    def shelf_do(self, msg):
+        """send (a2f), get (f2a) or put back (restore). Same queue as Archie's own Shelf: done at the next Feather sync."""
+        import uuid
+        act, name = msg.get("act"), str(msg.get("name") or "")[:200]
+        if act not in ("a2f", "f2a", "restore") or not name:
+            return {"ok": False, "error": "bad request"}
+        rec = {"op": act, "deck": name, "t": time.time()}
+        if msg.get("kind") == "exam":
+            rec.update(kind="exam", eid=str(msg.get("eid") or ""))
+        if msg.get("clean"):
+            rec["clean"] = True
+        if act == "restore":
+            rec["hid"] = msg.get("hid")
+        ob = os.path.join(self._study_dir(), ".feather_outbox")
+        try:
+            os.makedirs(ob, exist_ok=True)
+            rec["id"] = rid = "l" + uuid.uuid4().hex[:12]
+            with open(os.path.join(ob, rid + ".tmp"), "w", encoding="utf-8") as f:
+                json.dump(rec, f)
+            os.replace(os.path.join(ob, rid + ".tmp"), os.path.join(ob, rid + ".json"))
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True}
 
     def _apply(self, c):
         oid = str(c.get("oid") or "")

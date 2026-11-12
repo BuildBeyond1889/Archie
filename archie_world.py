@@ -478,6 +478,15 @@ def iso(ts):
 # ---------------------------------------------------------------------------
 # Fetching
 # ---------------------------------------------------------------------------
+
+def _cool(name, default=False):
+    """Ask archie_cool (game mode, away, night) when Archie has loaded it; otherwise carry on as before."""
+    m = sys.modules.get("archie_cool")
+    try:
+        return getattr(m, name)() if m else default
+    except Exception:
+        return default
+
 class FetchError(Exception):
     pass
 
@@ -1380,6 +1389,9 @@ class WorldService:
     def _loop(self):
         time.sleep(8)       # let Archie finish starting
         while not self.stop.is_set():
+            if _cool("busy"):           # talk is open or Archie is answering: the news can wait a minute
+                self.stop.wait(15)
+                continue
             try:
                 self.cycle()
             except Exception as e:
@@ -1392,7 +1404,7 @@ class WorldService:
         time.sleep(45)
         while not self.stop.is_set():
             try:
-                if self.is_online:
+                if self.is_online and _cool("ok_heavy", True):   # big downloads: at night or while you're away
                     for key, every, fn in self.civic.jobs():
                         if self.stop.is_set():
                             return
@@ -2907,13 +2919,20 @@ class WorldService:
             have = list_models() or []
         except Exception:
             have = []
+        # The main brain is usually loaded already. A second, smaller model beside it doesn't fit on an 8 GB card
+        # with it, so the two kept pushing each other out (fans flat out). Only if the main one isn't there.
+        main = self.get_model()
+        if not have or main in have:
+            return main
         for m in ("qwen2.5:3b", "llama3.2:3b", "qwen2.5:1.5b", "gemma2:2b", "phi3:mini"):
             if m in have:
                 return m
-        return self.get_model()
+        return main
 
     def run_ai(self, limit=16):
         """Translate + locate a handful of posts. Small batches keep the GPU cool."""
+        if _cool("game"):
+            return                              # a game has the graphics card: later
         rows = self.store.q("SELECT * FROM items WHERE needs_ai=1 AND published > ? ORDER BY published DESC LIMIT ?",
                             (now() - 12 * 3600, limit))
         if not rows:
@@ -2924,7 +2943,7 @@ class WorldService:
             return
         model = self.ai_model()
         for r in rows:
-            if self.stop.is_set():
+            if self.stop.is_set() or _cool("busy") or _cool("game"):
                 return
             text = (r["summary"] or r["title"] or "")[:1200]
             try:

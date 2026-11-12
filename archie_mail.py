@@ -456,7 +456,7 @@ def _register(icon):
             winreg.SetValueEx(k, "IconUri", 0, winreg.REG_SZ, icon)
 
 
-def windows_toast(m, icon=None):
+def windows_toast(m, icon=None, silent=False):
     """A Windows notification that stays on screen until you deal with it: Open in Gmail opens that exact email.
     Returns True if Windows showed it."""
     if sys.platform != "win32":
@@ -473,7 +473,7 @@ def windows_toast(m, icon=None):
            f'<text>{x(m.get("subject"))}</text><text>{x(", ".join(m.get("why") or []))}</text></binding></visual>'
            f'<actions><action content="Open in Gmail" activationType="protocol" arguments="{x(link)}"/>'
            f'<action content="Dismiss" activationType="system" arguments="dismiss"/></actions>'
-           f'<audio src="ms-winsoundevent:Notification.Mail"/></toast>')
+           + ('<audio silent="true"/>' if silent else '<audio src="ms-winsoundevent:Notification.Mail"/>') + '</toast>')
     b64 = base64.b64encode(xml.encode("utf-8")).decode()
     ps = ("[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null;"
           "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null;"

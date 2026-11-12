@@ -2,6 +2,28 @@
 
 Every release of A.R.C.H.I.E., newest first. The same list is at the end of the [manual](Manual/Archie%20Manual.md).
 
+## 4.1 · Nov 12, 2026: Talk mode and running all day
+- **Talk mode** (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>): just talk. Archie answers out loud, stops when you cut in, and starts thinking while you pause, so the first words come quickly. See [Talking with Archie](Manual/Archie%20Manual.md#talking-with-archie).
+  - Questions about your schedule are answered straight from Archie's calendar, deadlines and to-dos ("what do I have Saturday?", "the day after?", "is the dentist on my calendar?").
+  - Reminders and events by voice, read back with "Add it?" first. Spoken times ("half past three") understood.
+  - The answer written out on screen while Archie talks; the conversation saved to your chats, to Obsidian with a summary, or as flashcards.
+  - **Alt+M** turns your mic off and on; a mic sensitivity slider; quiet voices and distant mics are heard better.
+- **Voices:** Archie (offline, the new default) and five more offline voices; eight natural online voices (Sonia, Libby, Ryan, Thomas, Emily, Connor, Natasha, William) that fall back to an offline voice sentence by sentence; accent voices (Irish, Londoner) from open recordings, used for book chapters. New helpers: Get Archie Voice, Get Sonia Voice, Get Accent Voices, Get Fast Talk.
+- **Running all day:**
+  - Every request uses the same model memory, so the main model is loaded once instead of over and over.
+  - World uses the main model instead of loading a second one.
+  - **Game mode** steps off the graphics card for full-screen games.
+  - Talk comes first: World, exam prep and accent chapters pause while you talk.
+  - The model is unloaded after 20 minutes away.
+  - World's big downloads run at night.
+  - Archie restarts itself each morning.
+  - Feather backups and log files are kept tidy.
+  - The offline voice uses half the cores.
+  - Ollama Cooler / Undo helpers are included.
+- **Feather from Archie:** "note to feather: …" sends a quick note; Sonia reads Feather's books chapter by chapter, made on the PC (on request or overnight) and played offline on the phone and laptops; the Feather phone home shows today, the calendar, Sonia, a quiz and world headlines.
+- **Phone app:** Shelf (More › Shelf).
+- **Fixes:** the notes search no longer reads whole e-books (big speed-up); the chat you're in isn't re-indexed every message; the moon sits in the corner of the picture strip.
+
 ## 4.0 · Nov 10, 2026: Archie everywhere
 - **Archie Lite** on the laptops and the **Archie phone app**, synced privately with the PC (Tailscale). See [Archie everywhere](Manual/Archie%20Manual.md#archie-everywhere-phone-laptops-and-pc).
 - **Lecture recording** on phone and laptop (drafts, marks, board photos, stitching across devices), the **lecture review** against the professor's material, **flashcards** per lecture and **exam prep** notes.

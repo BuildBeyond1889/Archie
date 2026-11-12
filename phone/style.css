@@ -192,3 +192,9 @@ main>*{flex-shrink:0}          /* the Brief/Stories/Governments switcher was bei
 #scanform .l{display:flex;flex-direction:column;gap:4px;font:10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:#6f6f6a}
 #scanform .l input{text-transform:none;letter-spacing:0;font:16px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text)}
 #scanform .iname b{text-transform:none}
+/* Shelf (More › Shelf) */
+.shr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #1f1f1f}
+.shr:first-of-type{border-top:none}
+.shr>div:last-child{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;flex:none;max-width:55%}
+.shr .chip{padding:7px 11px;font-size:13px}
+.shr .chip[disabled]{opacity:.6}

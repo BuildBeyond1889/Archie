@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 import threading
 import time
 
@@ -55,6 +56,15 @@ def class_of(title, notes, classes):
             return c
     return None
 
+
+
+def _cool(name, default=False):
+    """Ask archie_cool (game mode, away, night) when Archie has loaded it; otherwise carry on as before."""
+    m = sys.modules.get("archie_cool")
+    try:
+        return getattr(m, name)() if m else default
+    except Exception:
+        return default
 
 class ExamPrep:
     def __init__(self, get_base, calendar, chat, model, study, exams, state_path, wait=lambda: None,
@@ -96,7 +106,8 @@ class ExamPrep:
         time.sleep(120)
         while True:
             try:
-                self.run_once()
+                if not _cool("game") and not _cool("busy"):   # not during a game, a talk or an answer
+                    self.run_once()
                 self.last_error = None
             except Exception as e:                   # never take Archie down
                 self.last_error = f"{type(e).__name__}: {e}"
