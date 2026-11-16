@@ -155,12 +155,7 @@ def render_list(items):
     return "".join(html_out)
 
 
-OWL = ('<svg viewBox="12.5 18.5 95 95" width="34" height="34" aria-hidden="true"><g fill="none" '
-       'stroke="#c6f432" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">'
-       '<path d="M28 26 L48 40 L72 40 L92 26 L92 76 L60 106 L28 76 Z" fill="#141414"/>'
-       '<polygon points="46,76 33.9,69 33.9,55 46,48 58.1,55 58.1,69"/>'
-       '<polygon points="74,76 61.9,69 61.9,55 74,48 86.1,55 86.1,69"/>'
-       '<path d="M55 83 L60 91 L65 83"/></g></svg>')
+OWL = '<svg viewBox="0 0 200 200" width="34" height="34" aria-hidden="true"><defs></defs><g><circle cx="100" cy="104" r="88" fill="#f3ead8"/><circle cx="100" cy="104" r="84" fill="none" stroke="#161616" stroke-width="15"/><circle cx="100" cy="104" r="70" fill="none" stroke="#c6f432" stroke-width="6"/><g transform="translate(100 100) scale(.9) translate(-104 -106)"><path d="M62 18 L77 35 C90 27 110 27 123 35 L140 18 L137 47 C151 70 157 100 153 128 C149 152 131 170 110 182 L106 176 L100 194 C74 166 56 134 58 102 C59 76 64 56 67 45 Z" fill="#161616"/><circle cx="82" cy="64" r="13" fill="#c6f432"/><circle cx="86" cy="64" r="5.2" fill="#161616"/><path d="M105 63 L131 63 A13 8 0 0 1 105 63 Z" fill="#c6f432"/><circle cx="113" cy="66.5" r="3.6" fill="#161616"/></g></g></svg>'   # the Ink seal logo
 
 CSS = """
 @font-face{font-family:Geist;src:url("fonts/Geist-Regular.ttf")}

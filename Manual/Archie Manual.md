@@ -1531,6 +1531,9 @@ When the `.md` is newer, Archie rebuilds the pretty version automatically the ne
 
 ## Changelog
 
+**4.1.1 · Nov 16, 2026: New logo**
+- The Ink seal: a winking ink owl with lime eyes in a stamped ring replaces the line owl everywhere (desktop, taskbar, chat header, floating owl, alerts, phone, World, Archie Lite). The focus timer keeps its flying owl.
+
 **4.1 · Nov 12, 2026: Talk mode and running all day**
 - Talk mode: a real back-and-forth conversation, with fast first words, exact answers about your calendar, deadlines and to-dos, reminders by voice with a read-back, the answer written out on screen, {{Alt+M}} for your mic and a mic sensitivity slider.
 - New voices: Archie and five more offline voices, eight natural online voices (Sonia and friends) with an offline fallback, and accent voices for book chapters.

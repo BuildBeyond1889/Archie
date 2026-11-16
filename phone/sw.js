@@ -1,6 +1,6 @@
 /* Archie phone app: works offline (the app itself is kept on the phone), receives things shared from
    other apps (Android share menu), and shows notifications sent by your PC. */
-const CACHE = "archie-shell-v2";
+const CACHE = "archie-shell-v3";
 const SHELL = ["/", "/app.js", "/scan.js", "/style.css", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/badge-96.png"];
 
 self.addEventListener("install", (e) => {

@@ -191,8 +191,35 @@ def _hexagon(cx, cy, r):
              cy + r * math.sin(math.radians(90 + 60 * k))) for k in range(6)]
 
 
+_SEAL_DIR = os.path.dirname(os.path.abspath(__file__))
+_SEAL_CACHE = {}
+
+
+def _seal_rgba(size, eyes="open"):
+    """The Ink seal logo (rubber-stamp owl, lime ring), from the PNGs next to this
+    file. Small sizes use the clean render, big ones the inked one. None if missing."""
+    small = size <= 64
+    name = "archie_seal_%s%s.png" % ("open" if eyes == "open" else "blink", "_small" if small else "")
+    path = os.path.join(_SEAL_DIR, name)
+    try:
+        if path not in _SEAL_CACHE:
+            _SEAL_CACHE[path] = Image.open(path).convert("RGBA")
+        return _SEAL_CACHE[path].resize((size, size), Image.LANCZOS)
+    except Exception:
+        return None
+
+
 def owl_rgba(size, color=ACCENT, fill=SURFACE, eyes="open", view=(15, 21, 90)):
-    """The Faceted owl, lines only, as in the chat window's top corner.
+    """Archie's owl: the Ink seal logo when its PNGs are present, else the old
+    Faceted line owl below."""
+    seal = _seal_rgba(size, eyes)
+    if seal is not None:
+        return seal
+    return _owl_lines_rgba(size, color, fill, eyes, view)
+
+
+def _owl_lines_rgba(size, color=ACCENT, fill=SURFACE, eyes="open", view=(15, 21, 90)):
+    """The Faceted owl, lines only (the old logo).
     view = (x, y, side) of the 120-unit design grid to show."""
     vx, vy, side = view
     S = size * SS

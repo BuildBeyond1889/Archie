@@ -2,6 +2,11 @@
 
 Every release of A.R.C.H.I.E., newest first. The same list is at the end of the [manual](Manual/Archie%20Manual.md).
 
+## 4.1.1 · Nov 16, 2026: New logo
+- **The Ink seal:** Archie's owl is now a rubber-stamp seal: a winking ink owl with lime eyes inside an ink ring with a lime inner ring, pressed on paper. It replaces the line owl on the desktop icon, taskbar, chat header, floating owl (which now blinks with lime lids), alerts, the manual, the phone app, World's tab icon and Archie Lite.
+- Big sizes keep the stamp texture; 48 px and under use a clean version so the taskbar icon stays crisp.
+- The focus timer keeps its flying line owl.
+
 ## 4.1 · Nov 12, 2026: Talk mode and running all day
 - **Talk mode** (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>): just talk. Archie answers out loud, stops when you cut in, and starts thinking while you pause, so the first words come quickly. See [Talking with Archie](Manual/Archie%20Manual.md#talking-with-archie).
   - Questions about your schedule are answered straight from Archie's calendar, deadlines and to-dos ("what do I have Saturday?", "the day after?", "is the dentist on my calendar?").
